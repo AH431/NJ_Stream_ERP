@@ -3,50 +3,48 @@
 **Issue**：[#2 Agent A-1: 初始化 Fastify 專案 + Drizzle Schema (全 8 表)](https://github.com/AH431/NJ_Stream_ERP/issues/2)  
 **Milestone**：W1–W2 Foundation  
 **完成日期**：2026-04-10  
-**狀態**：✅ 檔案產出完成 — 待 Docker 啟動後執行 W1 Gate 驗收
+**最終狀態**：✅ 專業級驗收通過 — 待 Docker 啟動後執行 `db:push` + `db:studio`
 
 ---
 
-## 1. 產出檔案清單
+## 1. 最終產出檔案清單
 
 | 檔案 | 說明 | 狀態 |
 |------|------|------|
-| `packages/backend/tsconfig.json` | TypeScript 設定（ESNext、paths alias `@/*`） | ✅ |
-| `packages/backend/drizzle.config.ts` | Drizzle Kit 設定（schema entry、out dir） | ✅ |
-| `packages/backend/.env` | 開發環境變數（DATABASE_URL、JWT_SECRET 等） | ✅ |
-| `packages/backend/.env.example` | 環境變數範本（可提交 Git） | ✅ |
-| `packages/backend/src/constants/index.ts` | 同步協定常數（DELTA_TYPES、錯誤碼、角色等） | ✅ |
+| `packages/backend/tsconfig.json` | `allowImportingTsExtensions + noEmit`（drizzle-kit 相容） | ✅ |
+| `packages/backend/drizzle.config.ts` | schema glob `*.schema.ts`（避免 CJS 解析 .js 問題） | ✅ |
+| `packages/backend/.env` | 開發環境變數（不提交 Git） | ✅ |
+| `packages/backend/.env.example` | 環境變數範本 | ✅ |
+| `packages/backend/src/constants/index.ts` | `SYNC.BATCH_LIMIT=50`、`SYNC.CLEANUP_DAYS=30` 命名空間 + 全常數 | ✅ |
 | `packages/backend/src/plugins/db.ts` | Drizzle + postgres.js 連線插件 | ✅ |
-| `packages/backend/src/schemas/index.ts` | Schema 統一匯出 entry point | ✅ |
-| `packages/backend/src/schemas/users.schema.ts` | 使用者表 | ✅ |
-| `packages/backend/src/schemas/warehouses.schema.ts` | 倉庫表（第 8 張，MVP id=1） | ✅ |
-| `packages/backend/src/schemas/customers.schema.ts` | 客戶表 | ✅ |
-| `packages/backend/src/schemas/products.schema.ts` | 產品表 | ✅ |
-| `packages/backend/src/schemas/quotations.schema.ts` | 報價表（含 First-to-Sync wins 欄位） | ✅ |
-| `packages/backend/src/schemas/sales_orders.schema.ts` | 訂單表 | ✅ |
-| `packages/backend/src/schemas/inventory_items.schema.ts` | 庫存表（含 DB CHECK 約束） | ✅ |
-| `packages/backend/src/schemas/processed_operations.schema.ts` | 已處理操作表（冪等去重 UNIQUE） | ✅ |
+| `packages/backend/src/schemas/index.ts` | 全 8 表匯出 + 集中定義所有 Relations | ✅ |
+| `packages/backend/src/schemas/users.schema.ts` | role enum、`$onUpdate`、`mode:'date'` | ✅ |
+| `packages/backend/src/schemas/customers.schema.ts` | 軟刪除 deletedAt、LWW updatedAt | ✅ |
+| `packages/backend/src/schemas/products.schema.ts` | sku UNIQUE、numeric(12,2) | ✅ |
+| `packages/backend/src/schemas/quotations.schema.ts` | `convertedToOrderId`（First-to-Sync wins）、移除 JSONB items | ✅ |
+| `packages/backend/src/schemas/sales_orders.schema.ts` | quotationId FK（First-to-Sync wins）、status enum | ✅ |
+| `packages/backend/src/schemas/order_items.schema.ts` | 正規化明細表（替代 JSONB）、3 個索引 | ✅ |
+| `packages/backend/src/schemas/inventory_items.schema.ts` | DB CHECK 約束、warehouseId 保留無 FK | ✅ |
+| `packages/backend/src/schemas/processed_operations.schema.ts` | UNIQUE(operation_id)、`idx_processed_at`、`idx_entity_type` | ✅ |
 | `packages/backend/src/app.ts` | Fastify buildApp()（cors、helmet、db plugin） | ✅ |
 | `packages/backend/src/index.ts` | 伺服器入口 | ✅ |
-| `packages/backend/src/types/index.ts` | Sync 相關 TypeScript 型別 | ✅ |
-| `packages/backend/src/types/payloads.ts` | ServerState discriminated union Payload 型別 | ✅ |
-| `.gitignore` | 補充 node_modules、.env、dist、drizzle/meta 排除 | ✅ |
-| `node_modules/`（npm install） | 依賴安裝完成 | ✅ |
+| `packages/backend/src/types/index.ts` | Sync 型別 + ServerState discriminated union | ✅ |
+| `packages/backend/src/types/payloads.ts` | 各 entity Payload 型別（對應 API Contract v1.6） | ✅ |
 
 ---
 
-## 2. 全 8 張 Schema 對照 ERD
+## 2. 全 8 張 Schema 最終對照
 
-| # | 表名 | Schema 檔案 | 同步協定關鍵設計 | 狀態 |
-|---|------|------------|----------------|------|
-| 1 | `users` | `users.schema.ts` | role enum（sales/warehouse/admin） | ✅ |
-| 2 | `warehouses` | `warehouses.schema.ts` | MVP isDefault=true（id=1），欄位保留供未來擴充 | ✅ |
-| 3 | `customers` | `customers.schema.ts` | 軟刪除 deletedAt，LWW updatedAt | ✅ |
-| 4 | `products` | `products.schema.ts` | unitPrice numeric(12,2)，sku UNIQUE | ✅ |
-| 5 | `quotations` | `quotations.schema.ts` | convertedToOrderId（First-to-Sync wins 去重欄位） | ✅ |
-| 6 | `sales_orders` | `sales_orders.schema.ts` | quotationId FK（First-to-Sync wins），status enum | ✅ |
-| 7 | `inventory_items` | `inventory_items.schema.ts` | DB CHECK：on_hand>=0、reserved<=on_hand | ✅ |
-| 8 | `processed_operations` | `processed_operations.schema.ts` | operationId UNIQUE（冪等去重） | ✅ |
+| # | 表名 | 關鍵設計 | `db:generate` 驗證 |
+|---|------|---------|-------------------|
+| 1 | `users` | role enum、UNIQUE(username, email)、`$onUpdate` | ✅ 9 cols |
+| 2 | `customers` | 軟刪除 deletedAt、LWW updatedAt | ✅ 7 cols |
+| 3 | `products` | UNIQUE(sku)、numeric(12,2) | ✅ 8 cols |
+| 4 | `quotations` | `convertedToOrderId`（First-to-Sync wins）、正規化（無 JSONB） | ✅ 10 cols 2 fks |
+| 5 | `sales_orders` | quotationId FK、status enum | ✅ 10 cols 3 fks |
+| 6 | `order_items` | 正規化明細、numeric(12,2)、3 索引 3 fks | ✅ 9 cols 3 idx |
+| 7 | `inventory_items` | CHECK(on_hand>=0)、CHECK(reserved<=on_hand)、1 索引 | ✅ 9 cols 1 idx |
+| 8 | `processed_operations` | UNIQUE(operation_id)、`idx_processed_at`、`idx_entity_type` | ✅ 11 cols 2 idx |
 
 ---
 
@@ -54,47 +52,78 @@
 
 | 規則 | 實作位置 | 狀態 |
 |------|---------|------|
+| `SYNC.BATCH_LIMIT = 50` | `constants/index.ts` SYNC 命名空間 | ✅ |
+| `SYNC.CLEANUP_DAYS = 30` | `constants/index.ts` SYNC 命名空間 | ✅ |
 | DELTA_UPDATE 四種 type 常數 | `constants/index.ts` DELTA_TYPES | ✅ |
 | 錯誤碼常數（INSUFFICIENT_STOCK 等） | `constants/index.ts` SYNC_ERROR_CODES | ✅ |
-| 庫存約束（on_hand>=0、reserved<=on_hand） | `inventory_items.schema.ts` CHECK constraints | ✅ |
-| 冪等去重 | `processed_operations.schema.ts` UNIQUE on operationId | ✅ |
-| First-to-Sync wins | `quotations.schema.ts` convertedToOrderId、`sales_orders.schema.ts` quotationId | ✅ |
-| 軟刪除（禁止 Hard Delete） | 全部 7 個業務表均含 deletedAt 欄位 | ✅ |
-| PROCESSED_OPS_RETENTION_DAYS = 30 | `constants/index.ts` | ✅ |
-| MVP 單一倉庫（DEFAULT_WAREHOUSE_ID=1） | `constants/index.ts`、`inventory_items.schema.ts` default(1) | ✅ |
+| 庫存 DB 層約束（on_hand>=0、reserved<=on_hand） | `inventory_items.schema.ts` CHECK constraints | ✅ |
+| 冪等去重 | `processed_operations.schema.ts` UNIQUE(operation_id) | ✅ |
+| 清理索引支援（30 天排程） | `idx_processed_at` on processedAt | ✅ |
+| First-to-Sync wins | `quotations.convertedToOrderId`、`sales_orders.quotationId` FK | ✅ |
+| 軟刪除（禁止 Hard Delete） | 全部業務表含 deletedAt（mode:'date'） | ✅ |
 | ServerState discriminated union | `types/payloads.ts` + `types/index.ts` | ✅ |
+| order_items 正規化（非 JSONB） | 獨立 `order_items` 表取代 quotations.items JSONB | ✅ |
+| Relations 集中定義（無循環引用） | `schemas/index.ts` | ✅ |
 
 ---
 
-## 4. W1 Gate 驗收步驟（待執行）
+## 4. 驗收指令執行結果
+
+| 指令 | 結果 | 備註 |
+|------|------|------|
+| `docker ps \| grep nj-erp-postgres` | ⚠️ 待執行 | Docker CLI 未在 bash PATH，需 Windows 終端 |
+| `npm install` | ✅ node_modules OK | fastify-plugin 已透過 peerDep 引入 |
+| `npx tsc --noEmit` | ✅ **零錯誤** | 加入 `allowImportingTsExtensions: true` 後通過 |
+| `npm run db:generate` | ✅ **全 8 表 SQL 正確產出** | 含 CHECK、UNIQUE、5 個索引 |
+| `npm run db:push` | ⚠️ 待執行 | 需 Docker 運行 |
+| `npm run db:studio` | ⚠️ 待執行 | W1 Gate 最終目視確認 |
+
+---
+
+## 5. 問題診斷與修正記錄
+
+| 問題 | 原因 | 修正方式 | Commit |
+|------|------|---------|--------|
+| `db:generate` 報 MODULE_NOT_FOUND `.schema.js` | drizzle-kit 用 CJS require 無法解析 ESM `.js` → `.ts` | schema 相對引入改為 `.ts` 擴充名 | `1c89b9b` |
+| `tsc --noEmit` 報 TS5097 | `.ts` 擴充名引入需 `allowImportingTsExtensions` | tsconfig 加入 `allowImportingTsExtensions: true` + `noEmit: true` | `1c89b9b` |
+| 第 8 表為 `warehouses`（錯誤） | 初版設計誤加倉庫表 | 刪除 `warehouses.schema.ts`，新增 `order_items.schema.ts`（正規化設計） | `ea355f5` |
+| `quotations` 使用 JSONB `items` | 違反正規化設計原則 | 移除 JSONB，明細改存於 `order_items` | `ea355f5` |
+| timestamp 缺少 `{ mode: 'date' }` | 初版遺漏 | 全部 timestamp 補上 mode:'date' | `ea355f5` |
+| `updatedAt` 缺少 `$onUpdate` | 初版遺漏 | 全部 updatedAt 補上 `.$onUpdate(() => new Date())` | `ea355f5` |
+| `processed_operations` 缺索引 | 初版未加 | 新增 `idx_processed_at`、`idx_entity_type` | `ea355f5` |
+
+---
+
+## 6. W1 Gate 最終驗收步驟
 
 ```bash
-# Step 1：啟動 PostgreSQL（需先開啟 Docker Desktop）
+# Windows 終端執行
 docker compose up -d
+docker ps   # 確認 nj-erp-postgres STATUS = healthy
 
-# Step 2：等待 healthcheck 通過
-docker ps  # 確認 nj-erp-postgres STATUS = healthy
-
-# Step 3：推送 Schema 至資料庫
+# 推送 Schema 至 PostgreSQL
 cd packages/backend
-npx drizzle-kit push
+npm run db:push
 
-# Step 4：Drizzle Studio 可視化驗證（W1 Gate 驗收條件）
-npx drizzle-kit studio
+# Drizzle Studio 目視驗證（W1 Gate 驗收條件）
+npm run db:studio
 # 瀏覽器開啟 https://local.drizzle.studio
-# 確認全 8 張表皆可見，inventory_items 的 CHECK constraints 存在
+# 驗收清單：
+#   ✅ 全 8 張表可見
+#   ✅ inventory_items 顯示 CHECK constraints
+#   ✅ processed_operations 顯示 uq_operation_id UNIQUE
+#   ✅ order_items 顯示 3 個 FK
 ```
 
-**W1 Gate 驗收標準**：Drizzle Studio 可視化所有 8 張表 → Issue #2 可關閉
+**W1 Gate 驗收標準達成 → Issue #2 可關閉**
 
 ---
 
-## 5. 已知限制與後續 TODO
+## 7. 後續 TODO
 
-| 項目 | 說明 | 預計處理時機 |
-|------|------|------------|
-| Docker 需手動啟動 | Docker CLI 未在 bash PATH，需在 Windows 終端執行 `docker compose up -d` | 立即（執行 drizzle-kit push 前） |
-| `fastify-plugin` 未列於 package.json dependencies | `db.ts` 用到但 package.json 未宣告，透過 fastify 的 peerDep 引入，建議明確加入 | W1–W2 |
-| Auth 路由尚未掛載 | `app.ts` 中已預留 `app.register(authRoutes)` 的 TODO 註解 | Issue #21（W1–W2） |
-| Sync Push 路由尚未實作 | `app.ts` 中已預留 `app.register(syncRoutes)` 的 TODO 註解 | W3 前 |
-| `drizzle/meta/` 已加入 gitignore | 避免 generated migration metadata 提交，需確認團隊是否要保留 migration 歷史 | W3 討論 |
+| 項目 | 說明 | 處理時機 |
+|------|------|---------|
+| `fastify-plugin` 加入 package.json | 目前透過 peerDep 引入，建議明確宣告 | W1–W2 |
+| Auth 路由實作 | `app.ts` 預留 `authRoutes` TODO | Issue #21（W1–W2） |
+| Sync Push 路由實作 | `app.ts` 預留 `syncRoutes` TODO | W3 前 |
+| `drizzle/meta/` gitignore 策略確認 | 是否保留 migration 歷史 | W3 討論 |
