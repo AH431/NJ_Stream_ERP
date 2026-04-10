@@ -1,83 +1,901 @@
-openapi: 3.1.0
+# ==============================================================================
+# NJ_Stream_ERP Sync API Contract — v1.6
+# ==============================================================================
+# 文件定位：Contract-First 開發單一真相來源 (SSOT)
+# 凍結狀態：FINAL（2026-03，W1 凍結確認）
+# 最高指導原則：遵守《NJ_Stream_ERP MVP 同步協定規格 v1.6》（工程憲法）
+#
+# 核心同步憲法摘要（完整定義見同步協定文件）：
+#   1. 本地 Drift 為 SSOT：前端 Drift DB 為 Ground Truth，所有操作先寫本地再同步。
+#   2. 順序保證：operations 陣列必須依 created_at 升序排列，跨批次亦需保持一致。
+#      違反排序規則將導致 400 REQUEST_ORDER_VIOLATION 錯誤。
+#   3. 批次上限：單次推送上限 50 筆，超過需分批（保持 created_at 升序跨批）。
+#   4. 衝突解決策略：
+#      - 非庫存實體 → LWW（Last-Write-Wins，以 updated_at 較新者為準）
+#      - 庫存實體    → Delta Update + Fail-to-Pull（庫存不足 → 強制 Pull）
+#   5. First-to-Sync Wins：報價轉訂單等狀態轉換，先同步者勝，後續重複視為幂等忽略。
+#   6. Force Overwrite：收到 FORBIDDEN_OPERATION / PERMISSION_DENIED / VALIDATION_ERROR
+#      時，前端直接以 server_state 覆蓋本地 entity（不重試），僅覆蓋該 entity 本身欄位。
+#   7. Fail-to-Pull：收到 INSUFFICIENT_STOCK 時，前端強制執行 Pull 後再決定是否重試。
+#
+# 維護者規範：
+#   - 任何對此文件的修改必須同步更新同步協定 v1.6 文件（雙向一致性）
+#   - 新增欄位時使用語意版號（patch 可不更新版號，breaking change 需升版）
+#   - 禁止在未更新此文件前修改後端 sync/push 行為
+# ==============================================================================
+
+openapi: "3.1.0"
+
+externalDocs:
+  description: Auth API 規格（登入、Token 刷新）
+  url: ./api-contract-auth.yaml
+
 info:
   title: NJ_Stream_ERP Sync API
-  version: 1.6
-  description: NJ_Stream_ERP MVP 同步協定 v1.6（Contract-First 單一真相來源）
+  version: "1.6.0"
+  description: |
+    ## 概述
+    NJ_Stream_ERP 離線優先行動 ERP 的核心同步 API。
+    前端（Flutter + Drift）在離線狀態下產生操作佇列，連線後透過此 API 推送至後端（Fastify + PostgreSQL）執行。
+
+    ## 設計哲學
+    - **Contract-First**：此文件為唯一真相來源，前後端均依此實作，不得背離。
+    - **離線優先**：操作在本地 Drift DB 完成後排隊等待同步，API 負責最終一致性。
+    - **冪等性**：相同 `operation.id` 推送多次，後端只處理一次（processed_operations 去重）。
+
+    ## 認證
+    所有 API 端點均需 Bearer JWT Token（由 `/api/v1/auth/login` 取得）。
+    Token 內含 `userId` 與 `role`（sales / warehouse / admin），後端據此執行權限檢查。
+
+    ## 版本策略
+    - Minor/Patch 版本：向後相容，前端無需更新
+    - Major 版本：Breaking change，需強制 App 更新
+  contact:
+    name: NJ_Stream_ERP Engineering
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.nj-stream-erp.example.com
+    description: Production
+  - url: https://staging-api.nj-stream-erp.example.com
+    description: Staging
+  - url: http://localhost:3000
+    description: Local Development
+
+tags:
+  - name: Synchronization
+    description: |
+      離線同步核心端點。
+      **重要**：operations 陣列必須依 `created_at` 升序排列，單批上限 50 筆。
+  - name: Auth
+    description: 認證相關端點（未來擴充）
+  - name: Pull
+    description: 伺服器狀態下拉端點（未來擴充，對應 Fail-to-Pull 機制）
+
+security:
+  - BearerAuth: []
 
 paths:
+  # ============================================================
+  # POST /api/v1/sync/push — 核心同步端點
+  # ============================================================
   /api/v1/sync/push:
     post:
-      summary: Push pending operations to server
+      operationId: syncPush
+      tags:
+        - Synchronization
+      summary: 推送本地操作佇列至伺服器
       description: |
-        前端推送本地 operations（依 created_at 升序）。
-        單批上限 50 筆。失敗時回傳 server_state 供 Force Overwrite。
-      operationId: pushOperations
+        將前端離線期間累積的操作佇列批次推送至後端執行。
+
+        ## 前置條件（客戶端必須在推送前驗證）
+        1. `operations` 陣列必須依 `created_at` **升序**排列（違反 → 400 REQUEST_ORDER_VIOLATION）
+        2. 單批上限 **50 筆**（超過 → 400 BATCH_SIZE_EXCEEDED，需分批）
+        3. `operationType = delta_update` 時 `deltaType` 為必填
+        4. `operationType = delta_update` 時 `entityType` 必須為 `inventory_delta`
+
+        ## 處理語義
+        - **部分成功（207）**：陣列中某些 operation 失敗不影響其他已成功的 operation。
+          後端在每筆 operation 間不做整體回滾，每筆獨立 commit（庫存操作除外，庫存在 transaction 內）。
+        - **冪等性**：後端以 `operation.id`（UUID）去重，相同 ID 重複推送只處理一次，
+          重複推送已處理的 operation 視為成功（回傳於 `succeeded`）。
+
+        ## 後端處理流程
+        ```
+        for each operation in operations (按 created_at 升序):
+          1. 檢查 operation.id 是否已存在 processed_operations → 幂等跳過
+          2. 驗證 payload 格式與業務規則
+          3. 驗證 JWT role 對此 entityType + operationType 的權限
+          4. 執行資料庫操作（庫存 DELTA_UPDATE 在 transaction 中）
+          5. 記錄至 processed_operations
+          6. 回傳結果（succeeded / failed）
+        ```
+
+        ## 錯誤處理策略（前端必須實作）
+        | 錯誤碼 | HTTP | 前端策略 | server_state |
+        |--------|------|----------|--------------|
+        | `INSUFFICIENT_STOCK` | 409 | 強制 Pull → 人工決策 | `null` |
+        | `FORBIDDEN_OPERATION` | 403 | Force Overwrite 本地 entity | 包含 |
+        | `PERMISSION_DENIED` | 403 | Force Overwrite 本地 entity | 包含 |
+        | `VALIDATION_ERROR` | 400 | Force Overwrite 本地 entity | 包含 |
+        | `DATA_CONFLICT` | 409 | 標記 failed，人工介入 | 包含 |
+
+        ## 報價轉訂單特殊規則
+        - `operationType = create`，`entityType = sales_order`，payload 含 `quotationId`
+        - 後端以 `quotationId` 加鎖，First-to-Sync wins
+        - 若 quotation 已轉換，後端回傳 `FORBIDDEN_OPERATION`（含 server_state），前端 Force Overwrite
+        - **不自動 reserve**：轉訂單僅建立 sales_order 記錄，需另一筆 `delta_update` operation 執行 reserve
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                operations:
-                  type: array
-                  maxItems: 50
-                  items:
-                    $ref: '#/components/schemas/Operation'
+              $ref: '#/components/schemas/SyncPushRequest'
+            examples:
+              basicPush:
+                summary: 基本推送（新增客戶 + 更新產品）
+                value:
+                  operations:
+                    - id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      entityType: customer
+                      operationType: create
+                      createdAt: "2026-04-10T08:00:00.000Z"
+                      payload:
+                        id: 101
+                        name: "台灣科技股份有限公司"
+                        contact: "王大明"
+                        taxId: "12345678"
+                        createdAt: "2026-04-10T08:00:00.000Z"
+                        updatedAt: "2026-04-10T08:00:00.000Z"
+                        deletedAt: null
+                    - id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                      entityType: product
+                      operationType: update
+                      createdAt: "2026-04-10T08:01:00.000Z"
+                      payload:
+                        id: 5
+                        name: "高效能伺服器 Pro"
+                        sku: "SVR-PRO-001"
+                        unitPrice: "158000.00"
+                        minStockLevel: 2
+                        updatedAt: "2026-04-10T08:01:00.000Z"
+                        deletedAt: null
+              deltaUpdateReserve:
+                summary: 確認訂單 → 庫存 reserve
+                value:
+                  operations:
+                    - id: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+                      entityType: inventory_delta
+                      operationType: delta_update
+                      deltaType: reserve
+                      createdAt: "2026-04-10T09:00:00.000Z"
+                      payload:
+                        inventoryItemId: 12
+                        productId: 5
+                        warehouseId: 1
+                        amount: 3
+                        relatedOrderId: 88
+              quotationToOrder:
+                summary: 報價轉訂單（First-to-Sync wins）
+                value:
+                  operations:
+                    - id: "d4e5f6a7-b8c9-0123-defa-234567890123"
+                      entityType: sales_order
+                      operationType: create
+                      createdAt: "2026-04-10T10:00:00.000Z"
+                      payload:
+                        id: 88
+                        quotationId: 42
+                        customerId: 101
+                        createdBy: 3
+                        status: pending
+                        createdAt: "2026-04-10T10:00:00.000Z"
+                        updatedAt: "2026-04-10T10:00:00.000Z"
+                        deletedAt: null
+
       responses:
         '200':
-          description: Push successful
+          description: |
+            **全部成功**：所有 operations 均已成功處理。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+              example:
+                succeeded:
+                  - "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  - "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                failed: []
+
+        '207':
+          description: |
+            **部分成功**：至少一筆 operation 失敗，其餘可能已成功。
+            前端必須逐一檢查 `failed` 陣列，依錯誤碼執行對應策略：
+            - `INSUFFICIENT_STOCK` → 強制 Pull
+            - `FORBIDDEN_OPERATION` / `PERMISSION_DENIED` / `VALIDATION_ERROR` → Force Overwrite（使用 `server_state`）
+            - `DATA_CONFLICT` → 標記 failed，人工介入
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+              examples:
+                insufficientStock:
+                  summary: 庫存不足（需強制 Pull）
+                  value:
+                    succeeded: []
+                    failed:
+                      - operationId: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+                        code: INSUFFICIENT_STOCK
+                        message: "庫存不足：產品 ID 5 現有庫存 1，需求量 3。請執行 Pull 後重新確認。"
+                        server_state: null
+                permissionDenied:
+                  summary: 權限不足（需 Force Overwrite）
+                  value:
+                    succeeded: []
+                    failed:
+                      - operationId: "d4e5f6a7-b8c9-0123-defa-234567890123"
+                        code: PERMISSION_DENIED
+                        message: "角色 warehouse 無權執行報價轉訂單操作。"
+                        server_state:
+                          id: 42
+                          customerId: 101
+                          createdBy: 3
+                          status: draft
+                          totalAmount: "474000.00"
+                          taxAmount: "23700.00"
+                          items:
+                            - productId: 5
+                              quantity: 3
+                              unitPrice: "158000.00"
+                          convertedToOrderId: null
+                          createdAt: "2026-04-09T14:00:00.000Z"
+                          updatedAt: "2026-04-09T14:00:00.000Z"
+                          deletedAt: null
+
+        '400':
+          description: |
+            **請求層級錯誤**（操作尚未執行）：
+            - `BATCH_SIZE_EXCEEDED`：operations 超過 50 筆上限，需分批重送
+            - `REQUEST_ORDER_VIOLATION`：operations 未依 created_at 升序排列
+            - `SCHEMA_VALIDATION_ERROR`：請求 JSON 格式錯誤（欄位缺失、型別錯誤等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestErrorResponse'
+              examples:
+                batchSizeExceeded:
+                  value:
+                    code: BATCH_SIZE_EXCEEDED
+                    message: "operations 陣列超過上限（收到 73 筆，上限 50 筆）。請分批推送並保持 created_at 升序。"
+                orderViolation:
+                  value:
+                    code: REQUEST_ORDER_VIOLATION
+                    message: "operations[3].created_at (2026-04-10T08:00:00Z) 早於 operations[2].created_at (2026-04-10T08:05:00Z)，違反升序排列規則。"
+
+        '401':
+          description: |
+            **未授權**：JWT Token 缺失、格式錯誤或已過期。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestErrorResponse'
+              example:
+                code: UNAUTHORIZED
+                message: "JWT Token 已過期，請重新登入。"
+
+        '500':
+          description: |
+            **伺服器內部錯誤**：非預期錯誤，前端應將失敗的 operations 保留佇列，稍後重試。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestErrorResponse'
+              example:
+                code: INTERNAL_SERVER_ERROR
+                message: "伺服器發生內部錯誤，請稍後重試。"
+
+  # ============================================================
+  # GET /api/v1/sync/pull — Fail-to-Pull 端點（未來實作）
+  # ============================================================
+  /api/v1/sync/pull:
+    get:
+      operationId: syncPull
+      tags:
+        - Pull
+      summary: 下拉伺服器最新狀態（Fail-to-Pull）
+      description: |
+        **[預留端點 — W6 實作]**
+
+        當前端收到 `INSUFFICIENT_STOCK` 錯誤時，必須呼叫此端點取得最新庫存狀態，
+        再由使用者決定是否重新操作。
+
+        查詢參數 `entityTypes` 可指定需下拉的實體類型（逗號分隔），
+        若未指定則下拉所有自 `since` 時間點後有變動的實體。
+
+        **回傳格式與 schema 定義將在 W6 Sprint Planning 前確認。**
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: 只下拉此時間點之後有更新的資料（增量 Pull）
+        - name: entityTypes
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 逗號分隔的實體類型（例如 `inventory_items,products`）
+          example: "inventory_items,products"
+      responses:
+        '200':
+          description: 回傳指定實體的最新狀態（格式 TBD）
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  processed:
-                    type: array
-                    items:
-                      type: string  # operationId
-        '409':
-          description: INSUFFICIENT_STOCK - 強制 Pull
-        '403':
-          description: FORBIDDEN_OPERATION / PERMISSION_DENIED
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorWithServerState'
-        '400':
-          description: VALIDATION_ERROR
+                description: "TBD — W6 Sprint Planning 前確認回傳結構"
+        '401':
+          description: 未授權
 
+# ==============================================================================
+# Components — 可重複使用的 Schema 定義
+# ==============================================================================
 components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Token，由 `/api/v1/auth/login` 取得。
+        Payload 包含：`userId` (integer)、`role` (sales | warehouse | admin)、`exp` (unix timestamp)
+
   schemas:
+
+    # ==========================================================
+    # 請求 / 回應結構
+    # ==========================================================
+
+    SyncPushRequest:
+      type: object
+      required:
+        - operations
+      properties:
+        operations:
+          type: array
+          description: |
+            待同步的操作列表。
+            **必須依 `created_at` 升序排列（跨批次亦需保持一致）。**
+            單批上限 50 筆。
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Operation'
+
+    SyncPushResponse:
+      type: object
+      required:
+        - succeeded
+        - failed
+      properties:
+        succeeded:
+          type: array
+          description: 成功處理的 operation ID 列表（含幂等重複推送）
+          items:
+            type: string
+            format: uuid
+        failed:
+          type: array
+          description: 處理失敗的 operation 列表（含錯誤碼與 server_state）
+          items:
+            $ref: '#/components/schemas/FailedOperation'
+
+    ServerState:
+      description: |
+        伺服器端當前 entity 的完整狀態快照。
+        使用 `discriminator.propertyName = entityType` 讓前端可直接依據 operation 的 `entityType`
+        欄位選擇正確 schema 進行 deserialization，無需額外判斷邏輯。
+
+        **前端使用方式（Dart 範例）**：
+        ```dart
+        switch (failedOp.entityType) {
+          case 'customer':    final s = CustomerPayload.fromJson(serverState);
+          case 'product':     final s = ProductPayload.fromJson(serverState);
+          case 'quotation':   final s = QuotationPayload.fromJson(serverState);
+          case 'sales_order': final s = SalesOrderPayload.fromJson(serverState);
+          case 'inventory_delta': final s = InventoryItemPayload.fromJson(serverState);
+        }
+        ```
+
+        **後端回傳規則**：
+        - `INSUFFICIENT_STOCK` → 必須為 `null`（前端需 Pull，不做 Force Overwrite）
+        - 其他錯誤碼 → 必須包含對應 entity 完整欄位（僅本身欄位，不含關聯資料）
+      oneOf:
+        - $ref: '#/components/schemas/CustomerPayload'
+        - $ref: '#/components/schemas/ProductPayload'
+        - $ref: '#/components/schemas/QuotationPayload'
+        - $ref: '#/components/schemas/SalesOrderPayload'
+        - $ref: '#/components/schemas/InventoryItemPayload'
+        # 未來新增 entity 時在此擴充，並同步更新 discriminator.mapping
+      discriminator:
+        propertyName: entityType
+        mapping:
+          customer:        '#/components/schemas/CustomerPayload'
+          product:         '#/components/schemas/ProductPayload'
+          quotation:       '#/components/schemas/QuotationPayload'
+          sales_order:     '#/components/schemas/SalesOrderPayload'
+          inventory_delta: '#/components/schemas/InventoryItemPayload'
+      nullable: true
+
+    FailedOperation:
+      type: object
+      required:
+        - operationId
+        - code
+        - message
+      properties:
+        operationId:
+          type: string
+          format: uuid
+          description: 失敗的 operation ID
+        code:
+          $ref: '#/components/schemas/SyncErrorCode'
+        message:
+          type: string
+          description: 人類可讀的錯誤說明（可含中文，供 debug 使用）
+        server_state:
+          $ref: '#/components/schemas/ServerState'
+
+    RequestErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - BATCH_SIZE_EXCEEDED
+            - REQUEST_ORDER_VIOLATION
+            - SCHEMA_VALIDATION_ERROR
+            - UNAUTHORIZED
+            - INTERNAL_SERVER_ERROR
+          description: 請求層級錯誤碼（操作尚未執行）
+        message:
+          type: string
+          description: 錯誤說明
+
+    # ==========================================================
+    # Operation — 核心同步操作單元
+    # ==========================================================
+
     Operation:
       type: object
-      required: [id, entityType, operationType, createdAt]
+      required:
+        - id
+        - entityType
+        - operationType
+        - createdAt
+        - payload
       properties:
         id:
           type: string
           format: uuid
+          description: |
+            前端本地產生的唯一操作 ID（UUID v4）。
+            後端用於 `processed_operations` 去重，實現冪等性。
         entityType:
-          type: string
-          enum: [quotation, sales_order, customer, product, inventory_delta]
+          $ref: '#/components/schemas/EntityType'
         operationType:
-          type: string
-          enum: [create, update, delete, delta_update]
+          $ref: '#/components/schemas/OperationType'
         deltaType:
-          type: string
-          enum: [reserve, cancel, out, in]
-        payload:
-          type: object
+          $ref: '#/components/schemas/DeltaType'
         createdAt:
           type: string
           format: date-time
+          description: |
+            操作在前端產生的時間（ISO 8601，UTC）。
+            **關鍵欄位**：用於同批次排序驗證與 LWW（Last-Write-Wins）衝突解決。
+            同一批次中所有 operation 的 createdAt 必須嚴格升序，等值視為違規。
+          example: "2026-04-10T08:00:00.000Z"
+        payload:
+          description: |
+            操作的資料內容，依 entityType 不同而異：
+            - `create` / `update` / `delete`（軟刪除）：實體的完整快照（含所有欄位）
+            - `delta_update`（inventory_delta）：僅含異動所需欄位（inventoryItemId + amount）
+            前端推送前需確保 payload 欄位完整，後端不做預設值填補。
+          oneOf:
+            - $ref: '#/components/schemas/CustomerPayload'
+            - $ref: '#/components/schemas/ProductPayload'
+            - $ref: '#/components/schemas/QuotationPayload'
+            - $ref: '#/components/schemas/SalesOrderPayload'
+            - $ref: '#/components/schemas/InventoryItemPayload'
+            - $ref: '#/components/schemas/InventoryDeltaPayload'
 
-    ErrorWithServerState:
+    EntityType:
+      type: string
+      enum:
+        - customer
+        - product
+        - quotation
+        - sales_order
+        - inventory_delta
+      description: |
+        操作目標的實體類型。
+        - `inventory_delta`：庫存 Delta Update，operationType 必須為 `delta_update`
+
+    OperationType:
+      type: string
+      enum:
+        - create
+        - update
+        - delete
+        - delta_update
+      description: |
+        操作類型：
+        - `create`：建立新實體（payload 為完整欄位）
+        - `update`：更新現有實體（payload 為完整快照，LWW 以 updatedAt 判斷）
+        - `delete`：軟刪除（設定 deletedAt，**不得 Hard Delete**，符合 LWW 原則）
+        - `delta_update`：庫存 Delta Update，搭配 deltaType 使用
+
+    DeltaType:
+      type: string
+      enum:
+        - reserve
+        - cancel
+        - out
+        - in
+      nullable: true
+      description: |
+        庫存 Delta Update 的操作類型（僅 operationType = delta_update 時使用，其餘為 null）：
+
+        | deltaType | quantity_on_hand | quantity_reserved | 使用情境 |
+        |-----------|-----------------|-------------------|----------|
+        | `in`      | + amount         | 不變              | 採購入庫 |
+        | `reserve` | 不變             | + amount          | 業務確認訂單 |
+        | `cancel`  | 不變             | - amount          | 取消已確認訂單 |
+        | `out`     | - amount         | - amount          | 實際出貨 |
+
+        **約束條件（後端在 transaction 中強制驗證）**：
+        - `quantity_on_hand >= 0`
+        - `quantity_reserved <= quantity_on_hand`
+        - 違反任一條件 → 409 INSUFFICIENT_STOCK → 前端強制 Pull
+
+    SyncErrorCode:
+      type: string
+      enum:
+        - INSUFFICIENT_STOCK
+        - FORBIDDEN_OPERATION
+        - PERMISSION_DENIED
+        - VALIDATION_ERROR
+        - DATA_CONFLICT
+      description: |
+        Operation 層級錯誤碼（前端處理策略）：
+
+        | 錯誤碼 | HTTP | 原因 | 前端策略 |
+        |--------|------|------|----------|
+        | `INSUFFICIENT_STOCK` | 409 | 庫存不足（含預留量約束違反） | 強制 Pull，server_state = null |
+        | `FORBIDDEN_OPERATION` | 403 | 業務規則禁止（如報價已轉換） | Force Overwrite，使用 server_state |
+        | `PERMISSION_DENIED` | 403 | 角色無此操作權限 | Force Overwrite，使用 server_state |
+        | `VALIDATION_ERROR` | 400 | payload 欄位驗證失敗 | Force Overwrite，使用 server_state |
+        | `DATA_CONFLICT` | 409 | 嚴重衝突（無法自動解決） | 標記 failed，人工介入，使用 server_state |
+
+    # ==========================================================
+    # Entity Payloads — 各實體的完整資料結構
+    # （對應 ERD Schema Final，camelCase for JSON）
+    # ==========================================================
+
+    CustomerPayload:
       type: object
+      required:
+        - id
+        - name
+        - createdAt
+        - updatedAt
       properties:
-        code:
+        id:
+          type: integer
+          description: PostgreSQL serial PK
+        name:
           type: string
-        message:
+          maxLength: 255
+          description: 客戶名稱
+        contact:
           type: string
-        server_state:
-          type: object
-          description: 用於 Force Overwrite 的該 entity 最新狀態
+          maxLength: 255
+          nullable: true
+          description: 聯絡人姓名
+        taxId:
+          type: string
+          maxLength: 20
+          nullable: true
+          description: 統一編號
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          description: LWW 判斷依據，後端以此欄位決定是否覆蓋
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            軟刪除時間戳。非 null 表示已刪除。
+            **嚴禁 Hard Delete**，所有刪除操作一律設定此欄位。
+
+    ProductPayload:
+      type: object
+      required:
+        - id
+        - name
+        - sku
+        - unitPrice
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 255
+        sku:
+          type: string
+          maxLength: 100
+          description: Stock Keeping Unit，唯一識別碼
+        unitPrice:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          description: 單價，decimal 字串（例如 "158000.00"），前端使用 decimal 套件處理，避免浮點誤差
+          example: "158000.00"
+        minStockLevel:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 最低庫存警示水位（低於此值在儀表板顯示警示）
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    QuotationPayload:
+      type: object
+      required:
+        - id
+        - customerId
+        - createdBy
+        - items
+        - totalAmount
+        - taxAmount
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+          description: FK → customers.id
+        createdBy:
+          type: integer
+          description: FK → users.id（建立報價的業務員）
+        items:
+          type: array
+          description: 報價明細（JSONB 欄位）
+          items:
+            $ref: '#/components/schemas/QuotationItem'
+        totalAmount:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          description: 未稅總金額，decimal 字串
+          example: "474000.00"
+        taxAmount:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          description: |
+            稅額（5%）。
+            - 離線時：前端計算，標注「預估稅額」
+            - 同步後：若後端覆蓋則前端顯示「已調整」提示
+          example: "23700.00"
+        status:
+          type: string
+          enum:
+            - draft
+            - sent
+            - converted
+            - expired
+          description: |
+            報價狀態：
+            - `converted`：已轉訂單，鎖定（不可再編輯）
+            - First-to-Sync wins：若已為 converted，後續轉單請求回傳 FORBIDDEN_OPERATION
+        convertedToOrderId:
+          type: integer
+          nullable: true
+          description: 轉換後對應的 sales_order.id（轉換前為 null）
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    QuotationItem:
+      type: object
+      required:
+        - productId
+        - quantity
+        - unitPrice
+      properties:
+        productId:
+          type: integer
+          description: FK → products.id
+        quantity:
+          type: integer
+          minimum: 1
+        unitPrice:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          description: 單價快照（下單時價格），decimal 字串
+          example: "158000.00"
+        subtotal:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          description: 小計（quantity × unitPrice），decimal 字串
+          example: "474000.00"
+
+    SalesOrderPayload:
+      type: object
+      required:
+        - id
+        - customerId
+        - createdBy
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        quotationId:
+          type: integer
+          nullable: true
+          description: |
+            FK → quotations.id（從報價轉入時不為 null）。
+            First-to-Sync wins 以此欄位去重：後端收到重複的 quotationId 建立請求，
+            後者回傳 FORBIDDEN_OPERATION（含 server_state 為已存在的 sales_order）。
+        customerId:
+          type: integer
+          description: FK → customers.id
+        createdBy:
+          type: integer
+          description: FK → users.id
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - shipped
+            - cancelled
+          description: |
+            訂單狀態生命週期：
+            `pending` → `confirmed`（業務確認，同時觸發 reserve）
+            `confirmed` → `shipped`（倉管出貨，同時觸發 out）
+            `confirmed` → `cancelled`（取消，同時觸發 cancel）
+            **注意**：狀態轉換 operation 與 delta_update operation 應為獨立的兩筆 operation，
+            依 created_at 升序排列於同一批次。
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 訂單確認時間（status = confirmed 時設定）
+        shippedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 出貨時間（status = shipped 時設定）
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    InventoryItemPayload:
+      type: object
+      required:
+        - id
+        - productId
+        - warehouseId
+        - quantityOnHand
+        - quantityReserved
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+          description: FK → products.id（一對一關係）
+        warehouseId:
+          type: integer
+          description: |
+            MVP 階段固定為 1（單一預設倉庫）。
+            欄位保留供未來多倉庫擴充，UI 暫時隱藏。
+          default: 1
+        quantityOnHand:
+          type: integer
+          minimum: 0
+          description: 實際庫存數量（約束：>= 0）
+        quantityReserved:
+          type: integer
+          minimum: 0
+          description: 已預留數量（約束：<= quantityOnHand）
+        minStockLevel:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 最低庫存警示水位（與 products.minStockLevel 獨立，以此為準）
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    InventoryDeltaPayload:
+      type: object
+      required:
+        - inventoryItemId
+        - productId
+        - warehouseId
+        - amount
+      description: |
+        庫存 Delta Update 的操作 payload（僅用於 operationType = delta_update）。
+        後端在 transaction 中執行，確保原子性與約束條件。
+      properties:
+        inventoryItemId:
+          type: integer
+          description: FK → inventory_items.id（操作目標）
+        productId:
+          type: integer
+          description: FK → products.id（用於快速查詢，避免 JOIN）
+        warehouseId:
+          type: integer
+          default: 1
+          description: 倉庫 ID（MVP 固定為 1）
+        amount:
+          type: integer
+          minimum: 1
+          description: 異動數量（必須為正整數，方向由 deltaType 決定）
+        relatedOrderId:
+          type: integer
+          nullable: true
+          description: 關聯的 sales_order.id（reserve / cancel / out 時填入，in 時可為 null）
+        memo:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 備註（選填，例如「採購單 PO-2026-001」）

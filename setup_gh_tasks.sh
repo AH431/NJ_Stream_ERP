@@ -3,7 +3,7 @@
 # 功能：建立 Labels + Milestones + Issues
 # 使用前請先在 repo 根目錄執行，並確保 gh 已登入 (gh auth login)
 
-set -e
+set +e
 
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 echo "🚀 開始在 $REPO 設定 GitHub Labels、Milestones 與 Issues..."
@@ -51,34 +51,33 @@ gh label create "delta-update" \
   --description "庫存 DELTA_UPDATE 四種 type" \
   --color "5319E7" || true
 
+gh label create "dashboard" \
+  --description "儀表板相關功能" \
+  --color "1D76DB" || true
+
 echo "✅ Labels 建立完成！"
 
 # ====================== 2. 建立 Milestones ======================
 echo "📅 建立 6 個 Milestones..."
 
-gh milestone create "W1–W2 Foundation" \
-  --description "基礎架構 + 同步框架 + Auth + Contract-First（W1 Gate）" \
-  --due 2026-04-04 || true
+create_milestone() {
+  local title="$1"
+  local description="$2"
+  local due="$3"
+  gh api repos/$REPO/milestones \
+    --method POST \
+    --field title="$title" \
+    --field description="$description" \
+    --field due_on="${due}T00:00:00Z" \
+    --silent || true
+}
 
-gh milestone create "W3–W4 CRUD" \
-  --description "客戶 / 產品 CRUD + 軟刪除 + LWW 衝突解決" \
-  --due 2026-04-18 || true
-
-gh milestone create "W5 CRM" \
-  --description "報價管理 + 報價轉訂單" \
-  --due 2026-04-25 || true
-
-gh milestone create "W6–W8 SCM" \
-  --description "訂單確認、出貨、DELTA_UPDATE 庫存邏輯 + Race Condition 測試" \
-  --due 2026-05-16 || true
-
-gh milestone create "W9 Dashboard & Import" \
-  --description "儀表板 + CSV/Excel Import Tool + 清理機制" \
-  --due 2026-05-23 || true
-
-gh milestone create "W10 Polish & Test" \
-  --description "最終 Bug Fix + 整合測試 + 驗收（同步成功率 >90%, 庫存準確率 >95%）" \
-  --due 2026-05-30 || true
+create_milestone "W1–W2 Foundation" "基礎架構 + 同步框架 + Auth + Contract-First（W1 Gate）" "2026-04-04"
+create_milestone "W3–W4 CRUD" "客戶 / 產品 CRUD + 軟刪除 + LWW 衝突解決" "2026-04-18"
+create_milestone "W5 CRM" "報價管理 + 報價轉訂單" "2026-04-25"
+create_milestone "W6–W8 SCM" "訂單確認、出貨、DELTA_UPDATE 庫存邏輯 + Race Condition 測試" "2026-05-16"
+create_milestone "W9 Dashboard & Import" "儀表板 + CSV/Excel Import Tool + 清理機制" "2026-05-23"
+create_milestone "W10 Polish & Test" "最終 Bug Fix + 整合測試 + 驗收（同步成功率 >90%, 庫存準確率 >95%）" "2026-05-30"
 
 echo "✅ Milestones 建立完成！"
 
