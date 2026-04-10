@@ -1,2 +1,20 @@
 資料版本迭代/
 .claude/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+!.env.example
+
+# Build output
+dist/
+
+# Drizzle migrations (generated)
+packages/backend/drizzle/*.sql
+packages/backend/drizzle/meta/
+
+# 敏感設定檔（含 DB 密碼、腳本等）
+docker-compose.yml
+setup_gh_tasks.sh
