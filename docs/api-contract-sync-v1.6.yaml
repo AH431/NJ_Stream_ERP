@@ -1,0 +1,83 @@
+openapi: 3.1.0
+info:
+  title: NJ_Stream_ERP Sync API
+  version: 1.6
+  description: NJ_Stream_ERP MVP 同步協定 v1.6（Contract-First 單一真相來源）
+
+paths:
+  /api/v1/sync/push:
+    post:
+      summary: Push pending operations to server
+      description: |
+        前端推送本地 operations（依 created_at 升序）。
+        單批上限 50 筆。失敗時回傳 server_state 供 Force Overwrite。
+      operationId: pushOperations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operations:
+                  type: array
+                  maxItems: 50
+                  items:
+                    $ref: '#/components/schemas/Operation'
+      responses:
+        '200':
+          description: Push successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed:
+                    type: array
+                    items:
+                      type: string  # operationId
+        '409':
+          description: INSUFFICIENT_STOCK - 強制 Pull
+        '403':
+          description: FORBIDDEN_OPERATION / PERMISSION_DENIED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorWithServerState'
+        '400':
+          description: VALIDATION_ERROR
+
+components:
+  schemas:
+    Operation:
+      type: object
+      required: [id, entityType, operationType, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+          enum: [quotation, sales_order, customer, product, inventory_delta]
+        operationType:
+          type: string
+          enum: [create, update, delete, delta_update]
+        deltaType:
+          type: string
+          enum: [reserve, cancel, out, in]
+        payload:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    ErrorWithServerState:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        server_state:
+          type: object
+          description: 用於 Force Overwrite 的該 entity 最新狀態
