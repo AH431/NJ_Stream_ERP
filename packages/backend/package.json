@@ -1,0 +1,45 @@
+{
+  "name": "@nj-stream-erp/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NJ_Stream_ERP MVP Backend - Fastify + Drizzle ORM",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc-alias",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:migrate": "drizzle-kit migrate",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "drizzle-orm": "^0.36.0",
+    "postgres": "^3.4.0",
+    "@fastify/env": "^5.0.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^12.0.0",
+    "pino": "^9.0.0",
+    "pino-pretty": "^13.0.0",
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0",
+    "tsc-alias": "^1.8.10",
+    "drizzle-kit": "^0.28.0",
+    "vitest": "^2.0.0",
+    "eslint": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
