@@ -1,8 +1,8 @@
 import {
   pgTable, serial, integer, numeric, varchar, timestamp,
 } from 'drizzle-orm/pg-core';
-import { customers } from './customers.schema.js';
-import { users } from './users.schema.js';
+import { customers } from './customers.schema.ts';
+import { users } from './users.schema.ts';
 import { QUOTATION_STATUSES } from '@/constants/index.js';
 
 /**

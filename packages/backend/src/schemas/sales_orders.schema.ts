@@ -1,9 +1,9 @@
 import {
   pgTable, serial, integer, varchar, timestamp,
 } from 'drizzle-orm/pg-core';
-import { customers } from './customers.schema.js';
-import { users } from './users.schema.js';
-import { quotations } from './quotations.schema.js';
+import { customers } from './customers.schema.ts';
+import { users } from './users.schema.ts';
+import { quotations } from './quotations.schema.ts';
 import { SALES_ORDER_STATUSES } from '@/constants/index.js';
 
 export const salesOrders = pgTable('sales_orders', {

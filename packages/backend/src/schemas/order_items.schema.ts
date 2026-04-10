@@ -2,9 +2,9 @@ import {
   pgTable, serial, integer, numeric, timestamp, index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import { quotations } from './quotations.schema.js';
-import { salesOrders } from './sales_orders.schema.js';
-import { products } from './products.schema.js';
+import { quotations } from './quotations.schema.ts';
+import { salesOrders } from './sales_orders.schema.ts';
+import { products } from './products.schema.ts';
 
 /**
  * 報價 / 訂單明細表（正規化設計）

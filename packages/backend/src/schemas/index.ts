@@ -16,24 +16,24 @@
  */
 
 // ── Table exports ─────────────────────────────────────────
-export * from './users.schema.js';
-export * from './customers.schema.js';
-export * from './products.schema.js';
-export * from './quotations.schema.js';
-export * from './sales_orders.schema.js';
-export * from './order_items.schema.js';
-export * from './inventory_items.schema.js';
-export * from './processed_operations.schema.js';
+export * from './users.schema.ts';
+export * from './customers.schema.ts';
+export * from './products.schema.ts';
+export * from './quotations.schema.ts';
+export * from './sales_orders.schema.ts';
+export * from './order_items.schema.ts';
+export * from './inventory_items.schema.ts';
+export * from './processed_operations.schema.ts';
 
 // ── Relations ─────────────────────────────────────────────
 import { relations } from 'drizzle-orm';
-import { users }               from './users.schema.js';
-import { customers }           from './customers.schema.js';
-import { products }            from './products.schema.js';
-import { quotations }          from './quotations.schema.js';
-import { salesOrders }         from './sales_orders.schema.js';
-import { orderItems }          from './order_items.schema.js';
-import { inventoryItems }      from './inventory_items.schema.js';
+import { users }               from './users.schema.ts';
+import { customers }           from './customers.schema.ts';
+import { products }            from './products.schema.ts';
+import { quotations }          from './quotations.schema.ts';
+import { salesOrders }         from './sales_orders.schema.ts';
+import { orderItems }          from './order_items.schema.ts';
+import { inventoryItems }      from './inventory_items.schema.ts';
 
 // users → quotations, sales_orders
 export const usersRelations = relations(users, ({ many }) => ({
@@ -91,7 +91,7 @@ export const salesOrdersRelations = relations(salesOrders, ({ one, many }) => ({
 }));
 
 // order_items relations 已定義於 order_items.schema.ts，直接 re-export
-export { orderItemsRelations } from './order_items.schema.js';
+export { orderItemsRelations } from './order_items.schema.ts';
 
 // inventory_items → product
 export const inventoryItemsRelations = relations(inventoryItems, ({ one }) => ({

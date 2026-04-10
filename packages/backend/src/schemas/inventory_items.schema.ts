@@ -2,7 +2,7 @@ import {
   pgTable, serial, integer, timestamp, check, index,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { products } from './products.schema.js';
+import { products } from './products.schema.ts';
 
 /**
  * 庫存表
