@@ -4,17 +4,30 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Environment（含密碼、JWT Secret 等）
 .env
-!.env.example
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+!**/.env.example
 
 # Build output
 dist/
 
-# Drizzle migrations (generated)
+# Drizzle migrations（generated，含 DB schema 快照）
 packages/backend/drizzle/*.sql
 packages/backend/drizzle/meta/
 
 # 敏感設定檔（含 DB 密碼、腳本等）
 docker-compose.yml
+docker-compose.*.yml
 setup_gh_tasks.sh
+
+# 系統 / IDE
+.DS_Store
+Thumbs.db
+*.pem
+*.key
+*.p12
+*.pfx
