@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import dbPlugin from '@/plugins/db.js';
+import authRoutes from '@/routes/auth.route.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -24,9 +25,9 @@ export function buildApp() {
   // ── 健康檢查 ────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
-  // ── 路由（W1–W2 以後逐步掛載）───────────────────────────
+  // ── 路由 ────────────────────────────────────────────────
+  app.register(authRoutes, { prefix: '/api/v1/auth' });
   // app.register(syncRoutes, { prefix: '/api/v1/sync' });
-  // app.register(authRoutes, { prefix: '/api/v1/auth' });
 
   return app;
 }
