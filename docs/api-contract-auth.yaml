@@ -2,7 +2,7 @@
 # NJ_Stream_ERP Auth API Contract — v1.0
 # ==============================================================================
 # 文件定位：Contract-First 開發單一真相來源 (SSOT) — 認證模組
-# 凍結狀態：FROZEN — 2026-04-11 v1.0（W2 實作前已凍結）
+# 凍結狀態：FINAL — 2026-04-11 v1.0（W2 實作前已凍結）
 # 關聯文件：docs/api-contract-sync-v1.6.yaml（Sync API 需要此模組提供的 JWT Token）
 #
 # 維護者規範：
@@ -17,7 +17,7 @@ info:
   title: NJ_Stream_ERP Auth API
   version: "1.0.0"
   description: |
-    ## 概述（FROZEN v1.0 — 2026-04-11）
+    ## 概述（FINAL v1.0 — 2026-04-11）
     NJ_Stream_ERP 認證 API。負責發行與刷新 JWT Token，供 Sync API 及其他端點使用。
 
     ## JWT Payload 結構
