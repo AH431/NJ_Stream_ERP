@@ -2,12 +2,13 @@
 # NJ_Stream_ERP Auth API Contract — v1.0
 # ==============================================================================
 # 文件定位：Contract-First 開發單一真相來源 (SSOT) — 認證模組
-# 狀態：DRAFT（W1–W2 實作前需凍結）
+# 凍結狀態：FROZEN — 2026-04-11 v1.0（W2 實作前已凍結）
 # 關聯文件：docs/api-contract-sync-v1.6.yaml（Sync API 需要此模組提供的 JWT Token）
 #
 # 維護者規範：
 #   - 任何對此文件的修改必須通知前後端雙方
 #   - JWT Payload 欄位變更屬於 Breaking Change，需升版
+#   - 禁止在未同步更新 api-contract-sync-v1.6.yaml 前修改 JWT Payload 結構
 # ==============================================================================
 
 openapi: "3.1.0"
@@ -16,7 +17,7 @@ info:
   title: NJ_Stream_ERP Auth API
   version: "1.0.0"
   description: |
-    ## 概述
+    ## 概述（FROZEN v1.0 — 2026-04-11）
     NJ_Stream_ERP 認證 API。負責發行與刷新 JWT Token，供 Sync API 及其他端點使用。
 
     ## JWT Payload 結構
@@ -147,6 +148,15 @@ paths:
               example:
                 code: REFRESH_TOKEN_EXPIRED
                 message: "Refresh Token 已過期，請重新登入。"
+        '403':
+          description: 帳號已停用（Refresh Token 尚有效但帳號已被停用）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrorResponse'
+              example:
+                code: ACCOUNT_DISABLED
+                message: "此帳號已停用，請聯絡管理員。"
 
   /api/v1/auth/logout:
     post:
