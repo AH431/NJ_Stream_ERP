@@ -169,9 +169,6 @@ class ProcessedOperations extends Table {
   Set<Column> get primaryKey => {operationId};
 }
 
-// ==============================================================================
-// 5. PendingOperations
-// ==============================================================================
 
 // ==============================================================================
 // 5. PendingOperations — 離線操作佇列（核心同步機制）
@@ -225,8 +222,8 @@ class PendingOperations extends Table {
       dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
   TextColumn get errorMessage => text().nullable()();
 
-  @override
-  Set<Column> get primaryKey => {id};
+  // autoIncrement() 已自動設定 id 為 PRIMARY KEY，不需再 override primaryKey
+  // （同時 override 會導致 Drift codegen warning）
 
   // operationId 全局唯一，確保冪等
   @override
