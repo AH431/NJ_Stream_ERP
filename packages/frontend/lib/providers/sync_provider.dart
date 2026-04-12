@@ -10,6 +10,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import '../core/constants.dart';
 import '../database/database.dart';
 import '../database/schema.dart';
+import 'package:uuid/uuid.dart';
 
 // ================================================
 // 1. SyncStatus 列舉（同步狀態）
@@ -65,6 +66,17 @@ class SyncProvider extends ChangeNotifier {
   static const _accessTokenKey = 'jwt_access_token';
   static const _refreshTokenKey = 'jwt_refresh_token';
   static const _batchSize = 50; // Sync Contract §5：上限 50 筆
+
+  // 離線新增臨時 id 計數器（負數，以區別後端配發的正整數 id）
+  // Dart 單執行緒模型保證操作原子性，無需加鎖
+  // W1–W2：離線新增後 id 為負數，Issue #6 pull 後以 server_state 覆蓋真實 id
+  static int _localIdSeq = 0;
+
+  /// 取得下一個離線臨時 id（負數遞減，保證唯一性）
+  static int nextLocalId() => --_localIdSeq;
+
+  // UUID 產生器（用於 operation.id）
+  static const _uuid = Uuid();
 
   SyncState _state = const SyncState();
   SyncState get state => _state;
@@ -300,6 +312,92 @@ class SyncProvider extends ChangeNotifier {
     _jwtPayload = null; // 清除快取，確保 userId / role getter 回傳 null
     await _storage.deleteAll();
     _emit(const SyncState());
+  }
+
+  // ----------------------------------------------------------------------------
+  // 離線佇列：enqueue 方法（供 Feature Screen 呼叫）
+  // ----------------------------------------------------------------------------
+
+  /// 排入「建立」操作到離線佇列
+  /// [entityType]：customer / product / quotation / sales_order / inventory_delta
+  /// [payload]：完整 entity 快照（含 id, createdAt, updatedAt, deletedAt）
+  Future<void> enqueueCreate(
+    String entityType,
+    Map<String, dynamic> payload,
+  ) async {
+    final opId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _db.into(_db.pendingOperations).insert(
+      PendingOperationsCompanion(
+        operationId: Value(opId),
+        entityType: Value(entityType),
+        operationType: Value('create'),
+        payload: Value(jsonEncode(payload)),
+        createdAt: Value(now),
+        relatedEntityId: Value('$entityType:${payload["id"]}'),
+      ),
+    );
+    final count = await _countPending();
+    _emit(_state.copyWith(pendingCount: count));
+  }
+
+  /// 排入「軟刪除」操作到離線佇列
+  /// operationType 必須為 'delete'（對應 api-contract-sync-v1.6.yaml OperationType enum）
+  /// [payload]：完整 entity 快照，deletedAt 欄位必須非 null
+  Future<void> enqueueDelete(
+    String entityType,
+    int entityId,
+    Map<String, dynamic> payload,
+  ) async {
+    assert(
+      payload['deletedAt'] != null,
+      'enqueueDelete: payload.deletedAt 不得為 null（軟刪除必須包含 deletedAt）',
+    );
+    final opId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _db.into(_db.pendingOperations).insert(
+      PendingOperationsCompanion(
+        operationId: Value(opId),
+        entityType: Value(entityType),
+        operationType: Value('delete'), // 依合約：軟刪除用 'delete'（非 'update'）
+        payload: Value(jsonEncode(payload)),
+        createdAt: Value(now),
+        relatedEntityId: Value('$entityType:$entityId'),
+      ),
+    );
+    final count = await _countPending();
+    _emit(_state.copyWith(pendingCount: count));
+  }
+
+  /// 排入「更新」操作到離線佇列（備用，Issue #5 後半部使用）
+  /// [payload]：完整 entity 快照（LWW 以 updatedAt 判斷，後端依此覆蓋）
+  Future<void> enqueueUpdate(
+    String entityType,
+    int entityId,
+    Map<String, dynamic> payload,
+  ) async {
+    final opId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _db.into(_db.pendingOperations).insert(
+      PendingOperationsCompanion(
+        operationId: Value(opId),
+        entityType: Value(entityType),
+        operationType: Value('update'),
+        payload: Value(jsonEncode(payload)),
+        createdAt: Value(now),
+        relatedEntityId: Value('$entityType:$entityId'),
+      ),
+    );
+    final count = await _countPending();
+    _emit(_state.copyWith(pendingCount: count));
+  }
+
+  /// 監聽 pending 操作數量（供 AppBar badge 使用）
+  Stream<int> watchPendingCount() {
+    return (_db.select(_db.pendingOperations)
+          ..where((t) => t.status.equals('pending')))
+        .watch()
+        .map((rows) => rows.length);
   }
 
   // ----------------------------------------------------------------------------
