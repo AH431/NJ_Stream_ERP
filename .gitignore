@@ -3,6 +3,7 @@
 
 # Dependencies
 node_modules/
+package-lock.json  # 專案使用 pnpm，npm lockfile 不納入版控
 
 # Environment（含密碼、JWT Secret 等）
 .env
