@@ -31,3 +31,28 @@ Thumbs.db
 *.key
 *.p12
 *.pfx
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Drift / Code generation
+# *.g.dart  ← 暫時 commit generated files；決定不 commit 時再取消註解
+
+# Android / iOS build
+android/.gradle/
+android/app/build/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Runner.xcworkspace/
+
+# Editor
+.idea/
+.vscode/
+*.iml

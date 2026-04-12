@@ -1,0 +1,38 @@
+name: nj_stream_erp
+description: NJ Stream ERP — Flutter mobile client (offline-first, Drift + Riverpod)
+publish_to: "none"
+
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local database (offline-first)
+  drift: ^2.20.0
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.0
+  path: ^1.9.0
+
+  # 金額精確運算（對應後端 "158000.00" 字串）
+  decimal: ^3.0.0
+
+  # Token 刷新與 Sync 會用到
+  flutter_secure_storage: ^9.2.0
+  dio: ^5.7.0
+  jwt_decoder: ^2.0.1
+  uuid: ^4.0.0   # 用來產生 operation.id
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  drift_dev: ^2.20.0
+  build_runner: ^2.4.0
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
