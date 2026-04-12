@@ -17,8 +17,14 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
 
     dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000'));
-    // FlutterSecureStorage 在純 Dart test 環境下會 throw；
-    // 此處先使用真實 storage，integration test 時再換 mock
+    // ⚠️  FlutterSecureStorage 在純 Dart test 環境（無 Flutter binding）下會 throw
+    // 因為底層依賴平台 Keychain / Keystore，純 Dart 跑不起來。
+    //
+    // 目前選擇：使用真實 storage → 這些 test 屬於「整合測試」（需要模擬器/實機）
+    //
+    // 未來改進方向（進入 W3+ 後）：
+    //   引入 mockito 或 mocktail，mock FlutterSecureStorage 與 Dio，
+    //   讓 login / token 相關 test 可以在純 Dart 環境中跑（真正的 unit test）
     storage = const FlutterSecureStorage();
 
     syncProvider = SyncProvider(db: db, dio: dio, storage: storage);

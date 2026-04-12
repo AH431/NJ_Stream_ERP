@@ -8,6 +8,8 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
 **/.env
 **/.env.local
 !**/.env.example
@@ -51,6 +53,16 @@ ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
 ios/Runner.xcworkspace/
+ios/build/
+ios/.symlinks/
+
+# 日誌與快取
+*.log
+logs/
+
+# 測試 / 本地 SQLite DB（避免把本機資料 push 上去）
+**/*.sqlite
+**/*.db
 
 # Editor
 .idea/

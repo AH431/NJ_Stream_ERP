@@ -1,3 +1,15 @@
+// ==============================================================================
+// NJ_Stream_ERP — Drift Schema
+//
+// 設計原則：
+//   1. 時間欄位全部用 TEXT + Iso8601DateTimeConverter（對齊後端 ISO-8601 UTC 格式）
+//   2. 金額欄位全部用 TEXT + DecimalConverter（避免浮點誤差）
+//   3. 軟刪除（soft-delete）：刪除時寫入 deleted_at，不做 hard delete
+//   4. 所有 id 對應後端 PostgreSQL integer PK，不使用 autoIncrement（由後端配發）
+//      例外：InventoryDeltas、PendingOperations 使用 autoIncrement（本地產生）
+//   5. PendingOperations 是離線同步的核心，設計詳見下方
+// ==============================================================================
+
 import 'package:drift/drift.dart';
 import 'converters/decimal_converter.dart';
 import 'converters/datetime_converter.dart';
@@ -6,6 +18,9 @@ import 'converters/datetime_converter.dart';
 // 1. 基礎資料表 (Master Data)
 // ==============================================================================
 
+/// 系統使用者（對應後端 users 表）
+/// role 只有三種：sales（業務）/ warehouse（倉管）/ admin（管理員）
+/// 僅同步 id / username / role / updatedAt，密碼雜湊不下載到前端
 @DataClassName('User')
 class Users extends Table {
   IntColumn get id => integer()();
@@ -17,6 +32,9 @@ class Users extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// 客戶主檔
+/// deletedAt 非 null 表示軟刪除，UI 應過濾掉 deletedAt != null 的記錄
+/// Sync Contract LWW（Last-Write-Wins）：以 updatedAt 判斷哪一方的資料較新
 @DataClassName('Customer')
 class Customers extends Table {
   IntColumn get id => integer()();
@@ -31,6 +49,9 @@ class Customers extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// 產品主檔
+/// unitPrice 用 DecimalConverter：後端傳 "158000.00" 字串，前端同格式儲存
+/// minStockLevel：庫存低於此值時 Dashboard 顯示警示
 @DataClassName('Product')
 class Products extends Table {
   IntColumn get id => integer()();
@@ -50,6 +71,10 @@ class Products extends Table {
 // 2. 業務單據表 (Transactions)
 // ==============================================================================
 
+/// 報價單
+/// items：JSON 字串，儲存 List<{productId, qty, unitPrice, subtotal}>
+/// status 流轉：draft → sent → converted（已轉訂單）/ expired
+/// convertedToOrderId：轉訂單後填入，用於前端顯示關聯
 @DataClassName('Quotation')
 class Quotations extends Table {
   IntColumn get id => integer()();
@@ -68,6 +93,11 @@ class Quotations extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// 銷售訂單
+/// quotationId nullable：可以不經報價直接建單
+/// First-to-Sync wins：兩台裝置同時把同一份報價轉訂單時，
+///   先到後端的那筆成立，後到的後端會回傳 DATA_CONFLICT
+/// status 流轉：pending → confirmed（觸發 reserve）→ shipped（觸發 out）/ cancelled
 @DataClassName('SalesOrder')
 class SalesOrders extends Table {
   IntColumn get id => integer()();
@@ -89,6 +119,11 @@ class SalesOrders extends Table {
 // 3. 庫存模組 (Inventory)
 // ==============================================================================
 
+/// 庫存快照（每個 product × warehouse 一筆）
+/// quantityOnHand：實際在庫數量（CHECK >= 0，不可為負）
+/// quantityReserved：已確認訂單鎖定的數量（CHECK >= 0）
+/// 可出貨數 = quantityOnHand - quantityReserved
+/// 這兩個欄位不直接修改，只能透過 InventoryDelta + DELTA_UPDATE 操作變更
 @DataClassName('InventoryItem')
 class InventoryItems extends Table {
   IntColumn get id => integer()();
@@ -119,6 +154,10 @@ class InventoryDeltas extends Table {
 // 4. 同步與冪等性 (Sync & Idempotency)
 // ==============================================================================
 
+/// 已處理操作記錄（冪等防重複）
+/// 後端每次處理 operation 後回傳 operationId，前端記錄在此表
+/// 下次同步前先查此表：若 operationId 已存在，跳過該 operation
+/// Sync Contract §8：每週清理 30 天以上記錄
 @DataClassName('ProcessedOperation')
 class ProcessedOperations extends Table {
   TextColumn get operationId => text()(); // UUID v4
@@ -134,6 +173,24 @@ class ProcessedOperations extends Table {
 // 5. PendingOperations
 // ==============================================================================
 
+// ==============================================================================
+// 5. PendingOperations — 離線操作佇列（核心同步機制）
+//
+// 設計說明：
+//   離線期間所有寫入操作（建立/更新/刪除/庫存異動）都先寫入此表，
+//   連線恢復後由 SyncProvider 依 id 升序批次推送到後端。
+//
+// 狀態流轉：
+//   pending（初始）
+//     → syncing（正在推送中）
+//       → succeeded（後端確認）
+//       → failed（後端明確拒絕，e.g. FORBIDDEN_OPERATION）
+//     → pending（網路錯誤，等下次重試，retryCount++）
+//
+// operationId（UUID）：
+//   由前端產生，對應後端 ProcessedOperations.operationId
+//   uniqueKey 確保同一 operation 不會重複寫入佇列
+//
 // 索引：entity_type / related_entity / status / created_at 是 Sync 最常查的維度
 @TableIndex(name: 'idx_pending_entity_type', columns: {#entityType})
 @TableIndex(name: 'idx_pending_related_entity', columns: {#relatedEntityId})

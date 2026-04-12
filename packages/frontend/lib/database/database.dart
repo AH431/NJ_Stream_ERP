@@ -30,22 +30,34 @@ class AppDatabase extends _$AppDatabase {
   /// 測試用：直接傳入 QueryExecutor（e.g. NativeDatabase.memory()）
   AppDatabase.forTesting(super.executor);
 
+  /// Schema 版本號，每次修改 Table 結構時必須 +1
+  ///
+  /// 版本歷史：
+  ///   v1（目前）: 初始 9 張表
+  ///
+  /// 升版流程：
+  ///   1. 修改 schema.dart（新增欄位 / 表）
+  ///   2. schemaVersion +1
+  ///   3. 在 onUpgrade 的對應 from 版本中加入 migration 操作
+  ///   4. 執行 build_runner build 重新產生 database.g.dart
   @override
-  int get schemaVersion => 1; // 之後 migration 時會慢慢增加
+  int get schemaVersion => 1;
 
-  // 簡單的 migration 策略（之後可改成更進階）
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        // App 首次安裝時：建立所有表
         onCreate: (Migrator m) async {
           await m.createAll();
         },
-        onUpgrade: (Migrator m, int from, int to) async {
-          // 未來 schemaVersion 變更時，在這裡處理 migration
-          // 例如：if (from < 2) { await m.addColumn(...); }
-        },
+        // App 升版時（schemaVersion 提高）：逐版處理結構變更
+        // 範例：
+        //   if (from < 2) { await m.addColumn(customers, customers.phone); }
+        //   if (from < 3) { await m.createTable(someNewTable); }
+        onUpgrade: (Migrator m, int from, int to) async {},
       );
 
-  // 建議寫在 class 內部 + static
+  /// LazyDatabase：延遲到第一次存取才真正開啟 SQLite 檔案
+  /// createInBackground：在獨立 isolate 執行 I/O，避免 UI 卡頓
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {
       final dir = await getApplicationDocumentsDirectory();

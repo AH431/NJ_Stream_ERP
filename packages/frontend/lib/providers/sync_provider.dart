@@ -77,8 +77,18 @@ class SyncProvider extends ChangeNotifier {
   /// 主動刷新用的 Timer
   Timer? _proactiveRefreshTimer;
 
-  /// 防止同時多次呼叫 refreshToken（避免並發問題）
-  bool _isRefreshing = false;
+  /// Refresh 進行中時的 Completer
+  ///
+  /// 為什麼用 Completer 而不是 bool flag：
+  ///   - bool flag（_isRefreshing）：第二個呼叫者立即拿到 false → push 失敗
+  ///   - Completer：第二個呼叫者等待第一個 refresh 完成後共享結果
+  ///
+  /// 情境範例：
+  ///   Proactive Timer 觸發 refresh 的同時，push 也在執行 _getValidToken()
+  ///   → 兩者都呼叫 _refreshToken()
+  ///   → 第二個呼叫者等待 Completer，拿到 true 後繼續 push
+  ///   → 不需要重複發送 refresh 請求
+  Completer<bool>? _refreshCompleter;
 
   /// JWT payload 快取：避免每次存取 userId / role 時都重新 decode
   /// 在 _setToken() 時同步更新，在 logout() 時清除
@@ -189,12 +199,19 @@ class SyncProvider extends ChangeNotifier {
   }
 
   Future<bool> _refreshToken() async {
-    if (_isRefreshing) return false;
-    _isRefreshing = true;
+    // 若已有進行中的 refresh，等待其結果而不是重複發請求
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+
+    _refreshCompleter = Completer<bool>();
 
     try {
       final refreshToken = await _storage.read(key: _refreshTokenKey);
-      if (refreshToken == null) return false;
+      if (refreshToken == null) {
+        _refreshCompleter!.complete(false);
+        return false;
+      }
 
       final response = await _dio.post<Map<String, dynamic>>(
         '/api/v1/auth/refresh',
@@ -208,12 +225,17 @@ class SyncProvider extends ChangeNotifier {
         _setToken(newAccess); // 同時更新 _currentAccessToken + _jwtPayload
         await _storage.write(key: _accessTokenKey, value: newAccess);
         if (newRefresh != null) {
+          // 後端目前不做 token rotation，newRefresh 通常為 null（預留擴充）
           await _storage.write(key: _refreshTokenKey, value: newRefresh);
         }
         _scheduleProactiveRefresh();
         notifyListeners();
+        _refreshCompleter!.complete(true);
         return true;
       }
+
+      _refreshCompleter!.complete(false);
+      return false;
     } on DioException catch (e) {
       final code = e.response?.data?['code'];
       if (e.response?.statusCode == 403 && code == 'ACCOUNT_DISABLED') {
@@ -221,12 +243,16 @@ class SyncProvider extends ChangeNotifier {
       } else if (code == 'REFRESH_TOKEN_EXPIRED') {
         await logout();
       }
+      _refreshCompleter!.complete(false);
+      return false;
     } catch (e) {
       debugPrint('[SyncProvider] Refresh error: $e');
+      _refreshCompleter!.complete(false);
+      return false;
     } finally {
-      _isRefreshing = false;
+      // 無論結果如何，清除 Completer，讓下次 refresh 可以重新開始
+      _refreshCompleter = null;
     }
-    return false;
   }
 
   Future<String?> _getValidToken() async {
@@ -300,7 +326,7 @@ class SyncProvider extends ChangeNotifier {
         final batch = await _fetchBatch();
         if (batch.isEmpty) break;
 
-        await _pushBatch(batch, token);
+        await _pushBatch(batch);
         hasMore = batch.length == _batchSize;
       }
 
@@ -331,19 +357,25 @@ class SyncProvider extends ChangeNotifier {
 
   // ----------------------------------------------------------------------------
   // 推送單一批次並逐筆處理結果
+  // token 不作為參數傳入：Dio interceptor 在 onRequest 中已自動注入
+  // Authorization header，此處無需重複設定
   // ----------------------------------------------------------------------------
 
-  Future<void> _pushBatch(List<PendingOperation> batch, String token) async {
+  Future<void> _pushBatch(List<PendingOperation> batch) async {
     await _markBatch(batch, 'syncing');
 
+    // 對齊 Sync Contract §5 的 operation 欄位結構
     final payload = batch
         .map((op) => {
               'id': op.operationId,
               'entity': op.entityType,
               'operation': op.operationType,
+              // 僅庫存 delta 操作才有 delta_type（in/reserve/cancel/out）
               if (op.deltaType != null) 'delta_type': op.deltaType,
+              // relatedEntityId 供後端快速定位關聯 entity（e.g. "customer:101"）
               if (op.relatedEntityId != null)
                 'related_entity_id': op.relatedEntityId,
+              // payload 在本地以 JSON 字串存儲，傳送前反序列化為 Map
               'payload': jsonDecode(op.payload),
               'created_at': op.createdAt.toUtc().toIso8601String(),
             })
@@ -354,7 +386,7 @@ class SyncProvider extends ChangeNotifier {
       response = await _dio.post<Map<String, dynamic>>(
         '/api/v1/sync/push',
         data: {'operations': payload},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        // 不需要 Options(headers:...)，interceptor 已處理 Authorization
       );
     } on DioException catch (e) {
       // 網路層錯誤：全批回退 pending，等下次重試
