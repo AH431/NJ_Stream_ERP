@@ -16,10 +16,10 @@
 - **開發模式**：Google Antigravity（Agent-First + Review-Driven Development）
 
 ### 重要文件（全部置於 `docs/`）
-- [PRD v0.8](docs/PRD_v0.8.md)
-- [同步協定規格 v1.6](docs/sync-protocol-v1.6.md) ← **工程憲法，所有開發必須遵守**
-- [開發計畫書 v1.0](docs/development-plan-v1.0.md)
-- [Schema Final](docs/schema-final.md)
+- [PRD v0.8](<docs/NJ_Stream_ERP MVP PRD v0.8.md>)
+- [同步協定規格 v1.6](<docs/NJ_Stream_ERP MVP 同步協定規格 v1.6.md>) ← **工程憲法，所有開發必須遵守**
+- [開發計畫書 v1.0](docs/NJ_Stream_ERP_development-plan.docx)
+- [Schema Final](docs/NJ_Stream_ERP_Schema_Final.docx)
 - [ER Diagram](docs/nj_stream_erp_erd.html)
 - [API Contract (Sync)](docs/api-contract-sync-v1.6.yaml) ← Contract-First 單一真相來源
 

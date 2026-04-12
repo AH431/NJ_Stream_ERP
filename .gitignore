@@ -66,6 +66,10 @@ logs/
 **/*.sqlite
 **/*.db
 
+# 暫存 scratch 實驗腳本（不應進版控）
+scratch_*.ts
+scratch_*.dart
+
 # Editor
 .idea/
 .vscode/

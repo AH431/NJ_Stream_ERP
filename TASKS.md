@@ -1,7 +1,3 @@
-
-### 2. TASKS.md（已完整融入您全部修正建議）
-
-```markdown
 # NJ_Stream_ERP MVP 任務拆分
 **版本**：v1.1（2026/04/10 修正版）
 **對應文件**：PRD v0.8、同步協定 v1.6、開發計畫 v1.0、Schema Final
