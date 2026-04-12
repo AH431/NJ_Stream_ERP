@@ -115,6 +115,36 @@ class SalesOrders extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// 訂單明細（對應後端 order_items 表）
+/// 一筆 SalesOrder 對應多筆 OrderItems
+///
+/// 為什麼獨立成表（而非 JSON inline）：
+///   1. 庫存鎖定精確度：reserve / out 操作是針對「明細行」，
+///      正規化後可直接 SQL 加總某產品的預佔量，無需 Dart 解析 JSON
+///   2. 後端對齊：後端 order_items 表確實存在，Sync 時直接對應
+///
+/// 為什麼 Quotations 繼續用 JSON inline（混合同步策略）：
+///   報價單整單進出，Draft 階段結構鬆散，JSON 能降低表關聯複雜度；
+///   一旦轉訂單，由前端解析 JSON 寫入 SalesOrders + OrderItems
+@TableIndex(name: 'idx_order_items_order_id', columns: {#orderId})
+@DataClassName('OrderItem')
+class OrderItems extends Table {
+  IntColumn get id => integer()();
+  IntColumn get orderId => integer()(); // FK to SalesOrders.id
+  IntColumn get productId => integer()();
+  IntColumn get quantity => integer()();
+
+  // 金額欄位：嚴格對齊 DecimalConverter（後端傳 "158000.00" 字串格式）
+  TextColumn get unitPrice => text().withConverter(const DecimalConverter())();
+  TextColumn get subtotal => text().withConverter(const DecimalConverter())();
+
+  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 // ==============================================================================
 // 3. 庫存模組 (Inventory)
 // ==============================================================================
