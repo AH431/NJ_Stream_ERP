@@ -6,6 +6,7 @@ import authPlugin from '@/plugins/auth.plugin.js';
 import authRoutes from '@/routes/auth.route.js';
 import customersRoutes from '@/routes/customers.route.js';
 import productsRoutes from '@/routes/products.route.js';
+import syncRoutes from '@/routes/sync.route.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -36,7 +37,7 @@ export function buildApp() {
   app.register(authRoutes,      { prefix: '/api/v1/auth' });
   app.register(customersRoutes, { prefix: '/api/v1/customers' });
   app.register(productsRoutes,  { prefix: '/api/v1/products' });
-  // app.register(syncRoutes,   { prefix: '/api/v1/sync' });   ← Issue #9/10
+  app.register(syncRoutes,      { prefix: '/api/v1/sync' });
 
   return app;
 }
