@@ -322,22 +322,42 @@ paths:
           schema:
             type: string
             format: date-time
-          description: 只下拉此時間點之後有更新的資料（增量 Pull）
+          description: 只下拉此時間點之後有更新的資料（ISO 8601 格式）
         - name: entityTypes
           in: query
           required: false
           schema:
             type: string
-          description: 逗號分隔的實體類型（例如 `inventory_items,products`）
-          example: "inventory_items,products"
+          description: 逗號分隔的實體類型（預設為全部實體）
+          example: "customer,product"
       responses:
         '200':
-          description: 回傳指定實體的最新狀態（格式 TBD）
+          description: 回傳指定實體的最新狀態（增量資料）
           content:
             application/json:
               schema:
                 type: object
-                description: "TBD — W6 Sprint Planning 前確認回傳結構"
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerPayload'
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductPayload'
+                  quotations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuotationPayload'
+                  salesOrders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SalesOrderPayload'
+                  inventoryDeltas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InventoryItemPayload'
         '401':
           description: 未授權
 

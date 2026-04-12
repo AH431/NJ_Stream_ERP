@@ -10,6 +10,8 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import '../core/constants.dart';
 import '../database/database.dart';
 import '../database/schema.dart';
+import '../database/dao/customer_dao.dart';
+import '../database/dao/product_dao.dart';
 import 'package:uuid/uuid.dart';
 
 // ================================================
@@ -267,6 +269,8 @@ class SyncProvider extends ChangeNotifier {
     }
   }
 
+
+
   Future<String?> _getValidToken() async {
     if (_currentAccessToken != null &&
         !JwtDecoder.isExpired(_currentAccessToken!)) {
@@ -466,16 +470,12 @@ class SyncProvider extends ChangeNotifier {
     final payload = batch
         .map((op) => {
               'id': op.operationId,
-              'entity': op.entityType,
-              'operation': op.operationType,
-              // 僅庫存 delta 操作才有 delta_type（in/reserve/cancel/out）
-              if (op.deltaType != null) 'delta_type': op.deltaType,
-              // relatedEntityId 供後端快速定位關聯 entity（e.g. "customer:101"）
-              if (op.relatedEntityId != null)
-                'related_entity_id': op.relatedEntityId,
+              'entityType': op.entityType,
+              'operationType': op.operationType,
+              if (op.deltaType != null) 'deltaType': op.deltaType,
               // payload 在本地以 JSON 字串存儲，傳送前反序列化為 Map
               'payload': jsonDecode(op.payload),
-              'created_at': op.createdAt.toUtc().toIso8601String(),
+              'createdAt': op.createdAt.toUtc().toIso8601String(),
             })
         .toList();
 
@@ -492,25 +492,25 @@ class SyncProvider extends ChangeNotifier {
       throw Exception('Network error: ${e.message}');
     }
 
-    final results = (response.data?['results'] as List<dynamic>?) ?? [];
+    final succeeded = (response.data?['succeeded'] as List<dynamic>?)?.cast<String>() ?? [];
+    final failedList = (response.data?['failed'] as List<dynamic>?) ?? [];
 
     for (final op in batch) {
-      final result = results.firstWhere(
-        (r) => r['id'] == op.operationId,
-        orElse: () => null,
-      );
-
-      if (result == null) {
-        await _updateOpStatus(op, 'failed',
-            error: 'Missing result from server');
+      if (succeeded.contains(op.operationId)) {
+        await _updateOpStatus(op, 'succeeded');
         continue;
       }
 
-      final errorCode = result['error_code'] as String?;
-      if (errorCode == null) {
-        await _updateOpStatus(op, 'succeeded');
+      final failureInfo = failedList.firstWhere(
+        (f) => f['operationId'] == op.operationId,
+        orElse: () => null,
+      );
+
+      if (failureInfo == null) {
+        await _updateOpStatus(op, 'failed',
+            error: 'Missing result from server');
       } else {
-        await _handleError(op, errorCode, result['server_state']);
+        await _handleError(op, failureInfo['code'] as String, failureInfo['server_state']);
       }
     }
   }
@@ -551,13 +551,92 @@ class SyncProvider extends ChangeNotifier {
 
   // ----------------------------------------------------------------------------
   // Force Overwrite（各 entity DAO upsert 待各 feature 建好後填入）
-  // ----------------------------------------------------------------------------
-
   Future<void> _applyForceOverwrite(
       String entityType, dynamic serverState) async {
-    // TODO: 依 entityType 分派到各 DAO 執行 upsert
-    // if (entityType == 'customer') await _db.upsertCustomer(serverState);
-    debugPrint('[SyncProvider] Force Overwrite: $entityType');
+    final data = serverState as Map<String, dynamic>;
+    if (entityType == 'customer') {
+      await _db.upsertCustomerFromServer(CustomersCompanion(
+        id: Value(data['id'] as int),
+        name: Value(data['name'] as String),
+        contact: Value(data['contact'] as String?),
+        taxId: Value(data['taxId'] as String?),
+        createdAt: Value(DateTime.parse(data['createdAt'] as String)),
+        updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
+        deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
+      ));
+    } else if (entityType == 'product') {
+      await _db.upsertProductFromServer(ProductsCompanion(
+        id: Value(data['id'] as int),
+        name: Value(data['name'] as String),
+        sku: Value(data['sku'] as String),
+        unitPrice: Value(data['unitPrice'] as String),
+        minStockLevel: Value(data['minStockLevel'] as int),
+        createdAt: Value(DateTime.parse(data['createdAt'] as String)),
+        updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
+        deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
+      ));
+    }
+    debugPrint('[SyncProvider] Force Overwrite: $entityType id=${data['id']}');
+  }
+
+  // ----------------------------------------------------------------------------
+  // Pull / Refresh （Issue #6 拉取機制）
+  // ----------------------------------------------------------------------------
+
+  Future<void> pullData() async {
+    _emit(_state.copyWith(status: SyncStatus.syncing, errorMessage: null));
+
+    try {
+      final token = await _getValidToken();
+      if (token == null) {
+        _emit(_state.copyWith(
+          status: SyncStatus.failed,
+          errorMessage: 'No valid token. Please log in again.',
+        ));
+        return;
+      }
+
+      final lastSyncStr = await _storage.read(key: 'last_sync_at');
+      
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/api/v1/sync/pull',
+        queryParameters: {
+          if (lastSyncStr != null) 'since': lastSyncStr,
+          'entityTypes': 'customer,product', // 目前只支援拉取這兩項
+        },
+      );
+
+      final data = response.data ?? {};
+      final rawCustomers = (data['customers'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawProducts = (data['products'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+      // 清除本地 orphan ID < 0 以免雙胞胎（防護機制）
+      final pendingOps = await (_db.select(_db.pendingOperations)..where((t) => t.status.equals('pending'))).get();
+      final relatedIds = pendingOps.map((op) => op.relatedEntityId ?? '').where((id) => id.isNotEmpty).toList();
+      await _db.clearOrphanedOfflineCustomers(relatedIds);
+      await _db.clearOrphanedOfflineProducts(relatedIds);
+
+      for (var c in rawCustomers) {
+        await _applyForceOverwrite('customer', c);
+      }
+      for (var p in rawProducts) {
+        await _applyForceOverwrite('product', p);
+      }
+
+      await _storage.write(key: 'last_sync_at', value: DateTime.now().toUtc().toIso8601String());
+      
+      final remaining = await _countPending();
+      _emit(_state.copyWith(
+        status: SyncStatus.success,
+        pendingCount: remaining,
+      ));
+    } catch (e) {
+      debugPrint('[SyncProvider] Pull error: $e');
+      _emit(_state.copyWith(
+        status: SyncStatus.failed,
+        errorMessage: 'Pull failed: $e',
+      ));
+    }
   }
 
   // ----------------------------------------------------------------------------

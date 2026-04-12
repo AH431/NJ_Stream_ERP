@@ -16,7 +16,9 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, gt } from 'drizzle-orm';
+import { customers } from '@/schemas/customers.schema.js';
+import { products } from '@/schemas/products.schema.js';
 import { processedOperations } from '@/schemas/processed_operations.schema.js';
 import { processOperation } from '@/services/sync.service.js';
 import { SYNC } from '@/constants/index.js';
@@ -149,5 +151,72 @@ export default async function syncRoutes(app: FastifyInstance) {
     // ── 7. 回傳結果 ──────────────────────────────────────
     // HTTP 200 即使有 failed operations — 部分成功是正常狀態，非 HTTP 錯誤
     return reply.status(200).send({ succeeded, failed });
+  });
+
+  /**
+   * GET /api/v1/sync/pull
+   * 下拉伺服器最新狀態（Fail-to-Pull 與增量同步）
+   */
+  app.get('/pull', {
+    preHandler: [app.verifyJwt],
+  }, async (request, reply) => {
+    const querySchema = z.object({
+      since: z.string().datetime().optional(),
+      entityTypes: z.string().optional(),
+    });
+
+    const parsed = querySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid query parameters.',
+      });
+    }
+
+    const { since, entityTypes } = parsed.data;
+    const sinceDate = since ? new Date(since) : new Date(0);
+    const types = entityTypes ? entityTypes.split(',') : ['customer', 'product', 'quotation', 'sales_order', 'inventory_delta'];
+
+    // 只實作 W2 所涵蓋的 customer 與 product，未來 W5 補齊其他
+    const result: Record<string, any[]> = {
+      customers: [],
+      products: [],
+      quotations: [],
+      salesOrders: [],
+      inventoryDeltas: [],
+    };
+
+    if (types.includes('customer')) {
+      const rows = await db.select().from(customers)
+        .where(gt(customers.updatedAt, sinceDate));
+      result.customers = rows.map(r => ({
+        entityType: 'customer',
+        id: r.id,
+        name: r.name,
+        contact: r.contact ?? null,
+        taxId: r.taxId ?? null,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+      }));
+    }
+
+    if (types.includes('product')) {
+      const rows = await db.select().from(products)
+        .where(gt(products.updatedAt, sinceDate));
+      result.products = rows.map(r => ({
+        entityType: 'product',
+        id: r.id,
+        name: r.name,
+        sku: r.sku,
+        unitPrice: r.unitPrice,
+        minStockLevel: r.minStockLevel,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+      }));
+    }
+
+    return reply.status(200).send(result);
   });
 }

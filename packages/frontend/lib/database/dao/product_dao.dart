@@ -51,7 +51,36 @@ extension ProductDao on AppDatabase {
   }
 
   /// 從伺服器 upsert（Issue #6 pull 機制使用）
+  /// 實作 LWW (Last-Write-Wins)：若本地紀錄較新則放棄覆蓋
   Future<void> upsertProductFromServer(ProductsCompanion companion) async {
-    await into(products).insertOnConflictUpdate(companion);
+    return transaction(() async {
+      final serverId = companion.id.value;
+      final serverUpdatedAt = companion.updatedAt.value;
+
+      final existing = await (select(products)
+            ..where((t) => t.id.equals(serverId)))
+          .getSingleOrNull();
+
+      if (existing != null) {
+        if (existing.updatedAt.isAfter(serverUpdatedAt) || 
+            existing.updatedAt.isAtSameMomentAs(serverUpdatedAt)) {
+          // 本地較新或相同，不覆蓋
+          return;
+        }
+      }
+
+      await into(products).insertOnConflictUpdate(companion);
+    });
+  }
+
+  /// 清除無對應 PendingOperation 的本地臨時產品資料 (id < 0)
+  /// 解決 Pull 時產生的雙胞胎問題
+  Future<void> clearOrphanedOfflineProducts(List<String> pendingRelatedIds) async {
+    await (delete(products)
+          ..where((t) => t.id.isBiggerOrEqualValue(0).not())
+          ..where((t) => t.id.cast<String>().isIn(
+                pendingRelatedIds.map((idStr) => idStr.split(':').last)
+              ).not()))
+        .go();
   }
 }

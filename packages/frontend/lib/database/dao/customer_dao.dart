@@ -54,8 +54,36 @@ extension CustomerDao on AppDatabase {
   }
 
   /// 從伺服器 upsert（Issue #6 pull 機制使用）
-  /// 以 id 衝突時更新所有欄位（覆蓋本地負數臨時 id 記錄）
+  /// 實作 LWW (Last-Write-Wins)：若本地紀錄較新則放棄覆蓋
   Future<void> upsertCustomerFromServer(CustomersCompanion companion) async {
-    await into(customers).insertOnConflictUpdate(companion);
+    return transaction(() async {
+      final serverId = companion.id.value;
+      final serverUpdatedAt = companion.updatedAt.value;
+
+      final existing = await (select(customers)
+            ..where((t) => t.id.equals(serverId)))
+          .getSingleOrNull();
+
+      if (existing != null) {
+        if (existing.updatedAt.isAfter(serverUpdatedAt) || 
+            existing.updatedAt.isAtSameMomentAs(serverUpdatedAt)) {
+          // 本地較新或相同，不覆蓋
+          return;
+        }
+      }
+
+      await into(customers).insertOnConflictUpdate(companion);
+    });
+  }
+
+  /// 清除無對應 PendingOperation 的本地臨時客戶資料 (id < 0)
+  /// 解決 Pull 時產生的雙胞胎問題
+  Future<void> clearOrphanedOfflineCustomers(List<String> pendingRelatedIds) async {
+    await (delete(customers)
+          ..where((t) => t.id.isBiggerOrEqualValue(0).not())
+          ..where((t) => t.id.cast<String>().isIn(
+                pendingRelatedIds.map((idStr) => idStr.split(':').last)
+              ).not()))
+        .go();
   }
 }

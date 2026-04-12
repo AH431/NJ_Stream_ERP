@@ -8,6 +8,7 @@ import 'features/customers/customer_form_screen.dart';
 import 'features/customers/customer_list_screen.dart';
 import 'features/products/product_form_screen.dart';
 import 'features/products/product_list_screen.dart';
+import 'features/auth/login_screen.dart';
 import 'providers/sync_provider.dart';
 
 // ==============================================================================
@@ -72,29 +73,12 @@ class NjStreamErpApp extends StatelessWidget {
       // isLoggedIn 由 SyncProvider 的 _loadTokens() 在啟動時讀取 SecureStorage 決定
       home: context.watch<SyncProvider>().isLoggedIn
           ? const HomeScreen()
-          : const LoginPlaceholderScreen(),
+          : const LoginScreen(),
     );
   }
 }
 
-// ==============================================================================
-// 暫時 Placeholder 畫面（登入頁待 Issue #6 完整實作 Login UI 後替換）
-// ==============================================================================
 
-class LoginPlaceholderScreen extends StatelessWidget {
-  const LoginPlaceholderScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('NJ Stream ERP — 登入')),
-      body: const Center(
-        // TODO Issue #6：替換為 lib/features/auth/login_screen.dart
-        child: Text('LoginScreen（待實作）'),
-      ),
-    );
-  }
-}
 
 // ==============================================================================
 // HomeScreen — 主畫面（登入後顯示）
