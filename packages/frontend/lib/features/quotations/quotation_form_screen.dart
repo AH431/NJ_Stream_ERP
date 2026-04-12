@@ -1,0 +1,395 @@
+// ==============================================================================
+// QuotationFormScreen — 新增報價單（Issue #8 Phase 5）
+//
+// 功能：
+//   - 客戶下拉選擇
+//   - 動態明細行：產品選擇、數量、單價（可改）、唯讀小計
+//   - 含稅 / 未稅切換（taxAmount = subtotalSum × 0.05 或 0）
+//   - 金額摘要（小計、稅額、合計）
+//   - 儲存：insertQuotation + enqueueCreate
+//
+// 金額規範：全部用 Decimal，禁止 double 參與計算
+// ==============================================================================
+
+import 'package:decimal/decimal.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:drift/drift.dart' show Value;
+
+import '../../database/database.dart';
+import '../../database/dao/customer_dao.dart';
+import '../../database/dao/product_dao.dart';
+import '../../database/dao/quotation_dao.dart';
+import '../../providers/sync_provider.dart';
+
+// ==============================================================================
+// 明細行狀態
+// ==============================================================================
+
+class _ItemRow {
+  int? productId;
+  String productName = '';
+  final TextEditingController qtyCtrl;
+  final TextEditingController priceCtrl;
+
+  _ItemRow()
+      : qtyCtrl = TextEditingController(text: '1'),
+        priceCtrl = TextEditingController(text: '0.00');
+
+  void dispose() {
+    qtyCtrl.dispose();
+    priceCtrl.dispose();
+  }
+
+  Decimal get qty => Decimal.parse(qtyCtrl.text.isEmpty ? '0' : qtyCtrl.text);
+  Decimal get price {
+    final raw = priceCtrl.text.trim();
+    return Decimal.tryParse(raw) ?? Decimal.zero;
+  }
+
+  Decimal get subtotal => qty * price;
+}
+
+// ==============================================================================
+// QuotationFormScreen
+// ==============================================================================
+
+class QuotationFormScreen extends StatefulWidget {
+  const QuotationFormScreen({super.key});
+
+  @override
+  State<QuotationFormScreen> createState() => _QuotationFormScreenState();
+}
+
+class _QuotationFormScreenState extends State<QuotationFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  int? _selectedCustomerId;
+  final List<_ItemRow> _rows = [_ItemRow()];
+  bool _withTax = true;
+
+  List<Customer> _customers = [];
+  List<Product> _products = [];
+  bool _masterDataLoaded = false;
+
+  // --------------------------------------------------------------------------
+  // 初始化
+  // --------------------------------------------------------------------------
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMasterData();
+  }
+
+  Future<void> _loadMasterData() async {
+    final db = Provider.of<AppDatabase>(context, listen: false);
+    final customers = await db.getActiveCustomers();
+    final products  = await db.getActiveProducts();
+    if (!mounted) return;
+    setState(() {
+      _customers = customers;
+      _products  = products;
+      _masterDataLoaded = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final row in _rows) {
+      row.dispose();
+    }
+    super.dispose();
+  }
+
+  // --------------------------------------------------------------------------
+  // 金額計算（全 Decimal，禁 double）
+  // --------------------------------------------------------------------------
+
+  Decimal get _subtotalSum =>
+      _rows.fold(Decimal.zero, (acc, r) => acc + r.subtotal);
+
+  Decimal get _taxAmount =>
+      _withTax ? _subtotalSum * Decimal.parse('0.05') : Decimal.zero;
+
+  Decimal get _totalAmount => _subtotalSum + _taxAmount;
+
+  // --------------------------------------------------------------------------
+  // 明細行操作
+  // --------------------------------------------------------------------------
+
+  void _addRow() {
+    setState(() => _rows.add(_ItemRow()));
+  }
+
+  void _removeRow(int index) {
+    if (_rows.length <= 1) return;
+    setState(() {
+      _rows[index].dispose();
+      _rows.removeAt(index);
+    });
+  }
+
+  void _onProductSelected(int index, int? productId) {
+    if (productId == null) return;
+    final product = _products.firstWhere((p) => p.id == productId);
+    setState(() {
+      _rows[index].productId   = productId;
+      _rows[index].productName = product.name;
+      _rows[index].priceCtrl.text = product.unitPrice;
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // 儲存
+  // --------------------------------------------------------------------------
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final db   = Provider.of<AppDatabase>(context, listen: false);
+    final sync = Provider.of<SyncProvider>(context, listen: false);
+
+    final now      = DateTime.now().toUtc();
+    final localId  = SyncProvider.nextLocalId();
+    final userId   = sync.userId!;
+
+    final subtotalSum = _subtotalSum;
+    final taxAmount   = _taxAmount;
+    final totalAmount = _totalAmount;
+
+    final items = _rows.map((r) => QuotationItemModel(
+      productId: r.productId!,
+      quantity:  int.parse(r.qtyCtrl.text),
+      unitPrice: r.price.toStringAsFixed(2),
+      subtotal:  r.subtotal.toStringAsFixed(2),
+    )).toList();
+
+    final itemsJson = QuotationItemModel.toJsonString(items);
+
+    await db.insertQuotation(QuotationsCompanion(
+      id:           Value(localId),
+      customerId:   Value(_selectedCustomerId!),
+      createdBy:    Value(userId),
+      items:        Value(itemsJson),
+      totalAmount:  Value(totalAmount.toStringAsFixed(2)),
+      taxAmount:    Value(taxAmount.toStringAsFixed(2)),
+      status:       const Value('draft'),
+      createdAt:    Value(now),
+      updatedAt:    Value(now),
+    ));
+
+    // Payload 的 items 為 List<Map>（後端格式）
+    await sync.enqueueCreate('quotation', {
+      'id':                localId,
+      'customerId':        _selectedCustomerId,
+      'createdBy':         userId,
+      'items':             items.map((i) => i.toJson()).toList(),
+      'totalAmount':       totalAmount.toStringAsFixed(2),
+      'taxAmount':         taxAmount.toStringAsFixed(2),
+      'subtotalSum':       subtotalSum.toStringAsFixed(2),
+      'withTax':           _withTax,
+      'status':            'draft',
+      'convertedToOrderId': null,
+      'createdAt':         now.toIso8601String(),
+      'updatedAt':         now.toIso8601String(),
+      'deletedAt':         null,
+    });
+
+    if (context.mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Build
+  // --------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('新增報價單')),
+      body: _masterDataLoaded ? _buildForm() : const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _buildForm() {
+    return Form(
+      key: _formKey,
+      onChanged: () => setState(() {}), // 即時重算金額
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildCustomerDropdown(),
+                const SizedBox(height: 16),
+                ..._buildItemRows(),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _addRow,
+                  icon: const Icon(Icons.add),
+                  label: const Text('新增明細行'),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: const Text('含稅（5%）'),
+                  value: _withTax,
+                  onChanged: (v) => setState(() => _withTax = v),
+                ),
+              ],
+            ),
+          ),
+          _buildAmountSummary(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _save,
+                child: const Text('儲存報價單'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 客戶下拉
+  // --------------------------------------------------------------------------
+
+  Widget _buildCustomerDropdown() {
+    return DropdownButtonFormField<int>(
+      decoration: const InputDecoration(labelText: '客戶 *', border: OutlineInputBorder()),
+      value: _selectedCustomerId,
+      items: _customers.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+      onChanged: (v) => setState(() => _selectedCustomerId = v),
+      validator: (v) => v == null ? '請選擇客戶' : null,
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 明細行
+  // --------------------------------------------------------------------------
+
+  List<Widget> _buildItemRows() {
+    return List.generate(_rows.length, (i) {
+      final row = _rows[i];
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      decoration: const InputDecoration(
+                        labelText: '產品 *',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      value: row.productId,
+                      items: _products.map((p) => DropdownMenuItem(
+                        value: p.id,
+                        child: Text('${p.name} (${p.sku})', overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (v) => _onProductSelected(i, v),
+                      validator: (v) => v == null ? '必填' : null,
+                    ),
+                  ),
+                  if (_rows.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                      onPressed: () => _removeRow(i),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // 數量
+                  SizedBox(
+                    width: 80,
+                    child: TextFormField(
+                      controller: row.qtyCtrl,
+                      decoration: const InputDecoration(labelText: '數量', border: OutlineInputBorder(), isDense: true),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        if (n == null || n <= 0) return '正整數';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 單價
+                  Expanded(
+                    child: TextFormField(
+                      controller: row.priceCtrl,
+                      decoration: const InputDecoration(labelText: '單價', border: OutlineInputBorder(), isDense: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return '必填';
+                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(v)) return '格式錯誤';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 唯讀小計
+                  SizedBox(
+                    width: 90,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(labelText: '小計', border: OutlineInputBorder(), isDense: true),
+                      child: Text(
+                        row.subtotal.toStringAsFixed(2),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // 金額摘要（固定底部）
+  // --------------------------------------------------------------------------
+
+  Widget _buildAmountSummary() {
+    final sub   = _subtotalSum.toStringAsFixed(2);
+    final tax   = _taxAmount.toStringAsFixed(2);
+    final total = _totalAmount.toStringAsFixed(2);
+
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('小計：$sub'),
+              Text(_withTax ? '稅額（5%）：$tax' : '稅額：$tax'),
+              Text('合計：$total',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

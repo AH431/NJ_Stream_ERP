@@ -8,6 +8,8 @@ import 'features/customers/customer_form_screen.dart';
 import 'features/customers/customer_list_screen.dart';
 import 'features/products/product_form_screen.dart';
 import 'features/products/product_list_screen.dart';
+import 'features/quotations/quotation_form_screen.dart';
+import 'features/quotations/quotation_list_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'providers/sync_provider.dart';
 
@@ -101,7 +103,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const _titles = ['客戶管理', '產品管理'];
+  static const _titles = ['客戶管理', '產品管理', '報價管理'];
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: const [
           CustomerListScreen(),
           ProductListScreen(),
+          QuotationListScreen(),
         ],
       ),
 
@@ -168,6 +171,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
             label: '產品',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: '報價',
           ),
         ],
       ),
@@ -195,6 +203,17 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(builder: (_) => const ProductFormScreen()),
         ),
         tooltip: '新增產品',
+        child: const Icon(Icons.add),
+      );
+    }
+    if (_selectedIndex == 2 && (role == 'sales' || role == 'admin')) {
+      return FloatingActionButton(
+        heroTag: 'fab_quotation',
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
+        ),
+        tooltip: '新增報價單',
         child: const Icon(Icons.add),
       );
     }

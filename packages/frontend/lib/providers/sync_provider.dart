@@ -12,6 +12,8 @@ import '../database/database.dart';
 import '../database/schema.dart';
 import '../database/dao/customer_dao.dart';
 import '../database/dao/product_dao.dart';
+import '../database/dao/quotation_dao.dart';
+import '../database/dao/sales_order_dao.dart';
 import 'package:uuid/uuid.dart';
 
 // ================================================
@@ -575,6 +577,38 @@ class SyncProvider extends ChangeNotifier {
         updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
         deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
       ));
+    } else if (entityType == 'quotation') {
+      // items 欄位：Pull 回傳 [] (W5 Issue #10 補完)；Force Overwrite 時保留現有 items
+      final rawItems = data['items'];
+      final itemsJson = (rawItems is List)
+          ? jsonEncode(rawItems)
+          : (rawItems as String? ?? '[]');
+      await _db.upsertQuotationFromServer(QuotationsCompanion(
+        id: Value(data['id'] as int),
+        customerId: Value(data['customerId'] as int),
+        createdBy: Value(data['createdBy'] as int),
+        items: Value(itemsJson),
+        totalAmount: Value(data['totalAmount'] as String),
+        taxAmount: Value(data['taxAmount'] as String),
+        status: Value(data['status'] as String),
+        convertedToOrderId: Value(data['convertedToOrderId'] as int?),
+        createdAt: Value(DateTime.parse(data['createdAt'] as String)),
+        updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
+        deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
+      ));
+    } else if (entityType == 'sales_order') {
+      await _db.upsertSalesOrderFromServer(SalesOrdersCompanion(
+        id: Value(data['id'] as int),
+        quotationId: Value(data['quotationId'] as int?),
+        customerId: Value(data['customerId'] as int),
+        createdBy: Value(data['createdBy'] as int),
+        status: Value(data['status'] as String),
+        confirmedAt: Value(data['confirmedAt'] != null ? DateTime.parse(data['confirmedAt'] as String) : null),
+        shippedAt: Value(data['shippedAt'] != null ? DateTime.parse(data['shippedAt'] as String) : null),
+        createdAt: Value(DateTime.parse(data['createdAt'] as String)),
+        updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
+        deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
+      ));
     }
     debugPrint('[SyncProvider] Force Overwrite: $entityType id=${data['id']}');
   }
@@ -602,25 +636,34 @@ class SyncProvider extends ChangeNotifier {
         '/api/v1/sync/pull',
         queryParameters: {
           if (lastSyncStr != null) 'since': lastSyncStr,
-          'entityTypes': 'customer,product', // 目前只支援拉取這兩項
+          'entityTypes': 'customer,product,quotation,sales_order',
         },
       );
 
       final data = response.data ?? {};
-      final rawCustomers = (data['customers'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawProducts = (data['products'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawCustomers   = (data['customers']   as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawProducts    = (data['products']    as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawQuotations  = (data['quotations']  as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawSalesOrders = (data['salesOrders'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
       // 清除本地 orphan ID < 0 以免雙胞胎（防護機制）
       final pendingOps = await (_db.select(_db.pendingOperations)..where((t) => t.status.equals('pending'))).get();
       final relatedIds = pendingOps.map((op) => op.relatedEntityId ?? '').where((id) => id.isNotEmpty).toList();
       await _db.clearOrphanedOfflineCustomers(relatedIds);
       await _db.clearOrphanedOfflineProducts(relatedIds);
+      await _db.clearOrphanedOfflineQuotations(relatedIds);
 
       for (var c in rawCustomers) {
         await _applyForceOverwrite('customer', c);
       }
       for (var p in rawProducts) {
         await _applyForceOverwrite('product', p);
+      }
+      for (var q in rawQuotations) {
+        await _applyForceOverwrite('quotation', q);
+      }
+      for (var s in rawSalesOrders) {
+        await _applyForceOverwrite('sales_order', s);
       }
 
       await _storage.write(key: 'last_sync_at', value: DateTime.now().toUtc().toIso8601String());
