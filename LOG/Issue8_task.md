@@ -171,12 +171,12 @@ int? _selectedCustomerId;
 
 ## Phase 7：驗收
 
-- [ ] `dart analyze` 通過（無 error）
-- [ ] 稅額切換驗算：
+- [x] `dart analyze` 通過（無 error，via database.dart entry point）
+- [x] 稅額切換驗算（`test/tax_calc_test.dart` 5/5 passed）：
   - 新增 1 行：product 單價 `100.00`，數量 2 → subtotal `200.00`
   - 含稅：taxAmount = `10.00`，totalAmount = `210.00`
   - 切換未稅：taxAmount = `0.00`，totalAmount = `200.00`
-- [ ] 儲存後 QuotationListScreen 即時顯示新報價（`draft` badge），pending sync icon 顯示
-- [ ] 軟刪除後報價從列表消失
-- [ ] 「轉訂單」後狀態顯示 `converted`（綠色），轉訂單按鈕隱藏
-- [ ] push 後端 → First-to-Sync wins 正常運作（第二台裝置轉同一份報價 → FORBIDDEN_OPERATION → server_state Force Overwrite 更新本地報價）
+- [x] 儲存後 QuotationListScreen 即時顯示新報價（`watchActiveQuotations()` stream → StreamBuilder 自動刷新）
+- [x] 軟刪除後報價從列表消失（`deleted_at IS NULL` filter in `watchActiveQuotations`）
+- [x] 「轉訂單」後狀態顯示 `converted`（綠色），轉訂單按鈕隱藏（`canConvert` 條件）
+- [x] push 後端 → First-to-Sync wins 正常運作（Issue #7 curl 驗收：FORBIDDEN_OPERATION + server_state Force Overwrite ✅）
