@@ -41,4 +41,54 @@ npx drizzle-kit studio
 # 前端
 cd packages/frontend
 flutter pub get
-flutter pub run build_runner watch
+
+# Drift codegen（首次或 schema 有變更後必須執行）
+dart run build_runner build --delete-conflicting-outputs
+
+# 開發期間自動重新 build
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+### 測試 SyncProvider（需後端啟動）
+
+```bash
+cd packages/frontend
+
+# 整合測試（flutter_test runner）
+flutter test test/sync_provider_test.dart
+
+# 手動 Dart 腳本（快速驗證 login + push flow）
+dart run tools/test_sync.dart
+```
+
+### 環境變數配置
+
+```bash
+# 使用 --dart-define 指定後端 URL（不設定時預設 localhost:3000）
+flutter run --dart-define=API_BASE_URL=https://your-backend.example.com
+
+# 可複製 .env.example 查看所有可配置項目
+cp .env.example .env
+```
+
+### 前端專案結構
+
+```
+packages/frontend/
+├── lib/
+│   ├── core/
+│   │   ├── constants.dart          ← baseUrl、timeout 等全域常數
+│   │   └── utils/                  ← 日期、decimal 輔助函數（待補）
+│   ├── database/
+│   │   ├── schema.dart             ← 9 張 Drift Table 定義
+│   │   ├── database.dart           ← AppDatabase（含 forTesting 建構子）
+│   │   └── converters/             ← DecimalConverter、Iso8601DateTimeConverter
+│   ├── features/
+│   │   ├── auth/                   ← LoginScreen（待實作）
+│   │   └── sync/                   ← SyncScreen / SyncStatusWidget（待實作）
+│   └── providers/
+│       └── sync_provider.dart      ← 核心同步邏輯（Proactive Refresh + Push）
+├── test/
+│   └── sync_provider_test.dart
+└── tools/
+    └── test_sync.dart              ← 手動驗證腳本

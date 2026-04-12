@@ -23,6 +23,20 @@ await db.insert(schema.users).values([
     isActive: true,
   },
   {
+    username: 'warehouse_test',
+    email: 'warehouse@test.local',
+    password: await bcrypt.hash('P@ssw0rd!', HASH_ROUNDS),
+    role: 'warehouse',
+    isActive: true,
+  },
+  {
+    username: 'admin_test',
+    email: 'admin@test.local',
+    password: await bcrypt.hash('P@ssw0rd!', HASH_ROUNDS),
+    role: 'admin',
+    isActive: true,
+  },
+  {
     username: 'disabled_user',
     email: 'disabled@test.local',
     password: await bcrypt.hash('P@ssw0rd!', HASH_ROUNDS),
