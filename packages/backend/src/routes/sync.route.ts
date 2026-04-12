@@ -19,6 +19,8 @@ import { z } from 'zod';
 import { eq, gt } from 'drizzle-orm';
 import { customers } from '@/schemas/customers.schema.js';
 import { products } from '@/schemas/products.schema.js';
+import { quotations } from '@/schemas/quotations.schema.js';
+import { salesOrders } from '@/schemas/sales_orders.schema.js';
 import { processedOperations } from '@/schemas/processed_operations.schema.js';
 import { processOperation } from '@/services/sync.service.js';
 import { SYNC } from '@/constants/index.js';
@@ -177,8 +179,7 @@ export default async function syncRoutes(app: FastifyInstance) {
     const sinceDate = since ? new Date(since) : new Date(0);
     const types = entityTypes ? entityTypes.split(',') : ['customer', 'product', 'quotation', 'sales_order', 'inventory_delta'];
 
-    // 只實作 W2 所涵蓋的 customer 與 product，未來 W5 補齊其他
-    const result: Record<string, any[]> = {
+    const result: Record<string, unknown[]> = {
       customers: [],
       products: [],
       quotations: [],
@@ -211,6 +212,43 @@ export default async function syncRoutes(app: FastifyInstance) {
         sku: r.sku,
         unitPrice: r.unitPrice,
         minStockLevel: r.minStockLevel,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+      }));
+    }
+
+    if (types.includes('quotation')) {
+      const rows = await db.select().from(quotations)
+        .where(gt(quotations.updatedAt, sinceDate));
+      result.quotations = rows.map(r => ({
+        entityType: 'quotation',
+        id: r.id,
+        customerId: r.customerId,
+        createdBy: r.createdBy,
+        items: [],          // items 需靠 order_items join，W5 Issue #10 補完
+        totalAmount: r.totalAmount,
+        taxAmount: r.taxAmount,
+        status: r.status,
+        convertedToOrderId: r.convertedToOrderId ?? null,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+      }));
+    }
+
+    if (types.includes('sales_order')) {
+      const rows = await db.select().from(salesOrders)
+        .where(gt(salesOrders.updatedAt, sinceDate));
+      result.salesOrders = rows.map(r => ({
+        entityType: 'sales_order',
+        id: r.id,
+        quotationId: r.quotationId ?? null,
+        customerId: r.customerId,
+        createdBy: r.createdBy,
+        status: r.status,
+        confirmedAt: r.confirmedAt ? r.confirmedAt.toISOString() : null,
+        shippedAt: r.shippedAt ? r.shippedAt.toISOString() : null,
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
         deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,

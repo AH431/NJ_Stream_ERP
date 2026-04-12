@@ -551,10 +551,46 @@ async function processSalesOrder(
     }
     const { quotationId, customerId, createdBy, status } = parsed.data;
 
-    // TODO Issue #7：First-to-Sync wins 並發控制
-    //   若 quotationId != null，先檢查 quotations.convertedToOrderId 是否已有值；
-    //   若有，回傳 DATA_CONFLICT。目前直接建立，Issue #7 補強。
-    await tx.insert(salesOrders).values({ quotationId: quotationId ?? null, customerId, createdBy, status });
+    // First-to-Sync wins：若從報價轉單，確認報價尚未被其他裝置轉換
+    if (quotationId != null) {
+      const [quot] = await tx.select().from(quotations)
+        .where(and(eq(quotations.id, quotationId), isNull(quotations.deletedAt)));
+      if (!quot) {
+        return makeFailure(op.id, 'DATA_CONFLICT',
+          `找不到 quotationId=${quotationId} 的報價。`);
+      }
+      if (quot.convertedToOrderId != null) {
+        // 先到者已轉換，回傳最新報價狀態供前端 Force Overwrite（items 靠 Pull 取得）
+        const quotState: QuotationPayload = {
+          entityType: 'quotation',
+          id: quot.id,
+          customerId: quot.customerId,
+          createdBy: quot.createdBy,
+          items: [],
+          totalAmount: quot.totalAmount,
+          taxAmount: quot.taxAmount,
+          status: quot.status as QuotationPayload['status'],
+          convertedToOrderId: quot.convertedToOrderId,
+          createdAt: quot.createdAt.toISOString(),
+          updatedAt: quot.updatedAt.toISOString(),
+          deletedAt: toIso(quot.deletedAt),
+        };
+        return makeFailure(op.id, 'FORBIDDEN_OPERATION',
+          'First-to-Sync wins：此報價已被轉換為訂單，本次操作已取消。', quotState);
+      }
+    }
+
+    // 建立訂單，若從報價轉入則同 transaction 更新報價狀態
+    const [newOrder] = await tx.insert(salesOrders)
+      .values({ quotationId: quotationId ?? null, customerId, createdBy, status })
+      .returning({ id: salesOrders.id });
+
+    if (quotationId != null) {
+      await tx.update(quotations)
+        .set({ convertedToOrderId: newOrder.id, status: 'converted', updatedAt: new Date() })
+        .where(eq(quotations.id, quotationId));
+    }
+
     return { ok: true };
   }
 

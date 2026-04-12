@@ -306,15 +306,14 @@ paths:
         - Pull
       summary: 下拉伺服器最新狀態（Fail-to-Pull）
       description: |
-        **[預留端點 — W6 實作]**
-
         當前端收到 `INSUFFICIENT_STOCK` 錯誤時，必須呼叫此端點取得最新庫存狀態，
         再由使用者決定是否重新操作。
 
         查詢參數 `entityTypes` 可指定需下拉的實體類型（逗號分隔），
         若未指定則下拉所有自 `since` 時間點後有變動的實體。
 
-        **回傳格式與 schema 定義將在 W6 Sprint Planning 前確認。**
+        W3-W4（Issue #7）：實作 customers / products / quotations / salesOrders 增量同步。
+        inventoryDeltas 待 W6 補完。
       parameters:
         - name: since
           in: query
