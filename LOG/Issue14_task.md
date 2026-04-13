@@ -63,6 +63,18 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ### 0-4. Android 工具鏈 / 執行環境確認
 
+#### 外接實體手機最低規格
+
+| 項目 | 最低值 | 說明 |
+|------|--------|------|
+| Android 版本 | **6.0（API 23）** | `flutter_secure_storage ^9.2.0` 使用 EncryptedSharedPreferences，API 23 才有 |
+| RAM | **2 GB** | debug build 較重，1 GB 會卡頓 |
+| 架構 | ARMv7 或 ARM64 | 2013 年後機型均符合 |
+| 年份參考 | 2015–2016 年以後 | Android 6.0 普及時期 |
+
+> Flutter SDK 本身支援 API 21（Android 5.0），但本專案因 `flutter_secure_storage` 硬性需要 **API 23**。
+> 建議備用機 Android 7.0 以上即可安全覆蓋所有套件需求。
+
 **選項 A（推薦）：Android Emulator**
 
 | 步驟 | 命令 |
