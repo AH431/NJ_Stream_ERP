@@ -152,8 +152,10 @@ export default async function syncRoutes(app: FastifyInstance) {
     }
 
     // ── 7. 回傳結果 ──────────────────────────────────────
-    // HTTP 200 即使有 failed operations — 部分成功是正常狀態，非 HTTP 錯誤
-    return reply.status(200).send({ succeeded, failed });
+    // 有任一 INSUFFICIENT_STOCK → 409 Conflict（前端偵測到 409 即強制 Pull）
+    // 其他 failed（DATA_CONFLICT 等）仍回 200 partial success
+    const hasInsufficientStock = failed.some(f => f.code === 'INSUFFICIENT_STOCK');
+    return reply.status(hasInsufficientStock ? 409 : 200).send({ succeeded, failed });
   });
 
   /**

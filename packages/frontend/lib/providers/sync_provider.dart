@@ -515,13 +515,31 @@ class SyncProvider extends ChangeNotifier {
         // 不需要 Options(headers:...)，interceptor 已處理 Authorization
       );
     } on DioException catch (e) {
-      // 網路層錯誤：全批回退 pending，等下次重試
+      // 409 Conflict：後端偵測到 INSUFFICIENT_STOCK，解析 body 後強制 Pull
+      if (e.type == DioExceptionType.badResponse &&
+          e.response?.statusCode == 409) {
+        await _processPushResponse(batch, e.response?.data as Map<String, dynamic>?);
+        // 強制 Pull：409 代表伺服器庫存已改變，前端必須取得最新狀態
+        // ignore: unawaited_futures
+        pullData();
+        return;
+      }
+      // 其他網路層錯誤：全批回退 pending，等下次重試
       await _markBatch(batch, 'pending', incrementRetry: true);
       throw Exception('Network error: ${e.message}');
     }
 
-    final succeeded = (response.data?['succeeded'] as List<dynamic>?)?.cast<String>() ?? [];
-    final failedList = (response.data?['failed'] as List<dynamic>?) ?? [];
+    await _processPushResponse(batch, response.data);
+  }
+
+  /// 解析 push 回傳的 {succeeded, failed} 並更新各 op 狀態。
+  /// 供 200 與 409 共用，避免重複邏輯。
+  Future<void> _processPushResponse(
+    List<PendingOperation> batch,
+    Map<String, dynamic>? data,
+  ) async {
+    final succeeded = (data?['succeeded'] as List<dynamic>?)?.cast<String>() ?? [];
+    final failedList = (data?['failed'] as List<dynamic>?) ?? [];
 
     for (final op in batch) {
       if (succeeded.contains(op.operationId)) {
@@ -562,12 +580,11 @@ class SyncProvider extends ChangeNotifier {
         }
         await _updateOpStatus(op, 'failed', error: errorCode);
 
-      // INSUFFICIENT_STOCK：標記 failed + 自動觸發 Pull 更新庫存（同步協定 v1.6 §6 Fail-to-Pull）
+      // INSUFFICIENT_STOCK：標記 failed（同步協定 v1.6 §6 Fail-to-Pull）
+      // 後端回 409 時，_pushBatch 已在呼叫端觸發 pullData()；
+      // 此處保留作為防禦性兜底（未來協定調整或直接呼叫 _handleError 的情境）
       case 'INSUFFICIENT_STOCK':
         await _updateOpStatus(op, 'failed', error: errorCode);
-        // 非阻塞觸發：若 syncing 狀態中 pullData() 會靜默跳過，下次手動 pull 補齊
-        // ignore: unawaited_futures
-        pullData();
 
       // DATA_CONFLICT：標記 failed，人工介入
       case 'DATA_CONFLICT':
