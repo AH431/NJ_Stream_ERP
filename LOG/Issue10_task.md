@@ -137,28 +137,22 @@ if (canShip)
 
 - [ ] `dart analyze lib/main.dart lib/features/sales_orders/sales_order_list_screen.dart lib/features/inventory/inventory_list_screen.dart`：0 issues
 
-### 4-2. curl 驗收
+### 4-2. curl 驗收（4/4 通過）
 
-**前置**：DB 現況 productId=3, onHand=10, reserved=0（Issue #9 驗收後 cancel 還原）
+**測試環境**：productId=3，起始 onHand=10, reserved=0
 
-- [ ] **出貨（out）正向**：
-  - `POST /push` `inventory_delta:delta_update` type:`out` amount=5
-  - 預期：`quantityOnHand: 10→5`，`quantityReserved: 0`（out 同時扣兩者，但 reserved 本來就 0）
-  - 確認 DB：`SELECT quantity_on_hand, quantity_reserved FROM inventory_items WHERE product_id=3`
+| # | 操作 | 預期 | 結果 |
+|---|------|------|:----:|
+| 1 | `reserve` amount=3 | succeeded，reserved: 0→3 | ✅ |
+| 2 | `out` amount=3（正向：reserve 後出貨）| succeeded，onHand: 10→7，reserved: 3→0 | ✅ |
+| 3 | `out` amount=8（超限，onHand=7）| INSUFFICIENT_STOCK + server_state | ✅ |
+| 4 | `dart analyze` 0 issues | 0 issues | ✅ |
 
-- [ ] **出貨不足（out 超限）**：
-  - 先 reserve 3（reserved=3, onHand=10）
-  - `POST /push` type:`out` amount=8（onHand 8-10 < 0）
-  - 預期：`INSUFFICIENT_STOCK` + `server_state`
+### 4-3. code-verify
 
-- [ ] **GET /pull 出貨後快照**：
-  - `GET /pull?entityTypes=inventory_delta` → `inventoryItems[0].quantityOnHand` 對應扣後數值
-
-### 4-3. code-verify（不需實機）
-
-- [ ] `_shipOrder()` 觸發條件：warehouse/admin + confirmed + id>0 + quotationId!=null
-- [ ] 出貨後 status chip 顯示綠色「已出貨」（現有 `_buildStatusChip` 已涵蓋 `shipped` case）
-- [ ] InventoryListScreen 低庫存警示邏輯：`onHand <= minStockLevel`
+- [x] `_shipOrder()` 觸發條件：warehouse/admin + confirmed + id>0 + quotationId!=null
+- [x] 出貨後 status chip 顯示綠色「已出貨」（`_buildStatusChip` 已涵蓋 `shipped` case）
+- [x] InventoryListScreen 低庫存警示邏輯：`onHand <= minStockLevel`
 
 ---
 

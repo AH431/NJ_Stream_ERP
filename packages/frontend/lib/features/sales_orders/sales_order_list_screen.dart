@@ -217,6 +217,91 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     }
   }
 
+  // ─── 出貨 ────────────────────────────────────────────────────────────────────
+
+  Future<void> _shipOrder(BuildContext context, SalesOrder order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('確認出貨'),
+        content: const Text('確認出貨後庫存將立即扣除，此操作不可逆，是否繼續？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('返回'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('確認出貨', style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final db   = context.read<AppDatabase>();
+    final sync = context.read<SyncProvider>();
+
+    // 從本地取得報價，確認 items 存在
+    final quotation = await (db.select(db.quotations)
+          ..where((t) => t.id.equals(order.quotationId!)))
+        .getSingleOrNull();
+
+    if (quotation == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('找不到對應報價，請先同步再執行出貨。')),
+        );
+      }
+      return;
+    }
+
+    List<QuotationItemModel> items = [];
+    try {
+      final rawList = jsonDecode(quotation.items) as List<dynamic>;
+      items = rawList
+          .cast<Map<String, dynamic>>()
+          .map(QuotationItemModel.fromJson)
+          .toList();
+    } catch (_) {}
+
+    if (items.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('無法取得訂單明細，請重新同步後再試。')),
+        );
+      }
+      return;
+    }
+
+    final now = DateTime.now().toUtc();
+
+    // 本地樂觀更新
+    await db.updateSalesOrderStatus(order.id, 'shipped', shippedAt: now);
+
+    // enqueue sales_order:update
+    await sync.enqueueUpdate('sales_order', order.id, {
+      'id': order.id,
+      'status': 'shipped',
+      'shippedAt': now.toIso8601String(),
+      'updatedAt': now.toIso8601String(),
+    });
+
+    // enqueue inventory_delta:out（每個明細行一筆，同時扣 onHand 與 reserved）
+    for (final item in items) {
+      await sync.enqueueDeltaUpdate('inventory_delta', 'out', {
+        'productId': item.productId,
+        'amount': item.quantity,
+      });
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('出貨完成，庫存扣除已排入待同步佇列')),
+      );
+    }
+  }
+
   // ─── 訂單列表項目 ────────────────────────────────────────────────────────────
 
   Widget _buildOrderTile(SalesOrder order, String role) {
@@ -226,6 +311,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     // 確認訂單：sales/admin、status=pending、已同步(id>0)、有 quotationId
     final canConfirm = (role == 'sales' || role == 'admin') &&
         order.status == 'pending' &&
+        !isOffline &&
+        order.quotationId != null;
+
+    // 出貨：warehouse/admin、status=confirmed、已同步、有 quotationId
+    final canShip = (role == 'warehouse' || role == 'admin') &&
+        order.status == 'confirmed' &&
         !isOffline &&
         order.quotationId != null;
 
@@ -284,7 +375,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
               ],
             ),
             // 操作按鈕（有權限才顯示）
-            if (canConfirm || canCancel) ...[
+            if (canConfirm || canShip || canCancel) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -295,6 +386,13 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                       icon: const Icon(Icons.check_circle_outline, size: 16),
                       label: const Text('確認訂單'),
                       style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                    ),
+                  if (canShip)
+                    TextButton.icon(
+                      onPressed: () => _shipOrder(context, order),
+                      icon: const Icon(Icons.local_shipping_outlined, size: 16),
+                      label: const Text('出貨'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.green),
                     ),
                   if (canCancel)
                     TextButton.icon(
