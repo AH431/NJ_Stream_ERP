@@ -12,6 +12,7 @@ import 'features/quotations/quotation_form_screen.dart';
 import 'features/quotations/quotation_list_screen.dart';
 import 'features/sales_orders/sales_order_list_screen.dart';
 import 'features/inventory/inventory_list_screen.dart';
+import 'features/inventory/stock_in_dialog.dart';
 import 'features/auth/login_screen.dart';
 import 'providers/sync_provider.dart';
 
@@ -229,6 +230,24 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         tooltip: '新增報價單',
         child: const Icon(Icons.add),
+      );
+    }
+    if (_selectedIndex == 4 && (role == 'warehouse' || role == 'admin')) {
+      return FloatingActionButton(
+        heroTag: 'fab_stock_in',
+        onPressed: () async {
+          final result = await showDialog<bool>(
+            context: context,
+            builder: (_) => const StockInDialog(),
+          );
+          if (result == true && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('入庫已排入待同步佇列，同步後庫存將更新')),
+            );
+          }
+        },
+        tooltip: '入庫',
+        child: const Icon(Icons.add_box_outlined),
       );
     }
     return null;

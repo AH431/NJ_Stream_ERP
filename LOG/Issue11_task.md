@@ -14,6 +14,7 @@
 | InventoryListScreen FAB（warehouse/admin）| ✅ |
 | HomeScreen `_buildFab` 補 tab 4 | ✅ |
 | Race Condition curl 驗收（兩筆 reserve 競爭同一庫存）| ✅ |
+| dart analyze 0 issues | ✅ |
 | 採購訂單 UI | ❌ MVP 不做 |
 
 ---
@@ -77,18 +78,18 @@ bool _loading = true;
 
 ### 1-3. initState：載入有庫存記錄的產品
 
-- [ ] `db.watchInventoryItems().first` → 取得 productId set
-- [ ] `db.getActiveProducts()` → filter 出 validProductIds 的產品
-- [ ] 結果存入 `_eligibleProducts`，`_loading = false`
+- [x] `db.watchInventoryItems().first` → 取得 productId set
+- [x] `db.getActiveProducts()` → filter 出 validProductIds 的產品
+- [x] 結果存入 `_eligibleProducts`，`_loading = false`
 
 ### 1-4. UI
 
-- [ ] `DropdownButtonFormField<int>`：選項 = `_eligibleProducts`（顯示 `name（SKU）`）
+- [x] `DropdownButtonFormField<int>`：選項 = `_eligibleProducts`（顯示 `name（SKU）`）
   - validator：必選
-- [ ] `TextFormField`：輸入入庫數量
+- [x] `TextFormField`：輸入入庫數量
   - keyboardType: `TextInputType.number`
   - validator：必填、必須為正整數（`int.tryParse(v) != null && int.parse(v) > 0`）
-- [ ] AlertDialog actions：「取消」/ 「確認入庫」
+- [x] AlertDialog actions：「取消」/ 「確認入庫」
 
 ### 1-5. 提交流程
 
@@ -131,7 +132,7 @@ if (_selectedIndex == 4 && (role == 'warehouse' || role == 'admin')) {
 }
 ```
 
-- [ ] import `'features/inventory/stock_in_dialog.dart'`
+- [x] import `'features/inventory/stock_in_dialog.dart'`
 
 > **注意**：`StockInDialog` 在 pop 時回傳 `Navigator.pop(context, true)`，由 `_buildFab` 的 `result == true` 判斷是否顯示 Snackbar。
 
@@ -141,15 +142,15 @@ if (_selectedIndex == 4 && (role == 'warehouse' || role == 'admin')) {
 
 ### 3-1. 靜態分析
 
-- [ ] `dart analyze lib/main.dart lib/features/inventory/stock_in_dialog.dart lib/features/inventory/inventory_list_screen.dart`：0 issues
+- [x] `dart analyze lib/main.dart lib/features/inventory/stock_in_dialog.dart lib/features/inventory/inventory_list_screen.dart`：0 issues
 
 ### 3-2. curl 驗收 — in（入庫正向）
 
 **前置**：productId=3，DB 現況 onHand=7（Issue #10 驗收後）
 
-- [ ] `POST /push` `inventory_delta:delta_update` type:`in` amount=5
-  - 預期：`succeeded`，onHand: 7→12，reserved 不變
-  - 確認 DB：`SELECT quantity_on_hand, quantity_reserved FROM inventory_items WHERE product_id=3`
+- [x] `POST /push` `inventory_delta:delta_update` type:`in` amount=5
+  - 結果：`succeeded`，onHand: 7→12，reserved=0 不變 ✅
+  - GET /pull 確認：`quantityOnHand=12, quantityReserved=0` ✅
 
 ### 3-3. curl 驗收 — Race Condition（#12 收尾）
 
@@ -159,17 +160,11 @@ if (_selectedIndex == 4 && (role == 'warehouse' || role == 'admin')) {
 
 **情境**：裝置 A reserve 10（合法），裝置 B 同時 reserve 5（10+5=15 > 12 → 超限）
 
-- [ ] **操作 1（合批送出，升序排列）**：同一 push 內送兩筆 reserve
-  ```json
-  operations: [
-    { deltaType:"reserve", amount: 10, createdAt: "T+0" },
-    { deltaType:"reserve", amount:  5, createdAt: "T+1" }
-  ]
-  ```
-  - 預期：第一筆 succeeded（reserved: 0→10），第二筆 INSUFFICIENT_STOCK（10+5=15 > 12）
-  - 回傳：`{ succeeded: ["op1"], failed: [{ code:"INSUFFICIENT_STOCK", server_state: {onHand:12, reserved:10} }] }`
+- [x] **操作 1（合批送出，升序排列）**：同一 push 內送兩筆 reserve
+  - 回傳：`{ succeeded: ["op-reserve-10"], failed: [{ code:"INSUFFICIENT_STOCK", server_state: {onHand:12, reserved:10} }] }` ✅
+  - 第一筆 succeeded（reserved: 0→10），第二筆 INSUFFICIENT_STOCK（10+5=15 > 12）✅
 
-- [ ] **GET /pull 確認**：`inventoryItems[0].quantityReserved == 10`
+- [x] **GET /pull 確認**：`quantityOnHand=12, quantityReserved=10` ✅
 
 > **Race Condition 結論**：同一批次內，Drizzle transaction 每筆獨立，順序執行（非並發），第一筆先改 DB，第二筆讀到已更新的 reserved=10，應用層攔截 INSUFFICIENT_STOCK。這是「批內序列化」而非真正並發競爭，真實的跨裝置競爭需依賴 DB transaction isolation（PostgreSQL 預設 READ COMMITTED）。
 
