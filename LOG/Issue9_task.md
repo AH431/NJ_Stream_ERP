@@ -361,10 +361,12 @@ Quotation items：[{productId: 1, quantity: 3, unitPrice: "100.00", subtotal: "3
 
 ### 6-4. curl 驗收
 
-- [ ] `GET /api/v1/sync/pull?entityTypes=inventory_delta` → `inventoryItems` 非空（需 DB 有資料）
-- [ ] `POST /push` reserve → 後端 `quantityReserved` 增加
-- [ ] `POST /push` reserve（庫存不足）→ 後端回 INSUFFICIENT_STOCK → 前端自動觸發 pullData()（log 確認）
-- [ ] `POST /push` cancel → `quantityReserved` 減少
+- [x] `GET /api/v1/sync/pull?entityTypes=inventory_delta` → `inventoryItems` 非空（含 minStockLevel）
+- [x] `POST /push` reserve amount=3 → `quantityReserved: 0→3`（succeeded）
+- [x] `POST /push` reserve amount=8（超限）→ `INSUFFICIENT_STOCK` + `server_state`（onHand=10, reserved=3）
+- [x] `POST /push` cancel amount=3 → `quantityReserved: 3→0`（succeeded）
+
+> 測試環境：productId=3（TST-I7-001），seed：onHand=10, reserved=0（2026-04-13）
 
 ---
 
