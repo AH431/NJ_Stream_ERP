@@ -21,6 +21,7 @@ import { customers } from '@/schemas/customers.schema.js';
 import { products } from '@/schemas/products.schema.js';
 import { quotations } from '@/schemas/quotations.schema.js';
 import { salesOrders } from '@/schemas/sales_orders.schema.js';
+import { inventoryItems } from '@/schemas/inventory_items.schema.js';
 import { processedOperations } from '@/schemas/processed_operations.schema.js';
 import { processOperation } from '@/services/sync.service.js';
 import { SYNC } from '@/constants/index.js';
@@ -184,7 +185,7 @@ export default async function syncRoutes(app: FastifyInstance) {
       products: [],
       quotations: [],
       salesOrders: [],
-      inventoryDeltas: [],
+      inventoryItems: [],
     };
 
     if (types.includes('customer')) {
@@ -252,6 +253,22 @@ export default async function syncRoutes(app: FastifyInstance) {
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
         deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+      }));
+    }
+
+    if (types.includes('inventory_delta')) {
+      const rows = await db.select().from(inventoryItems)
+        .where(gt(inventoryItems.updatedAt, sinceDate));
+      result.inventoryItems = rows.map(r => ({
+        entityType: 'inventory_item',
+        id: r.id,
+        productId: r.productId,
+        warehouseId: r.warehouseId,
+        quantityOnHand: r.quantityOnHand,
+        quantityReserved: r.quantityReserved,
+        minStockLevel: r.minStockLevel,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
       }));
     }
 

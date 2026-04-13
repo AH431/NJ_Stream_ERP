@@ -10,6 +10,7 @@ import 'features/products/product_form_screen.dart';
 import 'features/products/product_list_screen.dart';
 import 'features/quotations/quotation_form_screen.dart';
 import 'features/quotations/quotation_list_screen.dart';
+import 'features/sales_orders/sales_order_list_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'providers/sync_provider.dart';
 
@@ -103,7 +104,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const _titles = ['客戶管理', '產品管理', '報價管理'];
+  static const _titles = ['客戶管理', '產品管理', '報價管理', '訂單管理'];
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
           CustomerListScreen(),
           ProductListScreen(),
           QuotationListScreen(),
+          SalesOrderListScreen(),
         ],
       ),
 
@@ -176,6 +178,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: '報價',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.shopping_bag_outlined),
+            selectedIcon: Icon(Icons.shopping_bag),
+            label: '訂單',
           ),
         ],
       ),

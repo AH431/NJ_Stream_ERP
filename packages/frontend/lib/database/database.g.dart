@@ -2554,6 +2554,14 @@ class $InventoryItemsTable extends InventoryItems
       check: () => ComparableExpr(quantityReserved).isBiggerOrEqualValue(0),
       type: DriftSqlType.int,
       requiredDuringInsert: true);
+  static const VerificationMeta _minStockLevelMeta =
+      const VerificationMeta('minStockLevel');
+  @override
+  late final GeneratedColumn<int> minStockLevel = GeneratedColumn<int>(
+      'min_stock_level', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -2573,6 +2581,7 @@ class $InventoryItemsTable extends InventoryItems
         warehouseId,
         quantityOnHand,
         quantityReserved,
+        minStockLevel,
         createdAt,
         updatedAt
       ];
@@ -2617,6 +2626,12 @@ class $InventoryItemsTable extends InventoryItems
     } else if (isInserting) {
       context.missing(_quantityReservedMeta);
     }
+    if (data.containsKey('min_stock_level')) {
+      context.handle(
+          _minStockLevelMeta,
+          minStockLevel.isAcceptableOrUnknown(
+              data['min_stock_level']!, _minStockLevelMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -2648,6 +2663,8 @@ class $InventoryItemsTable extends InventoryItems
           .read(DriftSqlType.int, data['${effectivePrefix}quantity_on_hand'])!,
       quantityReserved: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}quantity_reserved'])!,
+      minStockLevel: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}min_stock_level'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -2667,6 +2684,9 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
   final int warehouseId;
   final int quantityOnHand;
   final int quantityReserved;
+
+  /// 低庫存警示閾值（對應後端 inventory_items.min_stock_level）
+  final int minStockLevel;
   final DateTime createdAt;
   final DateTime updatedAt;
   const InventoryItem(
@@ -2675,6 +2695,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       required this.warehouseId,
       required this.quantityOnHand,
       required this.quantityReserved,
+      required this.minStockLevel,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -2685,6 +2706,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
     map['warehouse_id'] = Variable<int>(warehouseId);
     map['quantity_on_hand'] = Variable<int>(quantityOnHand);
     map['quantity_reserved'] = Variable<int>(quantityReserved);
+    map['min_stock_level'] = Variable<int>(minStockLevel);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -2697,6 +2719,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       warehouseId: Value(warehouseId),
       quantityOnHand: Value(quantityOnHand),
       quantityReserved: Value(quantityReserved),
+      minStockLevel: Value(minStockLevel),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -2711,6 +2734,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       warehouseId: serializer.fromJson<int>(json['warehouseId']),
       quantityOnHand: serializer.fromJson<int>(json['quantityOnHand']),
       quantityReserved: serializer.fromJson<int>(json['quantityReserved']),
+      minStockLevel: serializer.fromJson<int>(json['minStockLevel']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -2724,6 +2748,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       'warehouseId': serializer.toJson<int>(warehouseId),
       'quantityOnHand': serializer.toJson<int>(quantityOnHand),
       'quantityReserved': serializer.toJson<int>(quantityReserved),
+      'minStockLevel': serializer.toJson<int>(minStockLevel),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -2735,6 +2760,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           int? warehouseId,
           int? quantityOnHand,
           int? quantityReserved,
+          int? minStockLevel,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       InventoryItem(
@@ -2743,6 +2769,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
         warehouseId: warehouseId ?? this.warehouseId,
         quantityOnHand: quantityOnHand ?? this.quantityOnHand,
         quantityReserved: quantityReserved ?? this.quantityReserved,
+        minStockLevel: minStockLevel ?? this.minStockLevel,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -2758,6 +2785,9 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
       quantityReserved: data.quantityReserved.present
           ? data.quantityReserved.value
           : this.quantityReserved,
+      minStockLevel: data.minStockLevel.present
+          ? data.minStockLevel.value
+          : this.minStockLevel,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -2771,6 +2801,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           ..write('warehouseId: $warehouseId, ')
           ..write('quantityOnHand: $quantityOnHand, ')
           ..write('quantityReserved: $quantityReserved, ')
+          ..write('minStockLevel: $minStockLevel, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2779,7 +2810,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
 
   @override
   int get hashCode => Object.hash(id, productId, warehouseId, quantityOnHand,
-      quantityReserved, createdAt, updatedAt);
+      quantityReserved, minStockLevel, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2789,6 +2820,7 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
           other.warehouseId == this.warehouseId &&
           other.quantityOnHand == this.quantityOnHand &&
           other.quantityReserved == this.quantityReserved &&
+          other.minStockLevel == this.minStockLevel &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -2799,6 +2831,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
   final Value<int> warehouseId;
   final Value<int> quantityOnHand;
   final Value<int> quantityReserved;
+  final Value<int> minStockLevel;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const InventoryItemsCompanion({
@@ -2807,6 +2840,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     this.warehouseId = const Value.absent(),
     this.quantityOnHand = const Value.absent(),
     this.quantityReserved = const Value.absent(),
+    this.minStockLevel = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -2816,6 +2850,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     this.warehouseId = const Value.absent(),
     required int quantityOnHand,
     required int quantityReserved,
+    this.minStockLevel = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   })  : productId = Value(productId),
@@ -2829,6 +2864,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     Expression<int>? warehouseId,
     Expression<int>? quantityOnHand,
     Expression<int>? quantityReserved,
+    Expression<int>? minStockLevel,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -2838,6 +2874,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       if (warehouseId != null) 'warehouse_id': warehouseId,
       if (quantityOnHand != null) 'quantity_on_hand': quantityOnHand,
       if (quantityReserved != null) 'quantity_reserved': quantityReserved,
+      if (minStockLevel != null) 'min_stock_level': minStockLevel,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -2849,6 +2886,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       Value<int>? warehouseId,
       Value<int>? quantityOnHand,
       Value<int>? quantityReserved,
+      Value<int>? minStockLevel,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return InventoryItemsCompanion(
@@ -2857,6 +2895,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       warehouseId: warehouseId ?? this.warehouseId,
       quantityOnHand: quantityOnHand ?? this.quantityOnHand,
       quantityReserved: quantityReserved ?? this.quantityReserved,
+      minStockLevel: minStockLevel ?? this.minStockLevel,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -2880,6 +2919,9 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     if (quantityReserved.present) {
       map['quantity_reserved'] = Variable<int>(quantityReserved.value);
     }
+    if (minStockLevel.present) {
+      map['min_stock_level'] = Variable<int>(minStockLevel.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2897,6 +2939,7 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
           ..write('warehouseId: $warehouseId, ')
           ..write('quantityOnHand: $quantityOnHand, ')
           ..write('quantityReserved: $quantityReserved, ')
+          ..write('minStockLevel: $minStockLevel, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5490,6 +5533,7 @@ typedef $$InventoryItemsTableCreateCompanionBuilder = InventoryItemsCompanion
   Value<int> warehouseId,
   required int quantityOnHand,
   required int quantityReserved,
+  Value<int> minStockLevel,
   required DateTime createdAt,
   required DateTime updatedAt,
 });
@@ -5500,6 +5544,7 @@ typedef $$InventoryItemsTableUpdateCompanionBuilder = InventoryItemsCompanion
   Value<int> warehouseId,
   Value<int> quantityOnHand,
   Value<int> quantityReserved,
+  Value<int> minStockLevel,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -5529,6 +5574,9 @@ class $$InventoryItemsTableFilterComposer
   ColumnFilters<int> get quantityReserved => $composableBuilder(
       column: $table.quantityReserved,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get minStockLevel => $composableBuilder(
+      column: $table.minStockLevel, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -5563,6 +5611,10 @@ class $$InventoryItemsTableOrderingComposer
       column: $table.quantityReserved,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get minStockLevel => $composableBuilder(
+      column: $table.minStockLevel,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -5593,6 +5645,9 @@ class $$InventoryItemsTableAnnotationComposer
 
   GeneratedColumn<int> get quantityReserved => $composableBuilder(
       column: $table.quantityReserved, builder: (column) => column);
+
+  GeneratedColumn<int> get minStockLevel => $composableBuilder(
+      column: $table.minStockLevel, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5633,6 +5688,7 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             Value<int> warehouseId = const Value.absent(),
             Value<int> quantityOnHand = const Value.absent(),
             Value<int> quantityReserved = const Value.absent(),
+            Value<int> minStockLevel = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -5642,6 +5698,7 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             warehouseId: warehouseId,
             quantityOnHand: quantityOnHand,
             quantityReserved: quantityReserved,
+            minStockLevel: minStockLevel,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -5651,6 +5708,7 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             Value<int> warehouseId = const Value.absent(),
             required int quantityOnHand,
             required int quantityReserved,
+            Value<int> minStockLevel = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
           }) =>
@@ -5660,6 +5718,7 @@ class $$InventoryItemsTableTableManager extends RootTableManager<
             warehouseId: warehouseId,
             quantityOnHand: quantityOnHand,
             quantityReserved: quantityReserved,
+            minStockLevel: minStockLevel,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

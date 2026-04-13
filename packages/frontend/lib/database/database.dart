@@ -36,6 +36,7 @@ class AppDatabase extends _$AppDatabase {
   /// 版本歷史：
   ///   v1: 初始 9 張表
   ///   v2: 新增 OrderItems 表（訂單明細正規化，對應後端 order_items）
+  ///   v3: InventoryItems 補 minStockLevel 欄位（對應後端 inventory_items.min_stock_level）
   ///
   /// 升版流程：
   ///   1. 修改 schema.dart（新增欄位 / 表）
@@ -43,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   ///   3. 在 onUpgrade 的對應 from 版本中加入 migration 操作
   ///   4. 執行 build_runner build 重新產生 database.g.dart
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -52,13 +53,14 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
         },
         // App 升版時（schemaVersion 提高）：逐版處理結構變更
-        // 範例：
-        //   if (from < 2) { await m.addColumn(customers, customers.phone); }
-        //   if (from < 3) { await m.createTable(someNewTable); }
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
             // v1 → v2: 新增 OrderItems 表
             await m.createTable(orderItems);
+          }
+          if (from < 3) {
+            // v2 → v3: InventoryItems 補 minStockLevel 欄位
+            await m.addColumn(inventoryItems, inventoryItems.minStockLevel);
           }
         },
       );

@@ -161,6 +161,8 @@ class InventoryItems extends Table {
   IntColumn get warehouseId => integer().withDefault(const Constant(1))();
   IntColumn get quantityOnHand => integer().check(quantityOnHand.isBiggerOrEqualValue(0))(); // 約束：不得小於 0
   IntColumn get quantityReserved => integer().check(quantityReserved.isBiggerOrEqualValue(0))();
+  /// 低庫存警示閾值（對應後端 inventory_items.min_stock_level）
+  IntColumn get minStockLevel => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
   DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
 

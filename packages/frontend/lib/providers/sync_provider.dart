@@ -9,11 +9,11 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 
 import '../core/constants.dart';
 import '../database/database.dart';
-import '../database/schema.dart';
 import '../database/dao/customer_dao.dart';
 import '../database/dao/product_dao.dart';
 import '../database/dao/quotation_dao.dart';
 import '../database/dao/sales_order_dao.dart';
+import '../database/dao/inventory_items_dao.dart';
 import 'package:uuid/uuid.dart';
 
 // ================================================
@@ -398,6 +398,32 @@ class SyncProvider extends ChangeNotifier {
     _emit(_state.copyWith(pendingCount: count));
   }
 
+  /// 排入「庫存異動」操作到離線佇列（Issue #9）
+  /// [entityType]：固定為 'inventory_delta'
+  /// [deltaType]：'reserve' | 'cancel' | 'out' | 'in'
+  /// [payload]：{ productId, amount }（inventoryItemId 選填）
+  Future<void> enqueueDeltaUpdate(
+    String entityType,
+    String deltaType,
+    Map<String, dynamic> payload,
+  ) async {
+    final opId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _db.into(_db.pendingOperations).insert(
+      PendingOperationsCompanion(
+        operationId: Value(opId),
+        entityType: Value(entityType),
+        operationType: Value('delta_update'),
+        deltaType: Value(deltaType),
+        payload: Value(jsonEncode(payload)),
+        createdAt: Value(now),
+        relatedEntityId: Value('$entityType:${payload["productId"]}'),
+      ),
+    );
+    final count = await _countPending();
+    _emit(_state.copyWith(pendingCount: count));
+  }
+
   /// 監聽 pending 操作數量（供 AppBar badge 使用）
   Stream<int> watchPendingCount() {
     return (_db.select(_db.pendingOperations)
@@ -536,9 +562,12 @@ class SyncProvider extends ChangeNotifier {
         }
         await _updateOpStatus(op, 'failed', error: errorCode);
 
-      // INSUFFICIENT_STOCK：標記 failed，UI 層提示 Force Pull
+      // INSUFFICIENT_STOCK：標記 failed + 自動觸發 Pull 更新庫存（同步協定 v1.6 §6 Fail-to-Pull）
       case 'INSUFFICIENT_STOCK':
         await _updateOpStatus(op, 'failed', error: errorCode);
+        // 非阻塞觸發：若 syncing 狀態中 pullData() 會靜默跳過，下次手動 pull 補齊
+        // ignore: unawaited_futures
+        pullData();
 
       // DATA_CONFLICT：標記 failed，人工介入
       case 'DATA_CONFLICT':
@@ -609,6 +638,17 @@ class SyncProvider extends ChangeNotifier {
         updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
         deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
       ));
+    } else if (entityType == 'inventory_item') {
+      await _db.upsertInventoryItemFromServer(InventoryItemsCompanion(
+        id: Value(data['id'] as int),
+        productId: Value(data['productId'] as int),
+        warehouseId: Value(data['warehouseId'] as int),
+        quantityOnHand: Value(data['quantityOnHand'] as int),
+        quantityReserved: Value(data['quantityReserved'] as int),
+        minStockLevel: Value(data['minStockLevel'] as int),
+        createdAt: Value(DateTime.parse(data['createdAt'] as String)),
+        updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
+      ));
     }
     debugPrint('[SyncProvider] Force Overwrite: $entityType id=${data['id']}');
   }
@@ -636,15 +676,16 @@ class SyncProvider extends ChangeNotifier {
         '/api/v1/sync/pull',
         queryParameters: {
           if (lastSyncStr != null) 'since': lastSyncStr,
-          'entityTypes': 'customer,product,quotation,sales_order',
+          'entityTypes': 'customer,product,quotation,sales_order,inventory_delta',
         },
       );
 
       final data = response.data ?? {};
-      final rawCustomers   = (data['customers']   as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawProducts    = (data['products']    as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawQuotations  = (data['quotations']  as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawSalesOrders = (data['salesOrders'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawCustomers      = (data['customers']      as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawProducts       = (data['products']       as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawQuotations     = (data['quotations']     as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawSalesOrders    = (data['salesOrders']    as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawInventoryItems = (data['inventoryItems'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
       // 清除本地 orphan ID < 0 以免雙胞胎（防護機制）
       final pendingOps = await (_db.select(_db.pendingOperations)..where((t) => t.status.equals('pending'))).get();
@@ -664,6 +705,9 @@ class SyncProvider extends ChangeNotifier {
       }
       for (var s in rawSalesOrders) {
         await _applyForceOverwrite('sales_order', s);
+      }
+      for (var inv in rawInventoryItems) {
+        await _applyForceOverwrite('inventory_item', inv);
       }
 
       await _storage.write(key: 'last_sync_at', value: DateTime.now().toUtc().toIso8601String());
