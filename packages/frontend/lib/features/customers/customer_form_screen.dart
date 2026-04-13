@@ -15,7 +15,6 @@ import 'package:provider/provider.dart';
 
 import '../../database/dao/customer_dao.dart';
 import '../../database/database.dart';
-import '../../database/schema.dart';
 import '../../providers/sync_provider.dart';
 
 class CustomerFormScreen extends StatefulWidget {
@@ -125,7 +124,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
           children: [
             // 說明卡片
             Card(
-              color: colorScheme.primaryContainer.withOpacity(0.4),
+              color: colorScheme.primaryContainer.withValues(alpha: 0.4),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(

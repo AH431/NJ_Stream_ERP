@@ -136,7 +136,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     setState(() {
       _rows[index].productId   = productId;
       _rows[index].productName = product.name;
-      _rows[index].priceCtrl.text = product.unitPrice;
+      _rows[index].priceCtrl.text = product.unitPrice.toStringAsFixed(2);
     });
   }
 
@@ -172,8 +172,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
       customerId:   Value(_selectedCustomerId!),
       createdBy:    Value(userId),
       items:        Value(itemsJson),
-      totalAmount:  Value(totalAmount.toStringAsFixed(2)),
-      taxAmount:    Value(taxAmount.toStringAsFixed(2)),
+      totalAmount:  Value(totalAmount),
+      taxAmount:    Value(taxAmount),
       status:       const Value('draft'),
       createdAt:    Value(now),
       updatedAt:    Value(now),

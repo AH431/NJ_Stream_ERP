@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:drift/drift.dart';
+import 'package:decimal/decimal.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -617,7 +618,7 @@ class SyncProvider extends ChangeNotifier {
         id: Value(data['id'] as int),
         name: Value(data['name'] as String),
         sku: Value(data['sku'] as String),
-        unitPrice: Value(data['unitPrice'] as String),
+        unitPrice: Value(Decimal.parse(data['unitPrice'] as String)),
         minStockLevel: Value(data['minStockLevel'] as int),
         createdAt: Value(DateTime.parse(data['createdAt'] as String)),
         updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
@@ -634,8 +635,8 @@ class SyncProvider extends ChangeNotifier {
         customerId: Value(data['customerId'] as int),
         createdBy: Value(data['createdBy'] as int),
         items: Value(itemsJson),
-        totalAmount: Value(data['totalAmount'] as String),
-        taxAmount: Value(data['taxAmount'] as String),
+        totalAmount: Value(Decimal.parse(data['totalAmount'] as String)),
+        taxAmount: Value(Decimal.parse(data['taxAmount'] as String)),
         status: Value(data['status'] as String),
         convertedToOrderId: Value(data['convertedToOrderId'] as int?),
         createdAt: Value(DateTime.parse(data['createdAt'] as String)),
@@ -704,28 +705,31 @@ class SyncProvider extends ChangeNotifier {
       final rawSalesOrders    = (data['salesOrders']    as List?)?.cast<Map<String, dynamic>>() ?? [];
       final rawInventoryItems = (data['inventoryItems'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
-      // 清除本地 orphan ID < 0 以免雙胞胎（防護機制）
-      final pendingOps = await (_db.select(_db.pendingOperations)..where((t) => t.status.equals('pending'))).get();
-      final relatedIds = pendingOps.map((op) => op.relatedEntityId ?? '').where((id) => id.isNotEmpty).toList();
-      await _db.clearOrphanedOfflineCustomers(relatedIds);
-      await _db.clearOrphanedOfflineProducts(relatedIds);
-      await _db.clearOrphanedOfflineQuotations(relatedIds);
+      // 使用 transaction 包裹整批 Pull 寫入，提升效能並保證原子性
+      await _db.transaction(() async {
+        // 清除本地 orphan ID < 0 以免雙胞胎（防護機制）
+        final pendingOps = await (_db.select(_db.pendingOperations)..where((t) => t.status.equals('pending'))).get();
+        final relatedIds = pendingOps.map((op) => op.relatedEntityId ?? '').where((id) => id.isNotEmpty).toList();
+        await _db.clearOrphanedOfflineCustomers(relatedIds);
+        await _db.clearOrphanedOfflineProducts(relatedIds);
+        await _db.clearOrphanedOfflineQuotations(relatedIds);
 
-      for (var c in rawCustomers) {
-        await _applyForceOverwrite('customer', c);
-      }
-      for (var p in rawProducts) {
-        await _applyForceOverwrite('product', p);
-      }
-      for (var q in rawQuotations) {
-        await _applyForceOverwrite('quotation', q);
-      }
-      for (var s in rawSalesOrders) {
-        await _applyForceOverwrite('sales_order', s);
-      }
-      for (var inv in rawInventoryItems) {
-        await _applyForceOverwrite('inventory_item', inv);
-      }
+        for (var c in rawCustomers) {
+          await _applyForceOverwrite('customer', c);
+        }
+        for (var p in rawProducts) {
+          await _applyForceOverwrite('product', p);
+        }
+        for (var q in rawQuotations) {
+          await _applyForceOverwrite('quotation', q);
+        }
+        for (var s in rawSalesOrders) {
+          await _applyForceOverwrite('sales_order', s);
+        }
+        for (var inv in rawInventoryItems) {
+          await _applyForceOverwrite('inventory_item', inv);
+        }
+      });
 
       await _storage.write(key: 'last_sync_at', value: DateTime.now().toUtc().toIso8601String());
       

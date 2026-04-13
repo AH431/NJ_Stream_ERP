@@ -11,7 +11,6 @@
 import 'package:drift/drift.dart';
 
 import '../database.dart';
-import '../schema.dart';
 
 extension ProductDao on AppDatabase {
   // --------------------------------------------------------------------------

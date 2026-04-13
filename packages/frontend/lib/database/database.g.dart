@@ -26,12 +26,11 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   late final GeneratedColumn<String> role = GeneratedColumn<String>(
       'role', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($UsersTable.$converterupdatedAt);
   @override
   List<GeneratedColumn> get $columns => [id, username, role, updatedAt];
   @override
@@ -59,12 +58,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     } else if (isInserting) {
       context.missing(_roleMeta);
     }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
     return context;
   }
 
@@ -80,8 +73,9 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           .read(DriftSqlType.string, data['${effectivePrefix}username'])!,
       role: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      updatedAt: $UsersTable.$converterupdatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
     );
   }
 
@@ -89,6 +83,9 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   $UsersTable createAlias(String alias) {
     return $UsersTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
 }
 
 class User extends DataClass implements Insertable<User> {
@@ -107,7 +104,10 @@ class User extends DataClass implements Insertable<User> {
     map['id'] = Variable<int>(id);
     map['username'] = Variable<String>(username);
     map['role'] = Variable<String>(role);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['updated_at'] =
+          Variable<String>($UsersTable.$converterupdatedAt.toSql(updatedAt));
+    }
     return map;
   }
 
@@ -204,7 +204,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<int>? id,
     Expression<String>? username,
     Expression<String>? role,
-    Expression<DateTime>? updatedAt,
+    Expression<String>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -240,7 +240,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       map['role'] = Variable<String>(role.value);
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $UsersTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     return map;
   }
@@ -290,24 +291,21 @@ class $CustomersTable extends Customers
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 20),
       type: DriftSqlType.string,
       requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($CustomersTable.$convertercreatedAt);
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _deletedAtMeta =
-      const VerificationMeta('deletedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($CustomersTable.$converterupdatedAt);
   @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-      'deleted_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> deletedAt =
+      GeneratedColumn<String>('deleted_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($CustomersTable.$converterdeletedAtn);
   @override
   List<GeneratedColumn> get $columns =>
       [id, name, contact, taxId, createdAt, updatedAt, deletedAt];
@@ -338,22 +336,6 @@ class $CustomersTable extends Customers
       context.handle(
           _taxIdMeta, taxId.isAcceptableOrUnknown(data['tax_id']!, _taxIdMeta));
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(_deletedAtMeta,
-          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
-    }
     return context;
   }
 
@@ -371,12 +353,15 @@ class $CustomersTable extends Customers
           .read(DriftSqlType.string, data['${effectivePrefix}contact']),
       taxId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tax_id']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-      deletedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      createdAt: $CustomersTable.$convertercreatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $CustomersTable.$converterupdatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
+      deletedAt: $CustomersTable.$converterdeletedAtn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at'])),
     );
   }
 
@@ -384,6 +369,15 @@ class $CustomersTable extends Customers
   $CustomersTable createAlias(String alias) {
     return $CustomersTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterdeletedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterdeletedAtn =
+      NullAwareTypeConverter.wrap($converterdeletedAt);
 }
 
 class Customer extends DataClass implements Insertable<Customer> {
@@ -413,10 +407,17 @@ class Customer extends DataClass implements Insertable<Customer> {
     if (!nullToAbsent || taxId != null) {
       map['tax_id'] = Variable<String>(taxId);
     }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['created_at'] = Variable<String>(
+          $CustomersTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] = Variable<String>(
+          $CustomersTable.$converterupdatedAt.toSql(updatedAt));
+    }
     if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
+      map['deleted_at'] = Variable<String>(
+          $CustomersTable.$converterdeletedAtn.toSql(deletedAt));
     }
     return map;
   }
@@ -557,9 +558,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<String>? name,
     Expression<String>? contact,
     Expression<String>? taxId,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<DateTime>? deletedAt,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -607,13 +608,16 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       map['tax_id'] = Variable<String>(taxId.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $CustomersTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $CustomersTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+      map['deleted_at'] = Variable<String>(
+          $CustomersTable.$converterdeletedAtn.toSql(deletedAt.value));
     }
     return map;
   }
@@ -657,12 +661,11 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 100),
       type: DriftSqlType.string,
       requiredDuringInsert: true);
-  static const VerificationMeta _unitPriceMeta =
-      const VerificationMeta('unitPrice');
   @override
-  late final GeneratedColumn<String> unitPrice = GeneratedColumn<String>(
-      'unit_price', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<Decimal, String> unitPrice =
+      GeneratedColumn<String>('unit_price', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<Decimal>($ProductsTable.$converterunitPrice);
   static const VerificationMeta _minStockLevelMeta =
       const VerificationMeta('minStockLevel');
   @override
@@ -671,24 +674,21 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($ProductsTable.$convertercreatedAt);
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _deletedAtMeta =
-      const VerificationMeta('deletedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($ProductsTable.$converterupdatedAt);
   @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-      'deleted_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> deletedAt =
+      GeneratedColumn<String>('deleted_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($ProductsTable.$converterdeletedAtn);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -725,33 +725,11 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     } else if (isInserting) {
       context.missing(_skuMeta);
     }
-    if (data.containsKey('unit_price')) {
-      context.handle(_unitPriceMeta,
-          unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta));
-    } else if (isInserting) {
-      context.missing(_unitPriceMeta);
-    }
     if (data.containsKey('min_stock_level')) {
       context.handle(
           _minStockLevelMeta,
           minStockLevel.isAcceptableOrUnknown(
               data['min_stock_level']!, _minStockLevelMeta));
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(_deletedAtMeta,
-          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
     }
     return context;
   }
@@ -768,16 +746,20 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       sku: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}sku'])!,
-      unitPrice: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}unit_price'])!,
+      unitPrice: $ProductsTable.$converterunitPrice.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}unit_price'])!),
       minStockLevel: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}min_stock_level'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-      deletedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      createdAt: $ProductsTable.$convertercreatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $ProductsTable.$converterupdatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
+      deletedAt: $ProductsTable.$converterdeletedAtn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at'])),
     );
   }
 
@@ -785,13 +767,24 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
   $ProductsTable createAlias(String alias) {
     return $ProductsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<Decimal, String> $converterunitPrice =
+      const DecimalConverter();
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterdeletedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterdeletedAtn =
+      NullAwareTypeConverter.wrap($converterdeletedAt);
 }
 
 class Product extends DataClass implements Insertable<Product> {
   final int id;
   final String name;
   final String sku;
-  final String unitPrice;
+  final Decimal unitPrice;
   final int minStockLevel;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -811,12 +804,22 @@ class Product extends DataClass implements Insertable<Product> {
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
     map['sku'] = Variable<String>(sku);
-    map['unit_price'] = Variable<String>(unitPrice);
+    {
+      map['unit_price'] =
+          Variable<String>($ProductsTable.$converterunitPrice.toSql(unitPrice));
+    }
     map['min_stock_level'] = Variable<int>(minStockLevel);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['created_at'] =
+          Variable<String>($ProductsTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] =
+          Variable<String>($ProductsTable.$converterupdatedAt.toSql(updatedAt));
+    }
     if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
+      map['deleted_at'] = Variable<String>(
+          $ProductsTable.$converterdeletedAtn.toSql(deletedAt));
     }
     return map;
   }
@@ -843,7 +846,7 @@ class Product extends DataClass implements Insertable<Product> {
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       sku: serializer.fromJson<String>(json['sku']),
-      unitPrice: serializer.fromJson<String>(json['unitPrice']),
+      unitPrice: serializer.fromJson<Decimal>(json['unitPrice']),
       minStockLevel: serializer.fromJson<int>(json['minStockLevel']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -857,7 +860,7 @@ class Product extends DataClass implements Insertable<Product> {
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'sku': serializer.toJson<String>(sku),
-      'unitPrice': serializer.toJson<String>(unitPrice),
+      'unitPrice': serializer.toJson<Decimal>(unitPrice),
       'minStockLevel': serializer.toJson<int>(minStockLevel),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -869,7 +872,7 @@ class Product extends DataClass implements Insertable<Product> {
           {int? id,
           String? name,
           String? sku,
-          String? unitPrice,
+          Decimal? unitPrice,
           int? minStockLevel,
           DateTime? createdAt,
           DateTime? updatedAt,
@@ -935,7 +938,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<int> id;
   final Value<String> name;
   final Value<String> sku;
-  final Value<String> unitPrice;
+  final Value<Decimal> unitPrice;
   final Value<int> minStockLevel;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -954,7 +957,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.id = const Value.absent(),
     required String name,
     required String sku,
-    required String unitPrice,
+    required Decimal unitPrice,
     this.minStockLevel = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -970,9 +973,9 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<String>? sku,
     Expression<String>? unitPrice,
     Expression<int>? minStockLevel,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<DateTime>? deletedAt,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -990,7 +993,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       {Value<int>? id,
       Value<String>? name,
       Value<String>? sku,
-      Value<String>? unitPrice,
+      Value<Decimal>? unitPrice,
       Value<int>? minStockLevel,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -1020,19 +1023,23 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       map['sku'] = Variable<String>(sku.value);
     }
     if (unitPrice.present) {
-      map['unit_price'] = Variable<String>(unitPrice.value);
+      map['unit_price'] = Variable<String>(
+          $ProductsTable.$converterunitPrice.toSql(unitPrice.value));
     }
     if (minStockLevel.present) {
       map['min_stock_level'] = Variable<int>(minStockLevel.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $ProductsTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $ProductsTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+      map['deleted_at'] = Variable<String>(
+          $ProductsTable.$converterdeletedAtn.toSql(deletedAt.value));
     }
     return map;
   }
@@ -1081,18 +1088,16 @@ class $QuotationsTable extends Quotations
   late final GeneratedColumn<String> items = GeneratedColumn<String>(
       'items', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _totalAmountMeta =
-      const VerificationMeta('totalAmount');
   @override
-  late final GeneratedColumn<String> totalAmount = GeneratedColumn<String>(
-      'total_amount', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _taxAmountMeta =
-      const VerificationMeta('taxAmount');
+  late final GeneratedColumnWithTypeConverter<Decimal, String> totalAmount =
+      GeneratedColumn<String>('total_amount', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<Decimal>($QuotationsTable.$convertertotalAmount);
   @override
-  late final GeneratedColumn<String> taxAmount = GeneratedColumn<String>(
-      'tax_amount', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<Decimal, String> taxAmount =
+      GeneratedColumn<String>('tax_amount', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<Decimal>($QuotationsTable.$convertertaxAmount);
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -1104,24 +1109,21 @@ class $QuotationsTable extends Quotations
   late final GeneratedColumn<int> convertedToOrderId = GeneratedColumn<int>(
       'converted_to_order_id', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($QuotationsTable.$convertercreatedAt);
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _deletedAtMeta =
-      const VerificationMeta('deletedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($QuotationsTable.$converterupdatedAt);
   @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-      'deleted_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> deletedAt =
+      GeneratedColumn<String>('deleted_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($QuotationsTable.$converterdeletedAtn);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1169,20 +1171,6 @@ class $QuotationsTable extends Quotations
     } else if (isInserting) {
       context.missing(_itemsMeta);
     }
-    if (data.containsKey('total_amount')) {
-      context.handle(
-          _totalAmountMeta,
-          totalAmount.isAcceptableOrUnknown(
-              data['total_amount']!, _totalAmountMeta));
-    } else if (isInserting) {
-      context.missing(_totalAmountMeta);
-    }
-    if (data.containsKey('tax_amount')) {
-      context.handle(_taxAmountMeta,
-          taxAmount.isAcceptableOrUnknown(data['tax_amount']!, _taxAmountMeta));
-    } else if (isInserting) {
-      context.missing(_taxAmountMeta);
-    }
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
@@ -1194,22 +1182,6 @@ class $QuotationsTable extends Quotations
           _convertedToOrderIdMeta,
           convertedToOrderId.isAcceptableOrUnknown(
               data['converted_to_order_id']!, _convertedToOrderIdMeta));
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(_deletedAtMeta,
-          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
     }
     return context;
   }
@@ -1228,20 +1200,25 @@ class $QuotationsTable extends Quotations
           .read(DriftSqlType.int, data['${effectivePrefix}created_by'])!,
       items: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}items'])!,
-      totalAmount: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}total_amount'])!,
-      taxAmount: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}tax_amount'])!,
+      totalAmount: $QuotationsTable.$convertertotalAmount.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}total_amount'])!),
+      taxAmount: $QuotationsTable.$convertertaxAmount.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tax_amount'])!),
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       convertedToOrderId: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}converted_to_order_id']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-      deletedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      createdAt: $QuotationsTable.$convertercreatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $QuotationsTable.$converterupdatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
+      deletedAt: $QuotationsTable.$converterdeletedAtn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at'])),
     );
   }
 
@@ -1249,6 +1226,19 @@ class $QuotationsTable extends Quotations
   $QuotationsTable createAlias(String alias) {
     return $QuotationsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<Decimal, String> $convertertotalAmount =
+      const DecimalConverter();
+  static TypeConverter<Decimal, String> $convertertaxAmount =
+      const DecimalConverter();
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterdeletedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterdeletedAtn =
+      NullAwareTypeConverter.wrap($converterdeletedAt);
 }
 
 class Quotation extends DataClass implements Insertable<Quotation> {
@@ -1256,8 +1246,8 @@ class Quotation extends DataClass implements Insertable<Quotation> {
   final int customerId;
   final int createdBy;
   final String items;
-  final String totalAmount;
-  final String taxAmount;
+  final Decimal totalAmount;
+  final Decimal taxAmount;
   final String status;
   final int? convertedToOrderId;
   final DateTime createdAt;
@@ -1282,16 +1272,29 @@ class Quotation extends DataClass implements Insertable<Quotation> {
     map['customer_id'] = Variable<int>(customerId);
     map['created_by'] = Variable<int>(createdBy);
     map['items'] = Variable<String>(items);
-    map['total_amount'] = Variable<String>(totalAmount);
-    map['tax_amount'] = Variable<String>(taxAmount);
+    {
+      map['total_amount'] = Variable<String>(
+          $QuotationsTable.$convertertotalAmount.toSql(totalAmount));
+    }
+    {
+      map['tax_amount'] = Variable<String>(
+          $QuotationsTable.$convertertaxAmount.toSql(taxAmount));
+    }
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || convertedToOrderId != null) {
       map['converted_to_order_id'] = Variable<int>(convertedToOrderId);
     }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['created_at'] = Variable<String>(
+          $QuotationsTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] = Variable<String>(
+          $QuotationsTable.$converterupdatedAt.toSql(updatedAt));
+    }
     if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
+      map['deleted_at'] = Variable<String>(
+          $QuotationsTable.$converterdeletedAtn.toSql(deletedAt));
     }
     return map;
   }
@@ -1324,8 +1327,8 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       customerId: serializer.fromJson<int>(json['customerId']),
       createdBy: serializer.fromJson<int>(json['createdBy']),
       items: serializer.fromJson<String>(json['items']),
-      totalAmount: serializer.fromJson<String>(json['totalAmount']),
-      taxAmount: serializer.fromJson<String>(json['taxAmount']),
+      totalAmount: serializer.fromJson<Decimal>(json['totalAmount']),
+      taxAmount: serializer.fromJson<Decimal>(json['taxAmount']),
       status: serializer.fromJson<String>(json['status']),
       convertedToOrderId: serializer.fromJson<int?>(json['convertedToOrderId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1341,8 +1344,8 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       'customerId': serializer.toJson<int>(customerId),
       'createdBy': serializer.toJson<int>(createdBy),
       'items': serializer.toJson<String>(items),
-      'totalAmount': serializer.toJson<String>(totalAmount),
-      'taxAmount': serializer.toJson<String>(taxAmount),
+      'totalAmount': serializer.toJson<Decimal>(totalAmount),
+      'taxAmount': serializer.toJson<Decimal>(taxAmount),
       'status': serializer.toJson<String>(status),
       'convertedToOrderId': serializer.toJson<int?>(convertedToOrderId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1356,8 +1359,8 @@ class Quotation extends DataClass implements Insertable<Quotation> {
           int? customerId,
           int? createdBy,
           String? items,
-          String? totalAmount,
-          String? taxAmount,
+          Decimal? totalAmount,
+          Decimal? taxAmount,
           String? status,
           Value<int?> convertedToOrderId = const Value.absent(),
           DateTime? createdAt,
@@ -1441,8 +1444,8 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
   final Value<int> customerId;
   final Value<int> createdBy;
   final Value<String> items;
-  final Value<String> totalAmount;
-  final Value<String> taxAmount;
+  final Value<Decimal> totalAmount;
+  final Value<Decimal> taxAmount;
   final Value<String> status;
   final Value<int?> convertedToOrderId;
   final Value<DateTime> createdAt;
@@ -1466,8 +1469,8 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
     required int customerId,
     required int createdBy,
     required String items,
-    required String totalAmount,
-    required String taxAmount,
+    required Decimal totalAmount,
+    required Decimal taxAmount,
     required String status,
     this.convertedToOrderId = const Value.absent(),
     required DateTime createdAt,
@@ -1490,9 +1493,9 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
     Expression<String>? taxAmount,
     Expression<String>? status,
     Expression<int>? convertedToOrderId,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<DateTime>? deletedAt,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1515,8 +1518,8 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
       Value<int>? customerId,
       Value<int>? createdBy,
       Value<String>? items,
-      Value<String>? totalAmount,
-      Value<String>? taxAmount,
+      Value<Decimal>? totalAmount,
+      Value<Decimal>? taxAmount,
       Value<String>? status,
       Value<int?>? convertedToOrderId,
       Value<DateTime>? createdAt,
@@ -1553,10 +1556,12 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
       map['items'] = Variable<String>(items.value);
     }
     if (totalAmount.present) {
-      map['total_amount'] = Variable<String>(totalAmount.value);
+      map['total_amount'] = Variable<String>(
+          $QuotationsTable.$convertertotalAmount.toSql(totalAmount.value));
     }
     if (taxAmount.present) {
-      map['tax_amount'] = Variable<String>(taxAmount.value);
+      map['tax_amount'] = Variable<String>(
+          $QuotationsTable.$convertertaxAmount.toSql(taxAmount.value));
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -1565,13 +1570,16 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
       map['converted_to_order_id'] = Variable<int>(convertedToOrderId.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $QuotationsTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $QuotationsTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+      map['deleted_at'] = Variable<String>(
+          $QuotationsTable.$converterdeletedAtn.toSql(deletedAt.value));
     }
     return map;
   }
@@ -1629,36 +1637,31 @@ class $SalesOrdersTable extends SalesOrders
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
       'status', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _confirmedAtMeta =
-      const VerificationMeta('confirmedAt');
   @override
-  late final GeneratedColumn<DateTime> confirmedAt = GeneratedColumn<DateTime>(
-      'confirmed_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _shippedAtMeta =
-      const VerificationMeta('shippedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> confirmedAt =
+      GeneratedColumn<String>('confirmed_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($SalesOrdersTable.$converterconfirmedAtn);
   @override
-  late final GeneratedColumn<DateTime> shippedAt = GeneratedColumn<DateTime>(
-      'shipped_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> shippedAt =
+      GeneratedColumn<String>('shipped_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($SalesOrdersTable.$convertershippedAtn);
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($SalesOrdersTable.$convertercreatedAt);
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _deletedAtMeta =
-      const VerificationMeta('deletedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($SalesOrdersTable.$converterupdatedAt);
   @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-      'deleted_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> deletedAt =
+      GeneratedColumn<String>('deleted_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($SalesOrdersTable.$converterdeletedAtn);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1711,32 +1714,6 @@ class $SalesOrdersTable extends SalesOrders
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
-    if (data.containsKey('confirmed_at')) {
-      context.handle(
-          _confirmedAtMeta,
-          confirmedAt.isAcceptableOrUnknown(
-              data['confirmed_at']!, _confirmedAtMeta));
-    }
-    if (data.containsKey('shipped_at')) {
-      context.handle(_shippedAtMeta,
-          shippedAt.isAcceptableOrUnknown(data['shipped_at']!, _shippedAtMeta));
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(_deletedAtMeta,
-          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
-    }
     return context;
   }
 
@@ -1756,16 +1733,21 @@ class $SalesOrdersTable extends SalesOrders
           .read(DriftSqlType.int, data['${effectivePrefix}created_by'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
-      confirmedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}confirmed_at']),
-      shippedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}shipped_at']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-      deletedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      confirmedAt: $SalesOrdersTable.$converterconfirmedAtn.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}confirmed_at'])),
+      shippedAt: $SalesOrdersTable.$convertershippedAtn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}shipped_at'])),
+      createdAt: $SalesOrdersTable.$convertercreatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $SalesOrdersTable.$converterupdatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
+      deletedAt: $SalesOrdersTable.$converterdeletedAtn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deleted_at'])),
     );
   }
 
@@ -1773,6 +1755,23 @@ class $SalesOrdersTable extends SalesOrders
   $SalesOrdersTable createAlias(String alias) {
     return $SalesOrdersTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $converterconfirmedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterconfirmedAtn =
+      NullAwareTypeConverter.wrap($converterconfirmedAt);
+  static TypeConverter<DateTime, String> $convertershippedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $convertershippedAtn =
+      NullAwareTypeConverter.wrap($convertershippedAt);
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterdeletedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterdeletedAtn =
+      NullAwareTypeConverter.wrap($converterdeletedAt);
 }
 
 class SalesOrder extends DataClass implements Insertable<SalesOrder> {
@@ -1808,15 +1807,24 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
     map['created_by'] = Variable<int>(createdBy);
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || confirmedAt != null) {
-      map['confirmed_at'] = Variable<DateTime>(confirmedAt);
+      map['confirmed_at'] = Variable<String>(
+          $SalesOrdersTable.$converterconfirmedAtn.toSql(confirmedAt));
     }
     if (!nullToAbsent || shippedAt != null) {
-      map['shipped_at'] = Variable<DateTime>(shippedAt);
+      map['shipped_at'] = Variable<String>(
+          $SalesOrdersTable.$convertershippedAtn.toSql(shippedAt));
     }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['created_at'] = Variable<String>(
+          $SalesOrdersTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] = Variable<String>(
+          $SalesOrdersTable.$converterupdatedAt.toSql(updatedAt));
+    }
     if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
+      map['deleted_at'] = Variable<String>(
+          $SalesOrdersTable.$converterdeletedAtn.toSql(deletedAt));
     }
     return map;
   }
@@ -1999,11 +2007,11 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
     Expression<int>? customerId,
     Expression<int>? createdBy,
     Expression<String>? status,
-    Expression<DateTime>? confirmedAt,
-    Expression<DateTime>? shippedAt,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<DateTime>? deletedAt,
+    Expression<String>? confirmedAt,
+    Expression<String>? shippedAt,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2063,19 +2071,24 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
       map['status'] = Variable<String>(status.value);
     }
     if (confirmedAt.present) {
-      map['confirmed_at'] = Variable<DateTime>(confirmedAt.value);
+      map['confirmed_at'] = Variable<String>(
+          $SalesOrdersTable.$converterconfirmedAtn.toSql(confirmedAt.value));
     }
     if (shippedAt.present) {
-      map['shipped_at'] = Variable<DateTime>(shippedAt.value);
+      map['shipped_at'] = Variable<String>(
+          $SalesOrdersTable.$convertershippedAtn.toSql(shippedAt.value));
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $SalesOrdersTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $SalesOrdersTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+      map['deleted_at'] = Variable<String>(
+          $SalesOrdersTable.$converterdeletedAtn.toSql(deletedAt.value));
     }
     return map;
   }
@@ -2127,30 +2140,26 @@ class $OrderItemsTable extends OrderItems
   late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
       'quantity', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _unitPriceMeta =
-      const VerificationMeta('unitPrice');
   @override
-  late final GeneratedColumn<String> unitPrice = GeneratedColumn<String>(
-      'unit_price', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _subtotalMeta =
-      const VerificationMeta('subtotal');
+  late final GeneratedColumnWithTypeConverter<Decimal, String> unitPrice =
+      GeneratedColumn<String>('unit_price', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<Decimal>($OrderItemsTable.$converterunitPrice);
   @override
-  late final GeneratedColumn<String> subtotal = GeneratedColumn<String>(
-      'subtotal', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+  late final GeneratedColumnWithTypeConverter<Decimal, String> subtotal =
+      GeneratedColumn<String>('subtotal', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<Decimal>($OrderItemsTable.$convertersubtotal);
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($OrderItemsTable.$convertercreatedAt);
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($OrderItemsTable.$converterupdatedAt);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2193,30 +2202,6 @@ class $OrderItemsTable extends OrderItems
     } else if (isInserting) {
       context.missing(_quantityMeta);
     }
-    if (data.containsKey('unit_price')) {
-      context.handle(_unitPriceMeta,
-          unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta));
-    } else if (isInserting) {
-      context.missing(_unitPriceMeta);
-    }
-    if (data.containsKey('subtotal')) {
-      context.handle(_subtotalMeta,
-          subtotal.isAcceptableOrUnknown(data['subtotal']!, _subtotalMeta));
-    } else if (isInserting) {
-      context.missing(_subtotalMeta);
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
     return context;
   }
 
@@ -2234,14 +2219,18 @@ class $OrderItemsTable extends OrderItems
           .read(DriftSqlType.int, data['${effectivePrefix}product_id'])!,
       quantity: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}quantity'])!,
-      unitPrice: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}unit_price'])!,
-      subtotal: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}subtotal'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      unitPrice: $OrderItemsTable.$converterunitPrice.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}unit_price'])!),
+      subtotal: $OrderItemsTable.$convertersubtotal.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subtotal'])!),
+      createdAt: $OrderItemsTable.$convertercreatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $OrderItemsTable.$converterupdatedAt.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
     );
   }
 
@@ -2249,6 +2238,15 @@ class $OrderItemsTable extends OrderItems
   $OrderItemsTable createAlias(String alias) {
     return $OrderItemsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<Decimal, String> $converterunitPrice =
+      const DecimalConverter();
+  static TypeConverter<Decimal, String> $convertersubtotal =
+      const DecimalConverter();
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
 }
 
 class OrderItem extends DataClass implements Insertable<OrderItem> {
@@ -2256,8 +2254,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
   final int orderId;
   final int productId;
   final int quantity;
-  final String unitPrice;
-  final String subtotal;
+  final Decimal unitPrice;
+  final Decimal subtotal;
   final DateTime createdAt;
   final DateTime updatedAt;
   const OrderItem(
@@ -2276,10 +2274,22 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
     map['order_id'] = Variable<int>(orderId);
     map['product_id'] = Variable<int>(productId);
     map['quantity'] = Variable<int>(quantity);
-    map['unit_price'] = Variable<String>(unitPrice);
-    map['subtotal'] = Variable<String>(subtotal);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['unit_price'] = Variable<String>(
+          $OrderItemsTable.$converterunitPrice.toSql(unitPrice));
+    }
+    {
+      map['subtotal'] =
+          Variable<String>($OrderItemsTable.$convertersubtotal.toSql(subtotal));
+    }
+    {
+      map['created_at'] = Variable<String>(
+          $OrderItemsTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] = Variable<String>(
+          $OrderItemsTable.$converterupdatedAt.toSql(updatedAt));
+    }
     return map;
   }
 
@@ -2304,8 +2314,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
       orderId: serializer.fromJson<int>(json['orderId']),
       productId: serializer.fromJson<int>(json['productId']),
       quantity: serializer.fromJson<int>(json['quantity']),
-      unitPrice: serializer.fromJson<String>(json['unitPrice']),
-      subtotal: serializer.fromJson<String>(json['subtotal']),
+      unitPrice: serializer.fromJson<Decimal>(json['unitPrice']),
+      subtotal: serializer.fromJson<Decimal>(json['subtotal']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -2318,8 +2328,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
       'orderId': serializer.toJson<int>(orderId),
       'productId': serializer.toJson<int>(productId),
       'quantity': serializer.toJson<int>(quantity),
-      'unitPrice': serializer.toJson<String>(unitPrice),
-      'subtotal': serializer.toJson<String>(subtotal),
+      'unitPrice': serializer.toJson<Decimal>(unitPrice),
+      'subtotal': serializer.toJson<Decimal>(subtotal),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -2330,8 +2340,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
           int? orderId,
           int? productId,
           int? quantity,
-          String? unitPrice,
-          String? subtotal,
+          Decimal? unitPrice,
+          Decimal? subtotal,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       OrderItem(
@@ -2394,8 +2404,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
   final Value<int> orderId;
   final Value<int> productId;
   final Value<int> quantity;
-  final Value<String> unitPrice;
-  final Value<String> subtotal;
+  final Value<Decimal> unitPrice;
+  final Value<Decimal> subtotal;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const OrderItemsCompanion({
@@ -2413,8 +2423,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     required int orderId,
     required int productId,
     required int quantity,
-    required String unitPrice,
-    required String subtotal,
+    required Decimal unitPrice,
+    required Decimal subtotal,
     required DateTime createdAt,
     required DateTime updatedAt,
   })  : orderId = Value(orderId),
@@ -2431,8 +2441,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     Expression<int>? quantity,
     Expression<String>? unitPrice,
     Expression<String>? subtotal,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2451,8 +2461,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
       Value<int>? orderId,
       Value<int>? productId,
       Value<int>? quantity,
-      Value<String>? unitPrice,
-      Value<String>? subtotal,
+      Value<Decimal>? unitPrice,
+      Value<Decimal>? subtotal,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return OrderItemsCompanion(
@@ -2483,16 +2493,20 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
       map['quantity'] = Variable<int>(quantity.value);
     }
     if (unitPrice.present) {
-      map['unit_price'] = Variable<String>(unitPrice.value);
+      map['unit_price'] = Variable<String>(
+          $OrderItemsTable.$converterunitPrice.toSql(unitPrice.value));
     }
     if (subtotal.present) {
-      map['subtotal'] = Variable<String>(subtotal.value);
+      map['subtotal'] = Variable<String>(
+          $OrderItemsTable.$convertersubtotal.toSql(subtotal.value));
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $OrderItemsTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $OrderItemsTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     return map;
   }
@@ -2562,18 +2576,16 @@ class $InventoryItemsTable extends InventoryItems
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($InventoryItemsTable.$convertercreatedAt);
   @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($InventoryItemsTable.$converterupdatedAt);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2632,18 +2644,6 @@ class $InventoryItemsTable extends InventoryItems
           minStockLevel.isAcceptableOrUnknown(
               data['min_stock_level']!, _minStockLevelMeta));
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
     return context;
   }
 
@@ -2665,10 +2665,12 @@ class $InventoryItemsTable extends InventoryItems
           .read(DriftSqlType.int, data['${effectivePrefix}quantity_reserved'])!,
       minStockLevel: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}min_stock_level'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      createdAt: $InventoryItemsTable.$convertercreatedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $InventoryItemsTable.$converterupdatedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
     );
   }
 
@@ -2676,6 +2678,11 @@ class $InventoryItemsTable extends InventoryItems
   $InventoryItemsTable createAlias(String alias) {
     return $InventoryItemsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
 }
 
 class InventoryItem extends DataClass implements Insertable<InventoryItem> {
@@ -2707,8 +2714,14 @@ class InventoryItem extends DataClass implements Insertable<InventoryItem> {
     map['quantity_on_hand'] = Variable<int>(quantityOnHand);
     map['quantity_reserved'] = Variable<int>(quantityReserved);
     map['min_stock_level'] = Variable<int>(minStockLevel);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['created_at'] = Variable<String>(
+          $InventoryItemsTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] = Variable<String>(
+          $InventoryItemsTable.$converterupdatedAt.toSql(updatedAt));
+    }
     return map;
   }
 
@@ -2865,8 +2878,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
     Expression<int>? quantityOnHand,
     Expression<int>? quantityReserved,
     Expression<int>? minStockLevel,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2923,10 +2936,12 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItem> {
       map['min_stock_level'] = Variable<int>(minStockLevel.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $InventoryItemsTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+      map['updated_at'] = Variable<String>(
+          $InventoryItemsTable.$converterupdatedAt.toSql(updatedAt.value));
     }
     return map;
   }
@@ -2993,12 +3008,11 @@ class $InventoryDeltasTable extends InventoryDeltas
   late final GeneratedColumn<int> relatedOrderId = GeneratedColumn<int>(
       'related_order_id', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($InventoryDeltasTable.$convertercreatedAt);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -3054,12 +3068,6 @@ class $InventoryDeltasTable extends InventoryDeltas
           relatedOrderId.isAcceptableOrUnknown(
               data['related_order_id']!, _relatedOrderIdMeta));
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     return context;
   }
 
@@ -3081,8 +3089,9 @@ class $InventoryDeltasTable extends InventoryDeltas
           .read(DriftSqlType.string, data['${effectivePrefix}delta_type'])!,
       relatedOrderId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}related_order_id']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      createdAt: $InventoryDeltasTable.$convertercreatedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}created_at'])!),
     );
   }
 
@@ -3090,6 +3099,9 @@ class $InventoryDeltasTable extends InventoryDeltas
   $InventoryDeltasTable createAlias(String alias) {
     return $InventoryDeltasTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
 }
 
 class InventoryDelta extends DataClass implements Insertable<InventoryDelta> {
@@ -3119,7 +3131,10 @@ class InventoryDelta extends DataClass implements Insertable<InventoryDelta> {
     if (!nullToAbsent || relatedOrderId != null) {
       map['related_order_id'] = Variable<int>(relatedOrderId);
     }
-    map['created_at'] = Variable<DateTime>(createdAt);
+    {
+      map['created_at'] = Variable<String>(
+          $InventoryDeltasTable.$convertercreatedAt.toSql(createdAt));
+    }
     return map;
   }
 
@@ -3265,7 +3280,7 @@ class InventoryDeltasCompanion extends UpdateCompanion<InventoryDelta> {
     Expression<int>? amount,
     Expression<String>? deltaType,
     Expression<int>? relatedOrderId,
-    Expression<DateTime>? createdAt,
+    Expression<String>? createdAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3319,7 +3334,8 @@ class InventoryDeltasCompanion extends UpdateCompanion<InventoryDelta> {
       map['related_order_id'] = Variable<int>(relatedOrderId.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $InventoryDeltasTable.$convertercreatedAt.toSql(createdAt.value));
     }
     return map;
   }
@@ -3363,12 +3379,12 @@ class $ProcessedOperationsTable extends ProcessedOperations
   late final GeneratedColumn<String> operationType = GeneratedColumn<String>(
       'operation_type', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _processedAtMeta =
-      const VerificationMeta('processedAt');
   @override
-  late final GeneratedColumn<DateTime> processedAt = GeneratedColumn<DateTime>(
-      'processed_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<DateTime, String> processedAt =
+      GeneratedColumn<String>('processed_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>(
+              $ProcessedOperationsTable.$converterprocessedAt);
   @override
   List<GeneratedColumn> get $columns =>
       [operationId, entityType, operationType, processedAt];
@@ -3406,14 +3422,6 @@ class $ProcessedOperationsTable extends ProcessedOperations
     } else if (isInserting) {
       context.missing(_operationTypeMeta);
     }
-    if (data.containsKey('processed_at')) {
-      context.handle(
-          _processedAtMeta,
-          processedAt.isAcceptableOrUnknown(
-              data['processed_at']!, _processedAtMeta));
-    } else if (isInserting) {
-      context.missing(_processedAtMeta);
-    }
     return context;
   }
 
@@ -3429,8 +3437,9 @@ class $ProcessedOperationsTable extends ProcessedOperations
           .read(DriftSqlType.string, data['${effectivePrefix}entity_type'])!,
       operationType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}operation_type'])!,
-      processedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}processed_at'])!,
+      processedAt: $ProcessedOperationsTable.$converterprocessedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}processed_at'])!),
     );
   }
 
@@ -3438,6 +3447,9 @@ class $ProcessedOperationsTable extends ProcessedOperations
   $ProcessedOperationsTable createAlias(String alias) {
     return $ProcessedOperationsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $converterprocessedAt =
+      const Iso8601DateTimeConverter();
 }
 
 class ProcessedOperation extends DataClass
@@ -3457,7 +3469,10 @@ class ProcessedOperation extends DataClass
     map['operation_id'] = Variable<String>(operationId);
     map['entity_type'] = Variable<String>(entityType);
     map['operation_type'] = Variable<String>(operationType);
-    map['processed_at'] = Variable<DateTime>(processedAt);
+    {
+      map['processed_at'] = Variable<String>(
+          $ProcessedOperationsTable.$converterprocessedAt.toSql(processedAt));
+    }
     return map;
   }
 
@@ -3567,7 +3582,7 @@ class ProcessedOperationsCompanion extends UpdateCompanion<ProcessedOperation> {
     Expression<String>? operationId,
     Expression<String>? entityType,
     Expression<String>? operationType,
-    Expression<DateTime>? processedAt,
+    Expression<String>? processedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3607,7 +3622,9 @@ class ProcessedOperationsCompanion extends UpdateCompanion<ProcessedOperation> {
       map['operation_type'] = Variable<String>(operationType.value);
     }
     if (processedAt.present) {
-      map['processed_at'] = Variable<DateTime>(processedAt.value);
+      map['processed_at'] = Variable<String>($ProcessedOperationsTable
+          .$converterprocessedAt
+          .toSql(processedAt.value));
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -3676,12 +3693,11 @@ class $PendingOperationsTable extends PendingOperations
   late final GeneratedColumn<String> deltaType = GeneratedColumn<String>(
       'delta_type', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>($PendingOperationsTable.$convertercreatedAt);
   static const VerificationMeta _payloadMeta =
       const VerificationMeta('payload');
   @override
@@ -3704,12 +3720,12 @@ class $PendingOperationsTable extends PendingOperations
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
-  static const VerificationMeta _lastAttemptAtMeta =
-      const VerificationMeta('lastAttemptAt');
   @override
-  late final GeneratedColumn<DateTime> lastAttemptAt =
-      GeneratedColumn<DateTime>('last_attempt_at', aliasedName, true,
-          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> lastAttemptAt =
+      GeneratedColumn<String>('last_attempt_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>(
+              $PendingOperationsTable.$converterlastAttemptAtn);
   static const VerificationMeta _errorMessageMeta =
       const VerificationMeta('errorMessage');
   @override
@@ -3778,12 +3794,6 @@ class $PendingOperationsTable extends PendingOperations
       context.handle(_deltaTypeMeta,
           deltaType.isAcceptableOrUnknown(data['delta_type']!, _deltaTypeMeta));
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     if (data.containsKey('payload')) {
       context.handle(_payloadMeta,
           payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta));
@@ -3799,12 +3809,6 @@ class $PendingOperationsTable extends PendingOperations
           _retryCountMeta,
           retryCount.isAcceptableOrUnknown(
               data['retry_count']!, _retryCountMeta));
-    }
-    if (data.containsKey('last_attempt_at')) {
-      context.handle(
-          _lastAttemptAtMeta,
-          lastAttemptAt.isAcceptableOrUnknown(
-              data['last_attempt_at']!, _lastAttemptAtMeta));
     }
     if (data.containsKey('error_message')) {
       context.handle(
@@ -3837,16 +3841,18 @@ class $PendingOperationsTable extends PendingOperations
           .read(DriftSqlType.string, data['${effectivePrefix}operation_type'])!,
       deltaType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}delta_type']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      createdAt: $PendingOperationsTable.$convertercreatedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}created_at'])!),
       payload: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}payload'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       retryCount: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
-      lastAttemptAt: attachedDatabase.typeMapping.read(
-          DriftSqlType.dateTime, data['${effectivePrefix}last_attempt_at']),
+      lastAttemptAt: $PendingOperationsTable.$converterlastAttemptAtn.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}last_attempt_at'])),
       errorMessage: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}error_message']),
     );
@@ -3856,6 +3862,13 @@ class $PendingOperationsTable extends PendingOperations
   $PendingOperationsTable createAlias(String alias) {
     return $PendingOperationsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterlastAttemptAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterlastAttemptAtn =
+      NullAwareTypeConverter.wrap($converterlastAttemptAt);
 }
 
 class PendingOperation extends DataClass
@@ -3898,12 +3911,17 @@ class PendingOperation extends DataClass
     if (!nullToAbsent || deltaType != null) {
       map['delta_type'] = Variable<String>(deltaType);
     }
-    map['created_at'] = Variable<DateTime>(createdAt);
+    {
+      map['created_at'] = Variable<String>(
+          $PendingOperationsTable.$convertercreatedAt.toSql(createdAt));
+    }
     map['payload'] = Variable<String>(payload);
     map['status'] = Variable<String>(status);
     map['retry_count'] = Variable<int>(retryCount);
     if (!nullToAbsent || lastAttemptAt != null) {
-      map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt);
+      map['last_attempt_at'] = Variable<String>($PendingOperationsTable
+          .$converterlastAttemptAtn
+          .toSql(lastAttemptAt));
     }
     if (!nullToAbsent || errorMessage != null) {
       map['error_message'] = Variable<String>(errorMessage);
@@ -4135,11 +4153,11 @@ class PendingOperationsCompanion extends UpdateCompanion<PendingOperation> {
     Expression<String>? entityType,
     Expression<String>? operationType,
     Expression<String>? deltaType,
-    Expression<DateTime>? createdAt,
+    Expression<String>? createdAt,
     Expression<String>? payload,
     Expression<String>? status,
     Expression<int>? retryCount,
-    Expression<DateTime>? lastAttemptAt,
+    Expression<String>? lastAttemptAt,
     Expression<String>? errorMessage,
   }) {
     return RawValuesInsertable({
@@ -4209,7 +4227,8 @@ class PendingOperationsCompanion extends UpdateCompanion<PendingOperation> {
       map['delta_type'] = Variable<String>(deltaType.value);
     }
     if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+      map['created_at'] = Variable<String>(
+          $PendingOperationsTable.$convertercreatedAt.toSql(createdAt.value));
     }
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
@@ -4221,7 +4240,9 @@ class PendingOperationsCompanion extends UpdateCompanion<PendingOperation> {
       map['retry_count'] = Variable<int>(retryCount.value);
     }
     if (lastAttemptAt.present) {
-      map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt.value);
+      map['last_attempt_at'] = Variable<String>($PendingOperationsTable
+          .$converterlastAttemptAtn
+          .toSql(lastAttemptAt.value));
     }
     if (errorMessage.present) {
       map['error_message'] = Variable<String>(errorMessage.value);
@@ -4328,8 +4349,10 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
   ColumnFilters<String> get role => $composableBuilder(
       column: $table.role, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$UsersTableOrderingComposer
@@ -4350,7 +4373,7 @@ class $$UsersTableOrderingComposer
   ColumnOrderings<String> get role => $composableBuilder(
       column: $table.role, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -4372,7 +4395,7 @@ class $$UsersTableAnnotationComposer
   GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
@@ -4481,14 +4504,20 @@ class $$CustomersTableFilterComposer
   ColumnFilters<String> get taxId => $composableBuilder(
       column: $table.taxId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get deletedAt =>
+      $composableBuilder(
+          column: $table.deletedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$CustomersTableOrderingComposer
@@ -4512,13 +4541,13 @@ class $$CustomersTableOrderingComposer
   ColumnOrderings<String> get taxId => $composableBuilder(
       column: $table.taxId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
       column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -4543,13 +4572,13 @@ class $$CustomersTableAnnotationComposer
   GeneratedColumn<String> get taxId =>
       $composableBuilder(column: $table.taxId, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get deletedAt =>
+  GeneratedColumnWithTypeConverter<DateTime?, String> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
@@ -4634,7 +4663,7 @@ typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({
   Value<int> id,
   required String name,
   required String sku,
-  required String unitPrice,
+  required Decimal unitPrice,
   Value<int> minStockLevel,
   required DateTime createdAt,
   required DateTime updatedAt,
@@ -4644,7 +4673,7 @@ typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
   Value<int> id,
   Value<String> name,
   Value<String> sku,
-  Value<String> unitPrice,
+  Value<Decimal> unitPrice,
   Value<int> minStockLevel,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -4669,20 +4698,28 @@ class $$ProductsTableFilterComposer
   ColumnFilters<String> get sku => $composableBuilder(
       column: $table.sku, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get unitPrice => $composableBuilder(
-      column: $table.unitPrice, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<Decimal, Decimal, String> get unitPrice =>
+      $composableBuilder(
+          column: $table.unitPrice,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<int> get minStockLevel => $composableBuilder(
       column: $table.minStockLevel, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get deletedAt =>
+      $composableBuilder(
+          column: $table.deletedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$ProductsTableOrderingComposer
@@ -4710,13 +4747,13 @@ class $$ProductsTableOrderingComposer
       column: $table.minStockLevel,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
       column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -4738,19 +4775,19 @@ class $$ProductsTableAnnotationComposer
   GeneratedColumn<String> get sku =>
       $composableBuilder(column: $table.sku, builder: (column) => column);
 
-  GeneratedColumn<String> get unitPrice =>
+  GeneratedColumnWithTypeConverter<Decimal, String> get unitPrice =>
       $composableBuilder(column: $table.unitPrice, builder: (column) => column);
 
   GeneratedColumn<int> get minStockLevel => $composableBuilder(
       column: $table.minStockLevel, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get deletedAt =>
+  GeneratedColumnWithTypeConverter<DateTime?, String> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
@@ -4780,7 +4817,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> sku = const Value.absent(),
-            Value<String> unitPrice = const Value.absent(),
+            Value<Decimal> unitPrice = const Value.absent(),
             Value<int> minStockLevel = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -4800,7 +4837,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             required String name,
             required String sku,
-            required String unitPrice,
+            required Decimal unitPrice,
             Value<int> minStockLevel = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
@@ -4840,8 +4877,8 @@ typedef $$QuotationsTableCreateCompanionBuilder = QuotationsCompanion Function({
   required int customerId,
   required int createdBy,
   required String items,
-  required String totalAmount,
-  required String taxAmount,
+  required Decimal totalAmount,
+  required Decimal taxAmount,
   required String status,
   Value<int?> convertedToOrderId,
   required DateTime createdAt,
@@ -4853,8 +4890,8 @@ typedef $$QuotationsTableUpdateCompanionBuilder = QuotationsCompanion Function({
   Value<int> customerId,
   Value<int> createdBy,
   Value<String> items,
-  Value<String> totalAmount,
-  Value<String> taxAmount,
+  Value<Decimal> totalAmount,
+  Value<Decimal> taxAmount,
   Value<String> status,
   Value<int?> convertedToOrderId,
   Value<DateTime> createdAt,
@@ -4883,11 +4920,15 @@ class $$QuotationsTableFilterComposer
   ColumnFilters<String> get items => $composableBuilder(
       column: $table.items, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get totalAmount => $composableBuilder(
-      column: $table.totalAmount, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<Decimal, Decimal, String> get totalAmount =>
+      $composableBuilder(
+          column: $table.totalAmount,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<String> get taxAmount => $composableBuilder(
-      column: $table.taxAmount, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<Decimal, Decimal, String> get taxAmount =>
+      $composableBuilder(
+          column: $table.taxAmount,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
@@ -4896,14 +4937,20 @@ class $$QuotationsTableFilterComposer
       column: $table.convertedToOrderId,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get deletedAt =>
+      $composableBuilder(
+          column: $table.deletedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$QuotationsTableOrderingComposer
@@ -4940,13 +4987,13 @@ class $$QuotationsTableOrderingComposer
       column: $table.convertedToOrderId,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
       column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -4971,10 +5018,11 @@ class $$QuotationsTableAnnotationComposer
   GeneratedColumn<String> get items =>
       $composableBuilder(column: $table.items, builder: (column) => column);
 
-  GeneratedColumn<String> get totalAmount => $composableBuilder(
-      column: $table.totalAmount, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<Decimal, String> get totalAmount =>
+      $composableBuilder(
+          column: $table.totalAmount, builder: (column) => column);
 
-  GeneratedColumn<String> get taxAmount =>
+  GeneratedColumnWithTypeConverter<Decimal, String> get taxAmount =>
       $composableBuilder(column: $table.taxAmount, builder: (column) => column);
 
   GeneratedColumn<String> get status =>
@@ -4983,13 +5031,13 @@ class $$QuotationsTableAnnotationComposer
   GeneratedColumn<int> get convertedToOrderId => $composableBuilder(
       column: $table.convertedToOrderId, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get deletedAt =>
+  GeneratedColumnWithTypeConverter<DateTime?, String> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
@@ -5020,8 +5068,8 @@ class $$QuotationsTableTableManager extends RootTableManager<
             Value<int> customerId = const Value.absent(),
             Value<int> createdBy = const Value.absent(),
             Value<String> items = const Value.absent(),
-            Value<String> totalAmount = const Value.absent(),
-            Value<String> taxAmount = const Value.absent(),
+            Value<Decimal> totalAmount = const Value.absent(),
+            Value<Decimal> taxAmount = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<int?> convertedToOrderId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -5046,8 +5094,8 @@ class $$QuotationsTableTableManager extends RootTableManager<
             required int customerId,
             required int createdBy,
             required String items,
-            required String totalAmount,
-            required String taxAmount,
+            required Decimal totalAmount,
+            required Decimal taxAmount,
             required String status,
             Value<int?> convertedToOrderId = const Value.absent(),
             required DateTime createdAt,
@@ -5137,20 +5185,30 @@ class $$SalesOrdersTableFilterComposer
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get confirmedAt => $composableBuilder(
-      column: $table.confirmedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get confirmedAt =>
+      $composableBuilder(
+          column: $table.confirmedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get shippedAt => $composableBuilder(
-      column: $table.shippedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get shippedAt =>
+      $composableBuilder(
+          column: $table.shippedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get deletedAt =>
+      $composableBuilder(
+          column: $table.deletedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$SalesOrdersTableOrderingComposer
@@ -5177,19 +5235,19 @@ class $$SalesOrdersTableOrderingComposer
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get confirmedAt => $composableBuilder(
+  ColumnOrderings<String> get confirmedAt => $composableBuilder(
       column: $table.confirmedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get shippedAt => $composableBuilder(
+  ColumnOrderings<String> get shippedAt => $composableBuilder(
       column: $table.shippedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
       column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -5217,19 +5275,20 @@ class $$SalesOrdersTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get confirmedAt => $composableBuilder(
-      column: $table.confirmedAt, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<DateTime?, String> get confirmedAt =>
+      $composableBuilder(
+          column: $table.confirmedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get shippedAt =>
+  GeneratedColumnWithTypeConverter<DateTime?, String> get shippedAt =>
       $composableBuilder(column: $table.shippedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get deletedAt =>
+  GeneratedColumnWithTypeConverter<DateTime?, String> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
@@ -5327,8 +5386,8 @@ typedef $$OrderItemsTableCreateCompanionBuilder = OrderItemsCompanion Function({
   required int orderId,
   required int productId,
   required int quantity,
-  required String unitPrice,
-  required String subtotal,
+  required Decimal unitPrice,
+  required Decimal subtotal,
   required DateTime createdAt,
   required DateTime updatedAt,
 });
@@ -5337,8 +5396,8 @@ typedef $$OrderItemsTableUpdateCompanionBuilder = OrderItemsCompanion Function({
   Value<int> orderId,
   Value<int> productId,
   Value<int> quantity,
-  Value<String> unitPrice,
-  Value<String> subtotal,
+  Value<Decimal> unitPrice,
+  Value<Decimal> subtotal,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -5364,17 +5423,25 @@ class $$OrderItemsTableFilterComposer
   ColumnFilters<int> get quantity => $composableBuilder(
       column: $table.quantity, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get unitPrice => $composableBuilder(
-      column: $table.unitPrice, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<Decimal, Decimal, String> get unitPrice =>
+      $composableBuilder(
+          column: $table.unitPrice,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<String> get subtotal => $composableBuilder(
-      column: $table.subtotal, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<Decimal, Decimal, String> get subtotal =>
+      $composableBuilder(
+          column: $table.subtotal,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$OrderItemsTableOrderingComposer
@@ -5404,10 +5471,10 @@ class $$OrderItemsTableOrderingComposer
   ColumnOrderings<String> get subtotal => $composableBuilder(
       column: $table.subtotal, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -5432,16 +5499,16 @@ class $$OrderItemsTableAnnotationComposer
   GeneratedColumn<int> get quantity =>
       $composableBuilder(column: $table.quantity, builder: (column) => column);
 
-  GeneratedColumn<String> get unitPrice =>
+  GeneratedColumnWithTypeConverter<Decimal, String> get unitPrice =>
       $composableBuilder(column: $table.unitPrice, builder: (column) => column);
 
-  GeneratedColumn<String> get subtotal =>
+  GeneratedColumnWithTypeConverter<Decimal, String> get subtotal =>
       $composableBuilder(column: $table.subtotal, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
@@ -5472,8 +5539,8 @@ class $$OrderItemsTableTableManager extends RootTableManager<
             Value<int> orderId = const Value.absent(),
             Value<int> productId = const Value.absent(),
             Value<int> quantity = const Value.absent(),
-            Value<String> unitPrice = const Value.absent(),
-            Value<String> subtotal = const Value.absent(),
+            Value<Decimal> unitPrice = const Value.absent(),
+            Value<Decimal> subtotal = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -5492,8 +5559,8 @@ class $$OrderItemsTableTableManager extends RootTableManager<
             required int orderId,
             required int productId,
             required int quantity,
-            required String unitPrice,
-            required String subtotal,
+            required Decimal unitPrice,
+            required Decimal subtotal,
             required DateTime createdAt,
             required DateTime updatedAt,
           }) =>
@@ -5578,11 +5645,15 @@ class $$InventoryItemsTableFilterComposer
   ColumnFilters<int> get minStockLevel => $composableBuilder(
       column: $table.minStockLevel, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$InventoryItemsTableOrderingComposer
@@ -5615,10 +5686,10 @@ class $$InventoryItemsTableOrderingComposer
       column: $table.minStockLevel,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -5649,10 +5720,10 @@ class $$InventoryItemsTableAnnotationComposer
   GeneratedColumn<int> get minStockLevel => $composableBuilder(
       column: $table.minStockLevel, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
@@ -5794,8 +5865,10 @@ class $$InventoryDeltasTableFilterComposer
       column: $table.relatedOrderId,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$InventoryDeltasTableOrderingComposer
@@ -5827,7 +5900,7 @@ class $$InventoryDeltasTableOrderingComposer
       column: $table.relatedOrderId,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -5858,7 +5931,7 @@ class $$InventoryDeltasTableAnnotationComposer
   GeneratedColumn<int> get relatedOrderId => $composableBuilder(
       column: $table.relatedOrderId, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
@@ -5981,8 +6054,10 @@ class $$ProcessedOperationsTableFilterComposer
   ColumnFilters<String> get operationType => $composableBuilder(
       column: $table.operationType, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get processedAt => $composableBuilder(
-      column: $table.processedAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get processedAt =>
+      $composableBuilder(
+          column: $table.processedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$ProcessedOperationsTableOrderingComposer
@@ -6004,7 +6079,7 @@ class $$ProcessedOperationsTableOrderingComposer
       column: $table.operationType,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get processedAt => $composableBuilder(
+  ColumnOrderings<String> get processedAt => $composableBuilder(
       column: $table.processedAt, builder: (column) => ColumnOrderings(column));
 }
 
@@ -6026,8 +6101,9 @@ class $$ProcessedOperationsTableAnnotationComposer
   GeneratedColumn<String> get operationType => $composableBuilder(
       column: $table.operationType, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get processedAt => $composableBuilder(
-      column: $table.processedAt, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<DateTime, String> get processedAt =>
+      $composableBuilder(
+          column: $table.processedAt, builder: (column) => column);
 }
 
 class $$ProcessedOperationsTableTableManager extends RootTableManager<
@@ -6169,8 +6245,10 @@ class $$PendingOperationsTableFilterComposer
   ColumnFilters<String> get deltaType => $composableBuilder(
       column: $table.deltaType, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<String> get payload => $composableBuilder(
       column: $table.payload, builder: (column) => ColumnFilters(column));
@@ -6181,8 +6259,10 @@ class $$PendingOperationsTableFilterComposer
   ColumnFilters<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get lastAttemptAt => $composableBuilder(
-      column: $table.lastAttemptAt, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String>
+      get lastAttemptAt => $composableBuilder(
+          column: $table.lastAttemptAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<String> get errorMessage => $composableBuilder(
       column: $table.errorMessage, builder: (column) => ColumnFilters(column));
@@ -6217,7 +6297,7 @@ class $$PendingOperationsTableOrderingComposer
   ColumnOrderings<String> get deltaType => $composableBuilder(
       column: $table.deltaType, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+  ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get payload => $composableBuilder(
@@ -6229,7 +6309,7 @@ class $$PendingOperationsTableOrderingComposer
   ColumnOrderings<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get lastAttemptAt => $composableBuilder(
+  ColumnOrderings<String> get lastAttemptAt => $composableBuilder(
       column: $table.lastAttemptAt,
       builder: (column) => ColumnOrderings(column));
 
@@ -6265,7 +6345,7 @@ class $$PendingOperationsTableAnnotationComposer
   GeneratedColumn<String> get deltaType =>
       $composableBuilder(column: $table.deltaType, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<String> get payload =>
@@ -6277,8 +6357,9 @@ class $$PendingOperationsTableAnnotationComposer
   GeneratedColumn<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get lastAttemptAt => $composableBuilder(
-      column: $table.lastAttemptAt, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<DateTime?, String> get lastAttemptAt =>
+      $composableBuilder(
+          column: $table.lastAttemptAt, builder: (column) => column);
 
   GeneratedColumn<String> get errorMessage => $composableBuilder(
       column: $table.errorMessage, builder: (column) => column);

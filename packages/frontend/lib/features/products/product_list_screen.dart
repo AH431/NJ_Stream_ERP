@@ -6,13 +6,11 @@
 //   - 新增/刪除：僅 admin
 // ==============================================================================
 
-import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../database/dao/product_dao.dart';
 import '../../database/database.dart';
-import '../../database/schema.dart';
 import '../../providers/sync_provider.dart';
 
 class ProductListScreen extends StatelessWidget {
@@ -98,7 +96,7 @@ class ProductListScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'NT\$ ${Decimal.parse(product.unitPrice).toStringAsFixed(0)}',
+                        'NT\$ ${product.unitPrice.toStringAsFixed(0)}',
                         style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: Theme.of(ctx).colorScheme.primary,

@@ -12,7 +12,6 @@ import 'package:provider/provider.dart';
 
 import '../../database/dao/product_dao.dart';
 import '../../database/database.dart';
-import '../../database/schema.dart';
 import '../../providers/sync_provider.dart';
 
 class ProductFormScreen extends StatefulWidget {
@@ -68,7 +67,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           id: Value(localId),
           name: Value(name),
           sku: Value(sku),
-          unitPrice: Value(unitPriceStr), // Value<String>，已格式化為 "xxx.xx"
+          unitPrice: Value(unitPriceDecimal), 
           minStockLevel: Value(minStock),
           createdAt: Value(now),
           updatedAt: Value(now),
@@ -128,7 +127,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           children: [
             // 說明卡片
             Card(
-              color: colorScheme.tertiaryContainer.withOpacity(0.4),
+              color: colorScheme.tertiaryContainer.withValues(alpha: 0.4),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(

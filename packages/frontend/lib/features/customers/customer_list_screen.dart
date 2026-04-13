@@ -12,7 +12,6 @@ import 'package:provider/provider.dart';
 
 import '../../database/dao/customer_dao.dart';
 import '../../database/database.dart';
-import '../../database/schema.dart';
 import '../../providers/sync_provider.dart';
 
 class CustomerListScreen extends StatelessWidget {

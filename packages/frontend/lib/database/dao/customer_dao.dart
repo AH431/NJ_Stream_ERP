@@ -13,7 +13,6 @@
 import 'package:drift/drift.dart';
 
 import '../database.dart';
-import '../schema.dart';
 
 extension CustomerDao on AppDatabase {
   // --------------------------------------------------------------------------

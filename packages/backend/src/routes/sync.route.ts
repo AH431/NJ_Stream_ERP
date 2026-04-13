@@ -16,13 +16,14 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq, gt } from 'drizzle-orm';
+import { eq, gt, inArray, isNull, and } from 'drizzle-orm';
 import { customers } from '@/schemas/customers.schema.js';
 import { products } from '@/schemas/products.schema.js';
 import { quotations } from '@/schemas/quotations.schema.js';
 import { salesOrders } from '@/schemas/sales_orders.schema.js';
 import { inventoryItems } from '@/schemas/inventory_items.schema.js';
 import { processedOperations } from '@/schemas/processed_operations.schema.js';
+import { orderItems } from '@/schemas/order_items.schema.js';
 import { processOperation } from '@/services/sync.service.js';
 import { SYNC } from '@/constants/index.js';
 import type { FailedOperation } from '@/types/index.js';
@@ -222,40 +223,71 @@ export default async function syncRoutes(app: FastifyInstance) {
     }
 
     if (types.includes('quotation')) {
-      const rows = await db.select().from(quotations)
+      const quotRows = await db.select().from(quotations)
         .where(gt(quotations.updatedAt, sinceDate));
-      result.quotations = rows.map(r => ({
-        entityType: 'quotation',
-        id: r.id,
-        customerId: r.customerId,
-        createdBy: r.createdBy,
-        items: [],          // items 需靠 order_items join，W5 Issue #10 補完
-        totalAmount: r.totalAmount,
-        taxAmount: r.taxAmount,
-        status: r.status,
-        convertedToOrderId: r.convertedToOrderId ?? null,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
-      }));
+      
+      if (quotRows.length > 0) {
+        const quotIds = quotRows.map(r => r.id);
+        const itemRows = await db.select().from(orderItems)
+          .where(and(inArray(orderItems.quotationId, quotIds), isNull(orderItems.salesOrderId)));
+        
+        result.quotations = quotRows.map(r => {
+          const items = itemRows.filter(i => i.quotationId === r.id).map(i => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            subtotal: i.subtotal,
+          }));
+          return {
+            entityType: 'quotation',
+            id: r.id,
+            customerId: r.customerId,
+            createdBy: r.createdBy,
+            items,
+            totalAmount: r.totalAmount,
+            taxAmount: r.taxAmount,
+            status: r.status,
+            convertedToOrderId: r.convertedToOrderId ?? null,
+            createdAt: r.createdAt.toISOString(),
+            updatedAt: r.updatedAt.toISOString(),
+            deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+          };
+        });
+      }
     }
 
     if (types.includes('sales_order')) {
-      const rows = await db.select().from(salesOrders)
+      const orderRows = await db.select().from(salesOrders)
         .where(gt(salesOrders.updatedAt, sinceDate));
-      result.salesOrders = rows.map(r => ({
-        entityType: 'sales_order',
-        id: r.id,
-        quotationId: r.quotationId ?? null,
-        customerId: r.customerId,
-        createdBy: r.createdBy,
-        status: r.status,
-        confirmedAt: r.confirmedAt ? r.confirmedAt.toISOString() : null,
-        shippedAt: r.shippedAt ? r.shippedAt.toISOString() : null,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
-      }));
+      
+      if (orderRows.length > 0) {
+        const orderIds = orderRows.map(r => r.id);
+        const itemRows = await db.select().from(orderItems)
+          .where(inArray(orderItems.salesOrderId, orderIds));
+
+        result.salesOrders = orderRows.map(r => {
+          const items = itemRows.filter(i => i.salesOrderId === r.id).map(i => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            subtotal: i.subtotal,
+          }));
+          return {
+            entityType: 'sales_order',
+            id: r.id,
+            quotationId: r.quotationId ?? null,
+            customerId: r.customerId,
+            createdBy: r.createdBy,
+            status: r.status,
+            items, // Added items field for sales_order
+            confirmedAt: r.confirmedAt ? r.confirmedAt.toISOString() : null,
+            shippedAt: r.shippedAt ? r.shippedAt.toISOString() : null,
+            createdAt: r.createdAt.toISOString(),
+            updatedAt: r.updatedAt.toISOString(),
+            deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+          };
+        });
+      }
     }
 
     if (types.includes('inventory_delta')) {

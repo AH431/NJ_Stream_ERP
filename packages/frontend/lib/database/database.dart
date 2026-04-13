@@ -2,10 +2,13 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:decimal/decimal.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'schema.dart';
+import 'converters/datetime_converter.dart';
+import 'converters/decimal_converter.dart';
 
 part 'database.g.dart';
 

@@ -26,7 +26,7 @@ class Users extends Table {
   IntColumn get id => integer()();
   TextColumn get username => text().withLength(max: 100)();
   TextColumn get role => text()(); // sales, warehouse, admin
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -41,9 +41,9 @@ class Customers extends Table {
   TextColumn get name => text().withLength(max: 255)();
   TextColumn get contact => text().nullable().withLength(max: 255)();
   TextColumn get taxId => text().nullable().withLength(max: 20)();
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())(); 
-  DateTimeColumn get deletedAt => dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())(); 
+  TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -57,11 +57,11 @@ class Products extends Table {
   IntColumn get id => integer()();
   TextColumn get name => text().withLength(max: 255)();
   TextColumn get sku => text().withLength(max: 100)();
-  TextColumn get unitPrice => text().withConverter(const DecimalConverter())(); // 對齊後端 decimal 字串
+  TextColumn get unitPrice => text().map(const DecimalConverter())(); // 對齊後端 decimal 字串
   IntColumn get minStockLevel => integer().withDefault(const Constant(0))();
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get deletedAt => dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -81,13 +81,13 @@ class Quotations extends Table {
   IntColumn get customerId => integer()();
   IntColumn get createdBy => integer()();
   TextColumn get items => text()(); // 存儲 JSON 化的 List<QuotationItem>
-  TextColumn get totalAmount => text().withConverter(const DecimalConverter())();
-  TextColumn get taxAmount => text().withConverter(const DecimalConverter())();
+  TextColumn get totalAmount => text().map(const DecimalConverter())();
+  TextColumn get taxAmount => text().map(const DecimalConverter())();
   TextColumn get status => text()(); // draft, sent, converted, expired
   IntColumn get convertedToOrderId => integer().nullable()();
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get deletedAt => dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -105,11 +105,11 @@ class SalesOrders extends Table {
   IntColumn get customerId => integer()();
   IntColumn get createdBy => integer()();
   TextColumn get status => text()(); // pending, confirmed, shipped, cancelled
-  DateTimeColumn get confirmedAt => dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get shippedAt => dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get deletedAt => dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get confirmedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get shippedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -135,11 +135,11 @@ class OrderItems extends Table {
   IntColumn get quantity => integer()();
 
   // 金額欄位：嚴格對齊 DecimalConverter（後端傳 "158000.00" 字串格式）
-  TextColumn get unitPrice => text().withConverter(const DecimalConverter())();
-  TextColumn get subtotal => text().withConverter(const DecimalConverter())();
+  TextColumn get unitPrice => text().map(const DecimalConverter())();
+  TextColumn get subtotal => text().map(const DecimalConverter())();
 
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -163,8 +163,8 @@ class InventoryItems extends Table {
   IntColumn get quantityReserved => integer().check(quantityReserved.isBiggerOrEqualValue(0))();
   /// 低庫存警示閾值（對應後端 inventory_items.min_stock_level）
   IntColumn get minStockLevel => integer().withDefault(const Constant(0))();
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
-  DateTimeColumn get updatedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -179,7 +179,7 @@ class InventoryDeltas extends Table {
   IntColumn get amount => integer().check(amount.isBiggerThanValue(0))();
   TextColumn get deltaType => text()(); // in, reserve, cancel, out
   IntColumn get relatedOrderId => integer().nullable()();
-  DateTimeColumn get createdAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
 }
 
 // ==============================================================================
@@ -195,7 +195,7 @@ class ProcessedOperations extends Table {
   TextColumn get operationId => text()(); // UUID v4
   TextColumn get entityType => text()(); // customer, product, etc.
   TextColumn get operationType => text()(); // create, update, delete, delta_update
-  DateTimeColumn get processedAt => dateTime().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get processedAt => text().map(const Iso8601DateTimeConverter())();
 
   @override
   Set<Column> get primaryKey => {operationId};
@@ -240,8 +240,8 @@ class PendingOperations extends Table {
   TextColumn get deltaType => text().nullable()(); // reserve, cancel, out, in
 
   // 嚴格升序依據（Sync Contract 核心要求）
-  DateTimeColumn get createdAt =>
-      dateTime().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get createdAt =>
+      text().map(const Iso8601DateTimeConverter())();
 
   // payload 存完整 JSON 字串（全快照）
   TextColumn get payload => text()();
@@ -250,8 +250,8 @@ class PendingOperations extends Table {
   TextColumn get status =>
       text().check(status.isIn(['pending', 'syncing', 'succeeded', 'failed'])).withDefault(const Constant('pending'))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  DateTimeColumn get lastAttemptAt =>
-      dateTime().nullable().withConverter(const Iso8601DateTimeConverter())();
+  TextColumn get lastAttemptAt =>
+      text().map(const Iso8601DateTimeConverter()).nullable()();
   TextColumn get errorMessage => text().nullable()();
 
   // autoIncrement() 已自動設定 id 為 PRIMARY KEY，不需再 override primaryKey
