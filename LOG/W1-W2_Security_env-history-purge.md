@@ -169,7 +169,7 @@ HEAD is now at 128a8b5 security: 移除 .env 追蹤並強化 .gitignore ✅
 
 | 項目 | 舊值（已作廢） | 新值（已更新） |
 |------|--------------|--------------|
-| PostgreSQL 密碼 | `postgres123` | `ifGuJTX66Pwu9AHKUK2ntFLlUgzKzCgq`（24-char URL-safe random） |
+| PostgreSQL 密碼 | `postgres123` | `[REDACTED]`（24-char URL-safe random，存於 .env） |
 | JWT Secret | `nj-stream-erp-dev-secret-change-in-production` | `e433f872...c1c9`（96-char hex，secrets.token_hex(48)） |
 
 更新位置（均在 `.gitignore` 保護下）：

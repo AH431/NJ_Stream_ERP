@@ -61,6 +61,9 @@ ios/.symlinks/
 # 日誌與快取
 *.log
 logs/
+LOG/
+cache/
+tmp/
 
 # 測試 / 本地 SQLite DB（避免把本機資料 push 上去）
 **/*.sqlite
@@ -69,6 +72,9 @@ logs/
 # 暫存 scratch 實驗腳本（不應進版控）
 scratch_*.ts
 scratch_*.dart
+
+# 暫存分析輸出（不應進版控）
+packages/frontend/*.txt
 
 # Editor
 .idea/
