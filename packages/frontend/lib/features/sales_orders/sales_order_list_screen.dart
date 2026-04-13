@@ -22,6 +22,7 @@ import '../../database/dao/sales_order_dao.dart';
 import '../../database/dao/quotation_dao.dart';
 import '../../providers/sync_provider.dart';
 import 'reserve_inventory_dialog.dart';
+import 'ship_order_dialog.dart';
 
 class SalesOrderListScreen extends StatefulWidget {
   const SalesOrderListScreen({super.key});
@@ -282,29 +283,10 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   // ─── 出貨 ────────────────────────────────────────────────────────────────────
 
   Future<void> _shipOrder(BuildContext context, SalesOrder order) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('確認出貨'),
-        content: const Text('確認出貨後庫存將立即扣除，此操作不可逆，是否繼續？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('返回'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('確認出貨', style: TextStyle(color: Colors.green)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
 
-    // 從本地取得報價，確認 items 存在
+    // 讀取報價明細
     final quotation = await (db.select(db.quotations)
           ..where((t) => t.id.equals(order.quotationId!)))
         .getSingleOrNull();
@@ -325,7 +307,14 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
           .cast<Map<String, dynamic>>()
           .map(QuotationItemModel.fromJson)
           .toList();
-    } catch (_) {}
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('無法解析報價明細，請重新同步。')),
+        );
+      }
+      return;
+    }
 
     if (items.isEmpty) {
       if (context.mounted) {
@@ -335,6 +324,31 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       }
       return;
     }
+
+    // 建立 productMap + inventoryMap
+    final products   = await db.getActiveProducts();
+    final productMap = <int, Product>{for (final p in products) p.id: p};
+
+    final inventoryMap = <int, InventoryItem>{};
+    for (final item in items) {
+      final inv = await db.getInventoryItemByProductId(item.productId);
+      if (inv != null) inventoryMap[item.productId] = inv;
+    }
+
+    if (!context.mounted) return;
+
+    // 顯示 ShipOrderDialog（onHand / reserved 雙扣預覽）
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => ShipOrderDialog(
+        order: order,
+        items: items,
+        productMap: productMap,
+        inventoryMap: inventoryMap,
+      ),
+    );
+
+    if (confirmed != true) return;
 
     final now = DateTime.now().toUtc();
 
@@ -349,7 +363,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       'updatedAt': now.toIso8601String(),
     });
 
-    // enqueue inventory_delta:out（每個明細行一筆，同時扣 onHand 與 reserved）
+    // enqueue inventory_delta:out × N（同時扣 onHand 與 reserved）
     for (final item in items) {
       await sync.enqueueDeltaUpdate('inventory_delta', 'out', {
         'productId': item.productId,
