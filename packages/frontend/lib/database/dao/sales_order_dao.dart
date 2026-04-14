@@ -15,6 +15,17 @@ extension SalesOrderDao on AppDatabase {
   // Read
   // --------------------------------------------------------------------------
 
+  /// 監聽待出貨訂單數（status = confirmed，供 Dashboard 使用）
+  Stream<int> watchConfirmedOrderCount() {
+    final countExp = salesOrders.id.count();
+    return (selectOnly(salesOrders)
+          ..addColumns([countExp])
+          ..where(salesOrders.status.equals('confirmed') &
+              salesOrders.deletedAt.isNull()))
+        .watchSingle()
+        .map((row) => row.read(countExp) ?? 0);
+  }
+
   /// 監聽所有未軟刪除的銷售訂單（供 SalesOrderListScreen 使用）
   /// 依 updatedAt 降序（最近異動的排前面）
   Stream<List<SalesOrder>> watchActiveSalesOrders() {

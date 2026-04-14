@@ -82,6 +82,25 @@ extension QuotationDao on AppDatabase {
   // Read
   // --------------------------------------------------------------------------
 
+  /// 監聽本月報價總額（含稅，供 Dashboard 使用）
+  /// 條件：deletedAt IS NULL，createdAt >= 本月第一天
+  /// totalAmount 為 Decimal 字串，在 Dart 層加總
+  Stream<Decimal> watchCurrentMonthQuotationTotal() {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month);
+
+    final firstDayIso = firstDayOfMonth.toIso8601String();
+    return (select(quotations)
+          ..where((t) =>
+              t.deletedAt.isNull() &
+              t.createdAt.isBiggerOrEqualValue(firstDayIso)))
+        .watch()
+        .map((rows) => rows.fold(
+              Decimal.zero,
+              (sum, q) => sum + q.totalAmount,
+            ));
+  }
+
   /// 監聽未軟刪除的報價清單，依 updatedAt 降序排列。
   Stream<List<Quotation>> watchActiveQuotations() {
     return (select(quotations)

@@ -13,6 +13,7 @@ import 'features/quotations/quotation_list_screen.dart';
 import 'features/sales_orders/sales_order_list_screen.dart';
 import 'features/inventory/inventory_list_screen.dart';
 import 'features/inventory/stock_in_dialog.dart';
+import 'features/dashboard/dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'providers/sync_provider.dart';
 
@@ -106,7 +107,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const _titles = ['客戶管理', '產品管理', '報價管理', '訂單管理', '庫存查詢'];
+  static const _titles = ['儀表板', '客戶管理', '產品管理', '報價管理', '訂單管理', '庫存查詢'];
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(
         index: _selectedIndex,
         children: const [
+          DashboardScreen(),
           CustomerListScreen(),
           ProductListScreen(),
           QuotationListScreen(),
@@ -167,6 +169,11 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) => setState(() => _selectedIndex = i),
         destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: '儀表板',
+          ),
           NavigationDestination(
             icon: Icon(Icons.people_outline),
             selectedIcon: Icon(Icons.people),
@@ -197,21 +204,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // + 在左、主圖示在右，並排同高，對齊 person_add_outlined 的視覺語言
-  Widget _addBadgeIcon(IconData base) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const Icon(Icons.add, size: 12),
-        Icon(base, size: 12),
-      ],
-    );
-  }
-
   // FAB 按角色與現作 tab 動態顯示
   Widget? _buildFab(BuildContext context, String role) {
-    if (_selectedIndex == 0 && (role == 'sales' || role == 'admin')) {
+    if (_selectedIndex == 1 && (role == 'sales' || role == 'admin')) {
       return FloatingActionButton(
         heroTag: 'fab_customer',
         onPressed: () => Navigator.push(
@@ -222,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.person_add_outlined),
       );
     }
-    if (_selectedIndex == 1 && role == 'admin') {
+    if (_selectedIndex == 2 && role == 'admin') {
       return FloatingActionButton(
         heroTag: 'fab_product',
         onPressed: () => Navigator.push(
@@ -233,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.library_add_outlined),
       );
     }
-    if (_selectedIndex == 2 && (role == 'sales' || role == 'admin')) {
+    if (_selectedIndex == 3 && (role == 'sales' || role == 'admin')) {
       return FloatingActionButton(
         heroTag: 'fab_quotation',
         onPressed: () => Navigator.push(
@@ -244,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.note_add_outlined),
       );
     }
-    if (_selectedIndex == 4 && (role == 'warehouse' || role == 'admin')) {
+    if (_selectedIndex == 5 && (role == 'warehouse' || role == 'admin')) {
       return FloatingActionButton(
         heroTag: 'fab_stock_in',
         onPressed: () async {

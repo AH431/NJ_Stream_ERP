@@ -14,10 +14,61 @@
 import 'package:drift/drift.dart';
 import '../database.dart';
 
+/// 低庫存快照（Dashboard 用）
+/// available = onHand - reserved
+class LowStockItem {
+  final int productId;
+  final String productName;
+  final String sku;
+  final int onHand;
+  final int reserved;
+  final int minStockLevel;
+
+  const LowStockItem({
+    required this.productId,
+    required this.productName,
+    required this.sku,
+    required this.onHand,
+    required this.reserved,
+    required this.minStockLevel,
+  });
+
+  int get available => onHand - reserved;
+}
+
 extension InventoryItemsDao on AppDatabase {
   // --------------------------------------------------------------------------
   // Read
   // --------------------------------------------------------------------------
+
+  /// 監聽低庫存品項（供 Dashboard 使用）
+  /// 條件：minStockLevel > 0 且 (onHand - reserved) <= minStockLevel
+  /// 以 JOIN products 取得產品名稱與 SKU，在 Dart 層套用可出貨量過濾
+  Stream<List<LowStockItem>> watchLowStockItems() {
+    final query = select(inventoryItems).join([
+      innerJoin(products, products.id.equalsExp(inventoryItems.productId)),
+    ])
+      ..where(inventoryItems.minStockLevel.isBiggerThanValue(0))
+      ..orderBy([OrderingTerm.asc(inventoryItems.productId)]);
+
+    return query.watch().map((rows) {
+      return rows
+          .map((row) {
+            final inv = row.readTable(inventoryItems);
+            final prd = row.readTable(products);
+            return LowStockItem(
+              productId: inv.productId,
+              productName: prd.name,
+              sku: prd.sku,
+              onHand: inv.quantityOnHand,
+              reserved: inv.quantityReserved,
+              minStockLevel: inv.minStockLevel,
+            );
+          })
+          .where((item) => item.available <= item.minStockLevel)
+          .toList();
+    });
+  }
 
   /// 監聽所有庫存快照（供庫存列表 UI 使用）
   /// 依 productId 升序排列，便於搭配產品列表對照
