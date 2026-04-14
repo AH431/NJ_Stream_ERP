@@ -1,11 +1,16 @@
 // ==============================================================================
-// QuotationListScreen — 報價單列表（Issue #8 Phase 4）
+// QuotationListScreen — 報價單列表
 //
 // 功能：
 //   - StreamBuilder 監聽 watchActiveQuotations()（deleted_at IS NULL）
-//   - 每列顯示客戶名（從 customerMap 查詢）、totalAmount、狀態 Chip、離線 icon
+//   - 每列顯示客戶名、合計金額、狀態標籤（Row Icon+Text）、離線 icon
 //   - 軟刪除（sales / admin，converted 不可刪）
-//   - 轉訂單（draft / sent，convertedToOrderId == null）
+//   - 轉訂單（draft / sent，convertedToOrderId == null，已同步）
+//
+// UI 規範：
+//   - 狀態標籤：Row(Icon + Text)，純文字+色彩，無外框無背景
+//   - 操作按鈕：TextButton.icon（有文字標籤）
+//   - 佈局：Card + Column（與 SalesOrderListScreen 一致）
 // ==============================================================================
 
 import 'package:drift/drift.dart' show Value;
@@ -28,7 +33,6 @@ class QuotationListScreen extends StatefulWidget {
 class _QuotationListScreenState extends State<QuotationListScreen> {
   /// 快取 customerId → customerName，一次查詢後存放，避免 N+1
   Map<int, String> _customerMap = {};
-  bool _customerMapLoaded = false;
 
   @override
   void initState() {
@@ -37,42 +41,34 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
   }
 
   Future<void> _loadCustomerMap() async {
-    final db = Provider.of<AppDatabase>(context, listen: false);
+    final db = context.read<AppDatabase>();
     final customers = await db.getActiveCustomers();
     if (!mounted) return;
     setState(() {
       _customerMap = {for (final c in customers) c.id: c.name};
-      _customerMapLoaded = true;
     });
   }
 
-  // --------------------------------------------------------------------------
-  // 狀態 Chip 顏色
-  // --------------------------------------------------------------------------
+  // ─── 狀態標籤 ───────────────────────────────────────────────────────────────
 
-  Color _chipColor(String status) {
-    return switch (status) {
-      'draft'     => Colors.grey,
-      'sent'      => Colors.blue,
-      'converted' => Colors.green,
-      'expired'   => Colors.orange,
-      _           => Colors.grey,
+  Widget _buildStatusLabel(String status) {
+    final (label, icon, color) = switch (status) {
+      'sent'      => ('已發送', Icons.send_outlined,          Colors.blue),
+      'converted' => ('已轉訂', Icons.check_circle_outline,   Colors.green),
+      'expired'   => ('已過期', Icons.timer_off_outlined,     Colors.orange),
+      _           => ('草稿',   Icons.edit_outlined,          Colors.grey),
     };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+      ],
+    );
   }
 
-  String _chipLabel(String status) {
-    return switch (status) {
-      'draft'     => '草稿',
-      'sent'      => '已發送',
-      'converted' => '已轉訂',
-      'expired'   => '已過期',
-      _           => status,
-    };
-  }
-
-  // --------------------------------------------------------------------------
-  // 軟刪除確認
-  // --------------------------------------------------------------------------
+  // ─── 軟刪除 ─────────────────────────────────────────────────────────────────
 
   Future<void> _confirmDelete(
     BuildContext context,
@@ -125,9 +121,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // 轉訂單
-  // --------------------------------------------------------------------------
+  // ─── 轉訂單 ─────────────────────────────────────────────────────────────────
 
   Future<void> _convertToOrder(
     BuildContext context,
@@ -135,13 +129,11 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     SyncProvider sync,
     Quotation quotation,
   ) async {
-    // 樂觀更新本地狀態
     await db.updateQuotationStatus(quotation.id, 'converted');
 
     final now = DateTime.now().toUtc();
     final localOrderId = SyncProvider.nextLocalId();
 
-    // 插入本地臨時銷售訂單（id < 0）
     await db.insertSalesOrder(SalesOrdersCompanion(
       id: Value(localOrderId),
       quotationId: Value(quotation.id),
@@ -152,7 +144,6 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
       updatedAt: Value(now),
     ));
 
-    // 排入同步佇列
     final payload = {
       'id': localOrderId,
       'quotationId': quotation.id,
@@ -174,19 +165,102 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Build
-  // --------------------------------------------------------------------------
+  // ─── 報價列表項目 ─────────────────────────────────────────────────────────────
+
+  Widget _buildQuotationTile(BuildContext context, Quotation q, String? role) {
+    final db   = context.read<AppDatabase>();
+    final sync = context.read<SyncProvider>();
+
+    final customerName = _customerMap[q.customerId] ?? '客戶 #${q.customerId}';
+    final isOffline = q.id < 0;
+
+    final canDelete = (role == 'sales' || role == 'admin') &&
+        q.status != 'converted';
+    final canConvert = (role == 'sales' || role == 'admin') &&
+        (q.status == 'draft' || q.status == 'sent') &&
+        q.convertedToOrderId == null &&
+        !isOffline;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 第一行：客戶名 + 離線 icon
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    customerName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                Icon(
+                  isOffline ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
+                  size: 18,
+                  color: isOffline ? Colors.orange : Colors.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // 第二行：狀態標籤 + 合計金額
+            Row(
+              children: [
+                _buildStatusLabel(q.status),
+                const SizedBox(width: 12),
+                Text(
+                  '合計：${q.totalAmount}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(q.createdAt),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            // 操作按鈕（有權限才顯示）
+            if (canConvert || canDelete) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (canConvert)
+                    TextButton.icon(
+                      onPressed: () => _convertToOrder(context, db, sync, q),
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: const Text('轉訂單'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.indigo),
+                    ),
+                  if (canDelete)
+                    TextButton.icon(
+                      onPressed: () => _confirmDelete(context, db, sync, q),
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      label: const Text('刪除'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  // ─── build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final db   = Provider.of<AppDatabase>(context, listen: false);
-    final sync = Provider.of<SyncProvider>(context, listen: false);
+    final db   = context.read<AppDatabase>();
+    final sync = context.read<SyncProvider>();
     final role = sync.role;
-
-    if (!_customerMapLoaded) {
-      return const Center(child: CircularProgressIndicator());
-    }
 
     return StreamBuilder<List<Quotation>>(
       stream: db.watchActiveQuotations(),
@@ -194,62 +268,30 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
         final quotations = snapshot.data ?? [];
-        if (quotations.isEmpty) {
-          return const Center(child: Text('尚無報價單'));
-        }
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(8),
-          itemCount: quotations.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final q = quotations[index];
-            final customerName = _customerMap[q.customerId] ?? '(客戶 ${q.customerId})';
-            final canDelete = (role == 'sales' || role == 'admin') &&
-                q.status != 'converted';
-            final canConvert = (role == 'sales' || role == 'admin') &&
-                (q.status == 'draft' || q.status == 'sent') &&
-                q.convertedToOrderId == null &&
-                q.id > 0; // 尚未同步的本地臨時單不可轉單
-
-            return ListTile(
-              title: Text(customerName),
-              subtitle: Text('合計：${q.totalAmount}'),
-              leading: q.id < 0
-                  ? const Icon(Icons.cloud_upload_outlined, color: Colors.orange)
-                  : const Icon(Icons.cloud_done_outlined, color: Colors.green),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 狀態 Chip
-                  Chip(
-                    label: Text(
-                      _chipLabel(q.status),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+        return RefreshIndicator(
+          onRefresh: () => sync.pullData(),
+          child: quotations.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 120),
+                    Center(
+                      child: Text(
+                        '尚無報價單\n下拉以同步取得最新資料',
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    backgroundColor: _chipColor(q.status),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  // 轉訂單
-                  if (canConvert)
-                    IconButton(
-                      icon: const Icon(Icons.swap_horiz),
-                      tooltip: '轉訂單',
-                      onPressed: () => _convertToOrder(context, db, sync, q),
-                    ),
-                  // 軟刪除
-                  if (canDelete)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: '刪除',
-                      onPressed: () => _confirmDelete(context, db, sync, q),
-                    ),
-                ],
-              ),
-            );
-          },
+                  ],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: quotations.length,
+                  itemBuilder: (context, index) =>
+                      _buildQuotationTile(context, quotations[index], role),
+                ),
         );
       },
     );

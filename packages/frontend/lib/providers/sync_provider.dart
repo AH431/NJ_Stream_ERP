@@ -579,6 +579,18 @@ class SyncProvider extends ChangeNotifier {
         if (serverState != null) {
           await _applyForceOverwrite(op.entityType, serverState);
         }
+        // sales_order:create 被拒絕時回滾本地記錄，避免殘留無法操作的訂單
+        if (op.entityType == 'sales_order' && op.operationType == 'create') {
+          final payload = jsonDecode(op.payload) as Map<String, dynamic>;
+          final localId    = payload['id'] as int?;
+          final quotationId = payload['quotationId'] as int?;
+          if (localId != null) {
+            await _db.softDeleteLocalSalesOrder(localId);
+          }
+          if (quotationId != null) {
+            await _db.updateQuotationStatus(quotationId, 'draft');
+          }
+        }
         await _updateOpStatus(op, 'failed', error: errorCode);
 
       // INSUFFICIENT_STOCK：標記 failed（同步協定 v1.6 §6 Fail-to-Pull）

@@ -52,18 +52,20 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
   // ─── 狀態 Chip ──────────────────────────────────────────────────────────────
 
-  Widget _buildStatusChip(String status) {
-    final (label, color) = switch (status) {
-      'confirmed' => ('已確認', Colors.blue),
-      'shipped'   => ('已出貨', Colors.green),
-      'cancelled' => ('已取消', Colors.red),
-      _           => ('待處理', Colors.grey),
+  Widget _buildStatusLabel(String status) {
+    final (label, icon, color) = switch (status) {
+      'confirmed' => ('已確認', Icons.check_circle_outline,  Colors.blue),
+      'shipped'   => ('已出貨', Icons.local_shipping_outlined, Colors.green),
+      'cancelled' => ('已取消', Icons.cancel_outlined,        Colors.red),
+      _           => ('待處理', Icons.schedule,               Colors.grey),
     };
-    return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 11, color: Colors.white)),
-      backgroundColor: color,
-      padding: EdgeInsets.zero,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 
@@ -91,7 +93,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
 
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
@@ -192,6 +194,9 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       });
     }
 
+    // 標記本地已預留，解鎖「出貨」按鈕
+    await db.markSalesOrderReserved(order.id);
+
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('庫存預留已排入待同步佇列')),
@@ -223,7 +228,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
 
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
@@ -337,6 +342,10 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (!context.mounted) return;
 
+    // 出貨前先 Pull，確保本地庫存快照（reserved/onHand）與伺服器一致
+    await sync.pullData();
+    if (!context.mounted) return;
+
     // 顯示 ShipOrderDialog（onHand / reserved 雙扣預覽）
     final confirmed = await showDialog<bool>(
       context: context,
@@ -396,11 +405,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         !isOffline &&
         order.quotationId != null;
 
-    // 出貨：warehouse/admin、status=confirmed、已同步、有 quotationId
+    // 出貨：warehouse/admin、status=confirmed、已同步、有 quotationId、且已預留庫存
     final canShip = (role == 'warehouse' || role == 'admin') &&
         order.status == 'confirmed' &&
         !isOffline &&
-        order.quotationId != null;
+        order.quotationId != null &&
+        order.reservedAt != null;
 
     // 取消訂單：sales/admin、status=pending 或 confirmed、已同步
     final canCancel = (role == 'sales' || role == 'admin') &&
@@ -448,7 +458,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
             // 第二行：狀態 Chip + 訂單日期
             Row(
               children: [
-                _buildStatusChip(order.status),
+                _buildStatusLabel(order.status),
                 const SizedBox(width: 8),
                 Text(
                   '建立：${_formatDate(order.createdAt)}',

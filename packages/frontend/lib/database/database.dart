@@ -40,6 +40,7 @@ class AppDatabase extends _$AppDatabase {
   ///   v1: 初始 9 張表
   ///   v2: 新增 OrderItems 表（訂單明細正規化，對應後端 order_items）
   ///   v3: InventoryItems 補 minStockLevel 欄位（對應後端 inventory_items.min_stock_level）
+  ///   v4: SalesOrders 補 reservedAt 欄位（本地端標記庫存預留時間，用於控制出貨按鈕可見性）
   ///
   /// 升版流程：
   ///   1. 修改 schema.dart（新增欄位 / 表）
@@ -47,7 +48,7 @@ class AppDatabase extends _$AppDatabase {
   ///   3. 在 onUpgrade 的對應 from 版本中加入 migration 操作
   ///   4. 執行 build_runner build 重新產生 database.g.dart
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +65,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             // v2 → v3: InventoryItems 補 minStockLevel 欄位
             await m.addColumn(inventoryItems, inventoryItems.minStockLevel);
+          }
+          if (from < 4) {
+            // v3 → v4: SalesOrders 補 reservedAt 欄位
+            await m.addColumn(salesOrders, salesOrders.reservedAt);
           }
         },
       );

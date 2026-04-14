@@ -63,7 +63,7 @@ export interface SalesOrderPayload {
 }
 
 export interface InventoryItemPayload {
-  entityType: 'inventory_delta';
+  entityType: 'inventory_item';
   id: number;
   productId: number;
   warehouseId: number;

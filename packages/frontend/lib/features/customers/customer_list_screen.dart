@@ -103,7 +103,7 @@ class CustomerListScreen extends StatelessWidget {
                       child: Icon(
                         Icons.cloud_upload_outlined,
                         size: 16,
-                        color: Theme.of(ctx).colorScheme.tertiary,
+                        color: Colors.orange,
                       ),
                     ),
                   if (canEdit)

@@ -303,6 +303,7 @@ export default async function syncRoutes(app: FastifyInstance) {
         minStockLevel: r.minStockLevel,
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
+        deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
       }));
     }
 

@@ -51,7 +51,8 @@
   - 修復 `GET /pull` 明細缺失漏洞
   - 優化 `SyncProvider.pullData()` 批次交易效能
   - 修正 Drift Schema 相容性與全域代碼清理（Fix 36+ analysis issues）
-- [ ] 共同：W6 末 離線建單 → 同步 → 庫存更新走路測試 #14
+- [x] 共同：W6 末 離線建單 → 同步 → 庫存更新走路測試 #14
+- [x] UI 清理：報價 & 訂單列表狀態標籤 / 按鈕規範對齊（無 Issue 編號，衍生自 #14）
 
 ## Milestone: W9 Dashboard & Data Import
 - [ ] 共同：簡易儀表板（待出貨、低庫存、本月報價） #15

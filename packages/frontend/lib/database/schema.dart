@@ -106,6 +106,7 @@ class SalesOrders extends Table {
   IntColumn get createdBy => integer()();
   TextColumn get status => text()(); // pending, confirmed, shipped, cancelled
   TextColumn get confirmedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get reservedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
   TextColumn get shippedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();

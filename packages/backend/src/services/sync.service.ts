@@ -156,7 +156,7 @@ function productToState(row: typeof products.$inferSelect): ProductPayload {
 
 function inventoryToState(row: typeof inventoryItems.$inferSelect): InventoryItemPayload {
   return {
-    entityType: 'inventory_delta',
+    entityType: 'inventory_item',
     id: row.id,
     productId: row.productId,
     warehouseId: row.warehouseId,

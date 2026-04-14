@@ -35,7 +35,7 @@ extension SalesOrderDao on AppDatabase {
 
   /// 樂觀更新訂單狀態（確認 / 取消）
   /// [confirmedAt]：確認訂單時傳入；取消時傳 null
-  /// [shippedAt]：出貨時傳入；其餘情境傳 null
+  /// [shippedAt]：出貨時傳入；其餘情境不傳（保留現有值）
   Future<void> updateSalesOrderStatus(
     int id,
     String status, {
@@ -46,10 +46,29 @@ extension SalesOrderDao on AppDatabase {
     await (update(salesOrders)..where((t) => t.id.equals(id))).write(
       SalesOrdersCompanion(
         status: Value(status),
-        confirmedAt: Value(confirmedAt),
-        shippedAt: Value(shippedAt),
+        // Value.absent() = 不更新該欄位，保留 DB 現有值（審計記錄不得清除）
+        confirmedAt: confirmedAt != null ? Value(confirmedAt) : const Value.absent(),
+        shippedAt:   shippedAt   != null ? Value(shippedAt)   : const Value.absent(),
         updatedAt: Value(now),
       ),
+    );
+  }
+
+  /// 標記庫存已預留（本地端，控制「出貨」按鈕可見性）
+  /// 在 _reserveInventory enqueue 完成後呼叫
+  Future<void> markSalesOrderReserved(int id) async {
+    final now = DateTime.now().toUtc();
+    await (update(salesOrders)..where((t) => t.id.equals(id))).write(
+      SalesOrdersCompanion(reservedAt: Value(now)),
+    );
+  }
+
+  /// 軟刪除本地臨時訂單（push 被伺服器拒絕時回滾用）
+  /// 設定 deletedAt，讓 watchActiveSalesOrders 自動過濾掉殘留記錄
+  Future<void> softDeleteLocalSalesOrder(int localId) async {
+    final now = DateTime.now().toUtc();
+    await (update(salesOrders)..where((t) => t.id.equals(localId))).write(
+      SalesOrdersCompanion(deletedAt: Value(now)),
     );
   }
 
