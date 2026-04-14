@@ -148,19 +148,27 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
         final items = snapshot.data ?? [];
 
-        if (items.isEmpty) {
-          return const Center(
-            child: Text('尚無庫存記錄\n請先同步以取得最新庫存資料',
-                textAlign: TextAlign.center),
-          );
-        }
-
         return RefreshIndicator(
           onRefresh: () => sync.pullData(),
-          child: ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) => _buildInventoryTile(items[index]),
-          ),
+          child: items.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 120),
+                    Center(
+                      child: Text(
+                        '尚無庫存記錄\n下拉以同步取得最新庫存資料',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) =>
+                      _buildInventoryTile(items[index]),
+                ),
         );
       },
     );

@@ -197,6 +197,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // + 在左、主圖示在右，並排同高，對齊 person_add_outlined 的視覺語言
+  Widget _addBadgeIcon(IconData base) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Icon(Icons.add, size: 12),
+        Icon(base, size: 12),
+      ],
+    );
+  }
+
   // FAB 按角色與現作 tab 動態顯示
   Widget? _buildFab(BuildContext context, String role) {
     if (_selectedIndex == 0 && (role == 'sales' || role == 'admin')) {
@@ -218,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(builder: (_) => const ProductFormScreen()),
         ),
         tooltip: '新增產品',
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.library_add_outlined),
       );
     }
     if (_selectedIndex == 2 && (role == 'sales' || role == 'admin')) {
@@ -229,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
         ),
         tooltip: '新增報價單',
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.note_add_outlined),
       );
     }
     if (_selectedIndex == 4 && (role == 'warehouse' || role == 'admin')) {

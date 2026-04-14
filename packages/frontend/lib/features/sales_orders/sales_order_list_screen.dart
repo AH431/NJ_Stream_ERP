@@ -520,20 +520,27 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
         final orders = snapshot.data ?? [];
 
-        if (orders.isEmpty) {
-          return const Center(
-            child: Text('目前無訂單\n（報價轉訂單後將顯示於此）',
-                textAlign: TextAlign.center),
-          );
-        }
-
         return RefreshIndicator(
           onRefresh: () => sync.pullData(),
-          child: ListView.builder(
-            itemCount: orders.length,
-            itemBuilder: (context, index) =>
-                _buildOrderTile(orders[index], role),
-          ),
+          child: orders.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 120),
+                    Center(
+                      child: Text(
+                        '目前無訂單\n下拉以同步，或由報價轉入',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) =>
+                      _buildOrderTile(orders[index], role),
+                ),
         );
       },
     );
