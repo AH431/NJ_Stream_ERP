@@ -69,9 +69,9 @@ tags:
       離線同步核心端點。
       **重要**：operations 陣列必須依 `created_at` 升序排列，單批上限 50 筆。
   - name: Auth
-    description: 認證相關端點（未來擴充）
+    description: 認證相關端點（見 api-contract-auth.yaml）
   - name: Pull
-    description: 伺服器狀態下拉端點（未來擴充，對應 Fail-to-Pull 機制）
+    description: 伺服器狀態下拉端點（FINAL — W6，對應 Fail-to-Pull 與增量同步機制）
 
 security:
   - BearerAuth: []
@@ -297,23 +297,42 @@ paths:
                 message: "伺服器發生內部錯誤，請稍後重試。"
 
   # ============================================================
-  # GET /api/v1/sync/pull — Fail-to-Pull 端點（未來實作）
+  # GET /api/v1/sync/pull — Fail-to-Pull 端點（FINAL — W6）
   # ============================================================
   /api/v1/sync/pull:
     get:
       operationId: syncPull
       tags:
         - Pull
-      summary: 下拉伺服器最新狀態（Fail-to-Pull）
+      summary: 下拉伺服器最新狀態（Fail-to-Pull 與增量同步）
       description: |
-        當前端收到 `INSUFFICIENT_STOCK` 錯誤時，必須呼叫此端點取得最新庫存狀態，
-        再由使用者決定是否重新操作。
+        ## 用途
+        1. **Fail-to-Pull**：前端收到 `INSUFFICIENT_STOCK` 後強制呼叫，取得最新庫存狀態。
+        2. **啟動同步**：App 啟動時以 `since = last_sync_at`（SecureStorage）拉取增量資料。
+        3. **Pull-to-refresh**：使用者手動下拉刷新時全量拉取（不傳 `since`）。
 
-        查詢參數 `entityTypes` 可指定需下拉的實體類型（逗號分隔），
-        若未指定則下拉所有自 `since` 時間點後有變動的實體。
+        ## 查詢參數
+        - `since`（選填）：只回傳 `updatedAt > since` 的資料（ISO 8601 UTC）。不傳則回傳全量。
+        - `entityTypes`（選填）：逗號分隔的實體類型，預設為全部五種。
+          合法值：`customer,product,quotation,sales_order,inventory_delta`
+          （`inventory_delta` 在此端點對應 `inventoryItems` 回傳陣列）
 
-        W3-W4（Issue #7）：實作 customers / products / quotations / salesOrders 增量同步。
-        inventoryDeltas 待 W6 補完。
+        ## 回傳結構
+        五個獨立陣列，每個陣列只含有變動的記錄（以 `updatedAt > since` 篩選）。
+        各陣列在無變動時回傳空陣列 `[]`，不省略該欄位。
+        每筆記錄均含 `entityType` 欄位（供前端 Force Overwrite 路徑使用）。
+
+        ## 分頁
+        MVP 階段無分頁，單次回傳全量（或 since 增量）。
+        大型資料集由前端以 `since` 遞增拉取來控制流量。
+
+        ## 前端處理流程
+        ```
+        Pull response 到達後：
+          1. 清除 id < 0 的 orphan 本地記錄（孤立離線草稿）
+          2. 對每筆記錄呼叫對應 DAO.upsertFromServer（LWW 判斷）
+          3. 更新 SecureStorage last_sync_at = now().toUtc()
+        ```
       parameters:
         - name: since
           in: query
@@ -321,42 +340,65 @@ paths:
           schema:
             type: string
             format: date-time
-          description: 只下拉此時間點之後有更新的資料（ISO 8601 格式）
+          description: |
+            增量篩選起點（ISO 8601 UTC）。
+            只回傳 `updatedAt > since` 的記錄。
+            省略則回傳全量資料。
+          example: "2026-04-14T00:00:00.000Z"
         - name: entityTypes
           in: query
           required: false
           schema:
             type: string
-          description: 逗號分隔的實體類型（預設為全部實體）
-          example: "customer,product"
+          description: |
+            逗號分隔的實體類型（預設為全部五種）。
+            合法值：`customer,product,quotation,sales_order,inventory_delta`
+          example: "customer,product,inventory_delta"
       responses:
         '200':
-          description: 回傳指定實體的最新狀態（增量資料）
+          description: |
+            回傳各實體類型的增量資料陣列。
+            未被 `entityTypes` 篩選的類型回傳空陣列。
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  customers:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/CustomerPayload'
-                  products:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ProductPayload'
-                  quotations:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/QuotationPayload'
-                  salesOrders:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/SalesOrderPayload'
-                  inventoryDeltas:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/InventoryItemPayload'
+                $ref: '#/components/schemas/SyncPullResponse'
+              example:
+                customers: []
+                products: []
+                quotations: []
+                salesOrders:
+                  - entityType: sales_order
+                    id: 4
+                    quotationId: 3
+                    customerId: 4
+                    createdBy: 2
+                    status: shipped
+                    confirmedAt: "2026-04-14T09:00:00.000Z"
+                    shippedAt: "2026-04-14T10:00:00.000Z"
+                    createdAt: "2026-04-14T08:00:00.000Z"
+                    updatedAt: "2026-04-14T10:00:00.000Z"
+                    deletedAt: null
+                inventoryItems:
+                  - entityType: inventory_item
+                    id: 3
+                    productId: 3
+                    warehouseId: 1
+                    quantityOnHand: 9
+                    quantityReserved: 0
+                    minStockLevel: 5
+                    createdAt: "2026-01-01T00:00:00.000Z"
+                    updatedAt: "2026-04-14T10:00:00.000Z"
+                    deletedAt: null
+        '400':
+          description: 查詢參數格式錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: "Invalid query parameters."
         '401':
           description: 未授權
 
@@ -379,6 +421,37 @@ components:
     # ==========================================================
     # 請求 / 回應結構
     # ==========================================================
+
+    SyncPullResponse:
+      type: object
+      description: |
+        GET /api/v1/sync/pull 的回傳結構。
+        五個獨立陣列對應五種實體類型，未被 `entityTypes` 篩選或無變動時回傳 `[]`。
+      properties:
+        customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerPayload'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductPayload'
+        quotations:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuotationPayload'
+        salesOrders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrderPayload'
+        inventoryItems:
+          type: array
+          description: |
+            注意：Pull 端點回傳鍵名為 `inventoryItems`（實體快照），
+            Push Operation 的 `entityType` 為 `inventory_delta`（操作語義）。
+            兩者不同，請勿混淆。
+          items:
+            $ref: '#/components/schemas/InventoryItemPayload'
 
     SyncPushRequest:
       type: object
@@ -417,23 +490,28 @@ components:
     ServerState:
       description: |
         伺服器端當前 entity 的完整狀態快照。
-        使用 `discriminator.propertyName = entityType` 讓前端可直接依據 operation 的 `entityType`
-        欄位選擇正確 schema 進行 deserialization，無需額外判斷邏輯。
+        每個 Payload 型別內部均含 `entityType` 欄位（discriminator），
+        前端可依此欄位選擇正確 schema 進行 deserialization。
 
         **前端使用方式（Dart 範例）**：
         ```dart
-        switch (failedOp.entityType) {
-          case 'customer':    final s = CustomerPayload.fromJson(serverState);
-          case 'product':     final s = ProductPayload.fromJson(serverState);
-          case 'quotation':   final s = QuotationPayload.fromJson(serverState);
-          case 'sales_order': final s = SalesOrderPayload.fromJson(serverState);
-          case 'inventory_delta': final s = InventoryItemPayload.fromJson(serverState);
+        // server_state 可為 null（INSUFFICIENT_STOCK 時），需先判斷
+        if (serverState == null) return;
+        switch (serverState['entityType'] as String) {
+          case 'customer':       final s = CustomerPayload.fromJson(serverState);
+          case 'product':        final s = ProductPayload.fromJson(serverState);
+          case 'quotation':      final s = QuotationPayload.fromJson(serverState);
+          case 'sales_order':    final s = SalesOrderPayload.fromJson(serverState);
+          case 'inventory_item': final s = InventoryItemPayload.fromJson(serverState);
         }
         ```
 
         **後端回傳規則**：
         - `INSUFFICIENT_STOCK` → 必須為 `null`（前端需 Pull，不做 Force Overwrite）
         - 其他錯誤碼 → 必須包含對應 entity 完整欄位（僅本身欄位，不含關聯資料）
+
+        **重要**：`entityType` 的值使用 Pull / server_state 語義（`inventory_item`），
+        與 Push Operation 的 `entityType`（`inventory_delta`）不同。
       oneOf:
         - $ref: '#/components/schemas/CustomerPayload'
         - $ref: '#/components/schemas/ProductPayload'
@@ -444,11 +522,11 @@ components:
       discriminator:
         propertyName: entityType
         mapping:
-          customer:        '#/components/schemas/CustomerPayload'
-          product:         '#/components/schemas/ProductPayload'
-          quotation:       '#/components/schemas/QuotationPayload'
-          sales_order:     '#/components/schemas/SalesOrderPayload'
-          inventory_delta: '#/components/schemas/InventoryItemPayload'
+          customer:       '#/components/schemas/CustomerPayload'
+          product:        '#/components/schemas/ProductPayload'
+          quotation:      '#/components/schemas/QuotationPayload'
+          sales_order:    '#/components/schemas/SalesOrderPayload'
+          inventory_item: '#/components/schemas/InventoryItemPayload'
       nullable: true
 
     FailedOperation:
@@ -817,6 +895,14 @@ components:
             `confirmed` → `cancelled`（取消，同時觸發 cancel）
             **注意**：狀態轉換 operation 與 delta_update operation 應為獨立的兩筆 operation，
             依 created_at 升序排列於同一批次。
+        items:
+          type: array
+          description: |
+            訂單明細（Pull 端點回傳，Force Overwrite 的 server_state 不含此欄位）。
+            前端收到 Pull 資料時更新本地 order_items；
+            Force Overwrite 路徑不更新 items（保留本地現有值）。
+          items:
+            $ref: '#/components/schemas/QuotationItem'
         confirmedAt:
           type: string
           format: date-time
