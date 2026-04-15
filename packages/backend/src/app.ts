@@ -24,11 +24,11 @@ export function buildApp() {
     origin: process.env.NODE_ENV === 'development' ? true : false,
   });
 
-  // 全域速率限制：每 IP 每分鐘最多 12 次（一般 API 使用）
+  // 全域速率限制：每 IP 每分鐘最多 50 次（一般 API 使用）
   // /auth/login 另設更嚴格的限制（見 auth.route.ts）
   app.register(rateLimit, {
     global: true,
-    max: 12,
+    max: 50,
     timeWindow: '1 minute',
     errorResponseBuilder: (_request, context) => ({
       statusCode: 429,
@@ -45,7 +45,10 @@ export function buildApp() {
   app.register(authPlugin);
 
   // ── 健康檢查 ────────────────────────────────────────────
-  app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+  // rate limit 獨立設定，防止自動化工具用 /health 探測服務狀態
+  app.get('/health', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+  }, async () => ({ status: 'ok' }));
 
   // ── 路由 ────────────────────────────────────────────────
   app.register(authRoutes,      { prefix: '/api/v1/auth' });

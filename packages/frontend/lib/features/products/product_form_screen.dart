@@ -184,12 +184,12 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             // 單價（必填，decimal 驗證，對應 api-contract ^\d+\.\d{2}$ 格式）
             TextFormField(
               controller: _unitPriceCtrl,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: '單價 *',
                 hintText: '例：158000.00',
-                prefixIcon: const Icon(Icons.attach_money),
+                prefixIcon: Icon(Icons.attach_money),
                 prefixText: 'NT\$ ',
-                border: const OutlineInputBorder(),
+                border: OutlineInputBorder(),
                 helperText: '支援小數點後最多兩位',
               ),
               keyboardType:

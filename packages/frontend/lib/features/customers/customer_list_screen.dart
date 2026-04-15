@@ -98,7 +98,7 @@ class CustomerListScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (customer.id < 0)
-                    Tooltip(
+                    const Tooltip(
                       message: '等待同步',
                       child: Icon(
                         Icons.cloud_upload_outlined,

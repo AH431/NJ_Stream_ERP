@@ -160,8 +160,8 @@ class InventoryItems extends Table {
   IntColumn get id => integer()();
   IntColumn get productId => integer()();
   IntColumn get warehouseId => integer().withDefault(const Constant(1))();
-  IntColumn get quantityOnHand => integer().check(quantityOnHand.isBiggerOrEqualValue(0))(); // 約束：不得小於 0
-  IntColumn get quantityReserved => integer().check(quantityReserved.isBiggerOrEqualValue(0))();
+  IntColumn get quantityOnHand => integer().customConstraint('NOT NULL CHECK (quantity_on_hand >= 0)')(); // 約束：不得小於 0
+  IntColumn get quantityReserved => integer().customConstraint('NOT NULL CHECK (quantity_reserved >= 0)')();
   /// 低庫存警示閾值（對應後端 inventory_items.min_stock_level）
   IntColumn get minStockLevel => integer().withDefault(const Constant(0))();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
@@ -177,7 +177,7 @@ class InventoryDeltas extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get inventoryItemId => integer()();
   IntColumn get productId => integer()();
-  IntColumn get amount => integer().check(amount.isBiggerThanValue(0))();
+  IntColumn get amount => integer().customConstraint('NOT NULL CHECK (amount > 0)')();
   TextColumn get deltaType => text()(); // in, reserve, cancel, out
   IntColumn get relatedOrderId => integer().nullable()();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
@@ -249,7 +249,7 @@ class PendingOperations extends Table {
 
   // 佇列狀態管理
   TextColumn get status =>
-      text().check(status.isIn(['pending', 'syncing', 'succeeded', 'failed'])).withDefault(const Constant('pending'))();
+      text().customConstraint("NOT NULL CHECK (status IN ('pending', 'syncing', 'succeeded', 'failed'))").withDefault(const Constant('pending'))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   TextColumn get lastAttemptAt =>
       text().map(const Iso8601DateTimeConverter()).nullable()();

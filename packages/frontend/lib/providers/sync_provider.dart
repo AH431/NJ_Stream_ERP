@@ -338,7 +338,7 @@ class SyncProvider extends ChangeNotifier {
       PendingOperationsCompanion(
         operationId: Value(opId),
         entityType: Value(entityType),
-        operationType: Value('create'),
+        operationType: const Value('create'),
         payload: Value(jsonEncode(payload)),
         createdAt: Value(now),
         relatedEntityId: Value('$entityType:${payload["id"]}'),
@@ -366,7 +366,7 @@ class SyncProvider extends ChangeNotifier {
       PendingOperationsCompanion(
         operationId: Value(opId),
         entityType: Value(entityType),
-        operationType: Value('delete'), // 依合約：軟刪除用 'delete'（非 'update'）
+        operationType: const Value('delete'), // 依合約：軟刪除用 'delete'（非 'update'）
         payload: Value(jsonEncode(payload)),
         createdAt: Value(now),
         relatedEntityId: Value('$entityType:$entityId'),
@@ -389,7 +389,7 @@ class SyncProvider extends ChangeNotifier {
       PendingOperationsCompanion(
         operationId: Value(opId),
         entityType: Value(entityType),
-        operationType: Value('update'),
+        operationType: const Value('update'),
         payload: Value(jsonEncode(payload)),
         createdAt: Value(now),
         relatedEntityId: Value('$entityType:$entityId'),
@@ -414,7 +414,7 @@ class SyncProvider extends ChangeNotifier {
       PendingOperationsCompanion(
         operationId: Value(opId),
         entityType: Value(entityType),
-        operationType: Value('delta_update'),
+        operationType: const Value('delta_update'),
         deltaType: Value(deltaType),
         payload: Value(jsonEncode(payload)),
         createdAt: Value(now),

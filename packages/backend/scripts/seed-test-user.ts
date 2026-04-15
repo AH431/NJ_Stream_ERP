@@ -12,7 +12,7 @@ import * as schema from '../src/schemas/index.js';
 const sql = postgres(process.env.DATABASE_URL!);
 const db = drizzle(sql, { schema });
 
-const HASH_ROUNDS = 10;
+const HASH_ROUNDS = 12;
 
 await db.insert(schema.users).values([
   {

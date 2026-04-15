@@ -77,7 +77,7 @@ const PERMISSIONS: Record<string, string[]> = {
   'quotation:update':            [USER_ROLES.SALES, USER_ROLES.ADMIN],
   'quotation:delete':            [USER_ROLES.SALES, USER_ROLES.ADMIN],
   'sales_order:create':          [USER_ROLES.SALES, USER_ROLES.ADMIN],
-  'sales_order:update':          [USER_ROLES.SALES, USER_ROLES.ADMIN],
+  'sales_order:update':          [USER_ROLES.SALES, USER_ROLES.WAREHOUSE, USER_ROLES.ADMIN],
   'sales_order:delete':          [USER_ROLES.ADMIN],
   // inventory_delta 的 deltaType 決定誰可以操作
   'inventory_delta:delta_update:reserve': [USER_ROLES.SALES, USER_ROLES.ADMIN],

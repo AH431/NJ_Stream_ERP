@@ -196,9 +196,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
       'deletedAt':         null,
     });
 
-    if (context.mounted) {
-      Navigator.pop(context);
-    }
+    if (!mounted) return;
+    Navigator.pop(context);
   }
 
   // --------------------------------------------------------------------------
