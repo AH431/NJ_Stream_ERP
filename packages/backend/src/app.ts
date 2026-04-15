@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import dbPlugin from '@/plugins/db.js';
 import authPlugin from '@/plugins/auth.plugin.js';
 import authRoutes from '@/routes/auth.route.js';
@@ -21,6 +22,18 @@ export function buildApp() {
   app.register(helmet);
   app.register(cors, {
     origin: process.env.NODE_ENV === 'development' ? true : false,
+  });
+
+  // 全域速率限制：每 IP 每分鐘最多 12 次（一般 API 使用）
+  // /auth/login 另設更嚴格的限制（見 auth.route.ts）
+  app.register(rateLimit, {
+    global: true,
+    max: 12,
+    timeWindow: '1 minute',
+    errorResponseBuilder: (_request, context) => ({
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `請求過於頻繁，請 ${Math.ceil(context.ttl / 1000)} 秒後重試。`,
+    }),
   });
 
   // ── 資料庫插件 ──────────────────────────────────────────

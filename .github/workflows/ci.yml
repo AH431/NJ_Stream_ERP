@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 後端：安全稽核 + TypeScript 建置 ──────────────────────
+  backend:
+    name: Backend (Node.js)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: packages/backend/package-lock.json
+
+      # npm ci：嚴格依 package-lock.json 安裝，防止供應鏈竄改
+      - name: Install dependencies
+        run: npm ci
+
+      # 阻擋 HIGH 以上等級漏洞進入 main
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      # TypeScript 型別檢查 + 建置驗證
+      - name: Build
+        run: npm run build
+
+  # ── 前端：Flutter 分析 ────────────────────────────────────
+  frontend:
+    name: Frontend (Flutter)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        working-directory: packages/frontend
+        run: flutter pub get
+
+      - name: Dart analyze
+        working-directory: packages/frontend
+        run: dart analyze --fatal-infos

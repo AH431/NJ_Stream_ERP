@@ -17,13 +17,18 @@ function getSecret(): string {
   return process.env.JWT_SECRET!;
 }
 
-function authError(code: string, message: string, status: number): AuthErrorResponse & { $status: number } {
-  return { code, message, $status: status };
-}
 
 export default async function authRoutes(app: FastifyInstance) {
   // ── POST /api/v1/auth/login ──────────────────────────────
-  app.post('/login', async (request, reply) => {
+  // 嚴格速率限制：每 IP 每分鐘最多 10 次，防止暴力破解密碼
+  app.post('/login', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const parsed = LoginBody.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
