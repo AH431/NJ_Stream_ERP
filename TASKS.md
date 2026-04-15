@@ -55,7 +55,7 @@
 - [x] UI 清理：報價 & 訂單列表狀態標籤 / 按鈕規範對齊（無 Issue 編號，衍生自 #14）
 
 ## Milestone: W9 Dashboard & Data Import
-- [ ] 共同：簡易儀表板（待出貨、低庫存、本月報價） #15
+- [x] 共同：簡易儀表板（待出貨、低庫存、本月報價） #15
 - [ ] **共同（新增）**：CSV/Excel Import Tool（初始資料匯入） #16
   - 支援產品、客戶、庫存初始匯入（含 inbound DELTA_UPDATE type:in）
   - 驗證庫存初始化正確性
