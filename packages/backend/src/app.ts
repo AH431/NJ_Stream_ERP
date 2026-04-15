@@ -31,6 +31,7 @@ export function buildApp() {
     max: 12,
     timeWindow: '1 minute',
     errorResponseBuilder: (_request, context) => ({
+      statusCode: 429,
       code: 'RATE_LIMIT_EXCEEDED',
       message: `請求過於頻繁，請 ${Math.ceil(context.ttl / 1000)} 秒後重試。`,
     }),
