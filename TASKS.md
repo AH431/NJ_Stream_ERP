@@ -59,7 +59,7 @@
 - [ ] **共同（新增）**：CSV/Excel Import Tool（初始資料匯入） #16
   - 支援產品、客戶、庫存初始匯入（含 inbound DELTA_UPDATE type:in）
   - 驗證庫存初始化正確性
-- [ ] 共同：processed_operations 30 天清理 + 軟刪除清理 #17
+- [x] 共同：processed_operations 30 天清理 + 軟刪除清理 #17
 
 ## Milestone: W10 Polish & Test
 - [ ] 全域 Bug Fix + 整合測試 #18

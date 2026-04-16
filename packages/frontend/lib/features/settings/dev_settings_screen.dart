@@ -30,6 +30,7 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
   late final TextEditingController _urlController;
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
+  bool _isCleaning = false;
 
   @override
   void initState() {
@@ -105,13 +106,38 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
     }
   }
 
+  Future<void> _cleanup() async {
+    setState(() => _isCleaning = true);
+    try {
+      final sync = context.read<SyncProvider>();
+      final result = await sync.performCleanup();
+      if (!mounted) return;
+      final softDeleted = result['deletedSoftDeleted'] as Map<String, dynamic>? ?? {};
+      final msg = '後端清理：processed_ops ${result['deletedProcessedOps']} 筆，'
+          '軟刪除 ${(softDeleted.values.fold<int>(0, (s, v) => s + (v as int)))} 筆；'
+          '本地 succeeded ${result['localDeletedSucceeded']} 筆';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.green),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('清理失敗：$e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isCleaning = false);
+    }
+  }
+
   // --------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     const defaultUrl = kApiBaseUrl;
-    final currentUrl = context.watch<SyncProvider>().currentApiBaseUrl;
+    final sync = context.watch<SyncProvider>();
+    final currentUrl = sync.currentApiBaseUrl;
     final isCustom = currentUrl != defaultUrl;
+    final isAdmin = sync.role == 'admin';
 
     return Scaffold(
       appBar: AppBar(
@@ -215,6 +241,46 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
                         ),
                 ],
               ),
+
+              // ── 清理舊記錄（Admin Only）────────────────────────────────
+              if (isAdmin) ...[
+                const SizedBox(height: 32),
+                const Divider(),
+                const SizedBox(height: 16),
+                Text(
+                  '資料維護',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('清理舊記錄', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            '刪除後端 30 天前的已處理記錄與軟刪除資料，\n及本地 7 天前的已完成同步記錄。',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _isCleaning
+                        ? const SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: _cleanup,
+                            icon: const Icon(Icons.delete_sweep_outlined, size: 16),
+                            label: const Text('執行清理'),
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
+                          ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

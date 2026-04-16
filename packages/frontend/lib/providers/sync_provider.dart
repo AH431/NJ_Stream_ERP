@@ -354,6 +354,43 @@ class SyncProvider extends ChangeNotifier {
   }
 
   // ----------------------------------------------------------------------------
+  // Issue #17：定期清理舊記錄
+  // ----------------------------------------------------------------------------
+
+  /// 清理後端超齡記錄 + 本地已完成的 pending_operations（須 admin 角色）。
+  ///
+  /// 後端：processed_operations > 30 天、各 entity 軟刪除記錄 > 30 天
+  /// 本地：pending_operations status = 'succeeded' 且 lastAttemptAt > 7 天前
+  ///
+  /// 回傳清理結果摘要（含後端 + 本地筆數），供 DevSettingsScreen 顯示。
+  Future<Map<String, dynamic>> performCleanup() async {
+    final token = await _getValidToken();
+    if (token == null) throw Exception('尚未登入');
+
+    // 1. 呼叫後端 cleanup API
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/api/v1/admin/cleanup',
+    );
+    final backendResult = response.data ?? {};
+
+    // 2. 清理本地 pending_operations：succeeded 且 lastAttemptAt 超過 7 天
+    // lastAttemptAt 以 ISO8601 文字儲存，UTC ISO8601 字串可直接做字典序比較
+    final cutoffStr = DateTime.now().toUtc()
+        .subtract(const Duration(days: 7))
+        .toIso8601String();
+    final localDeleted = await (_db.delete(_db.pendingOperations)
+          ..where((t) =>
+              t.status.equals('succeeded') &
+              t.lastAttemptAt.isSmallerOrEqualValue(cutoffStr)))
+        .go();
+
+    return {
+      ...backendResult,
+      'localDeletedSucceeded': localDeleted,
+    };
+  }
+
+  // ----------------------------------------------------------------------------
   // 離線佇列：enqueue 方法（供 Feature Screen 呼叫）
   // ----------------------------------------------------------------------------
 
