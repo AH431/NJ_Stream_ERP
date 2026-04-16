@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
 import dbPlugin from '@/plugins/db.js';
 import authPlugin from '@/plugins/auth.plugin.js';
 import authRoutes from '@/routes/auth.route.js';
@@ -9,6 +10,7 @@ import customersRoutes from '@/routes/customers.route.js';
 import productsRoutes from '@/routes/products.route.js';
 import syncRoutes  from '@/routes/sync.route.js';
 import adminRoutes from '@/routes/admin.route.js';
+import importRoutes from '@/routes/import.route.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -38,6 +40,10 @@ export function buildApp() {
     }),
   });
 
+  // ── 檔案上傳（CSV Import）────────────────────────────────
+  // 限制單檔 5 MB，防止超大 CSV 耗盡記憶體
+  app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
+
   // ── 資料庫插件 ──────────────────────────────────────────
   app.register(dbPlugin);
 
@@ -57,6 +63,7 @@ export function buildApp() {
   app.register(productsRoutes,  { prefix: '/api/v1/products' });
   app.register(syncRoutes,      { prefix: '/api/v1/sync' });
   app.register(adminRoutes,     { prefix: '/api/v1/admin' });
+  app.register(importRoutes,    { prefix: '/api/v1/admin' });
 
   return app;
 }

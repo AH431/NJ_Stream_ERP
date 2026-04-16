@@ -391,6 +391,37 @@ class SyncProvider extends ChangeNotifier {
   }
 
   // ----------------------------------------------------------------------------
+  // Issue #16：CSV 資料匯入
+  // ----------------------------------------------------------------------------
+
+  /// 上傳 CSV 檔案至後端 /admin/import（須 admin 角色）。
+  /// [type]：'product' | 'customer' | 'inventory'
+  /// 回傳後端解析結果：{ type, succeeded, failed: [{ row, reason }] }
+  Future<Map<String, dynamic>> uploadImportCsv({
+    required String type,
+    required String fileName,
+    required List<int> csvBytes,
+  }) async {
+    final token = await _getValidToken();
+    if (token == null) throw Exception('尚未登入');
+
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        csvBytes,
+        filename: fileName,
+        contentType: DioMediaType('text', 'csv'),
+      ),
+    });
+
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/api/v1/admin/import',
+      queryParameters: {'type': type},
+      data: formData,
+    );
+    return response.data ?? {};
+  }
+
+  // ----------------------------------------------------------------------------
   // 離線佇列：enqueue 方法（供 Feature Screen 呼叫）
   // ----------------------------------------------------------------------------
 

@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../providers/sync_provider.dart';
+import 'import_screen.dart';
 
 class DevSettingsScreen extends StatefulWidget {
   const DevSettingsScreen({super.key});
@@ -242,7 +243,44 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
                 ],
               ),
 
-              // ── 清理舊記錄（Admin Only）────────────────────────────────
+              // ── Admin 功能（Admin Only）────────────────────────────────
+              if (isAdmin) ...[
+                const SizedBox(height: 32),
+                const Divider(),
+                const SizedBox(height: 16),
+                Text(
+                  '資料匯入',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('CSV 資料匯入', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            '上線前初始匯入產品、客戶、庫存資料。',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ImportScreen()),
+                      ),
+                      icon: const Icon(Icons.upload_file_outlined, size: 16),
+                      label: const Text('開啟匯入'),
+                    ),
+                  ],
+                ),
+
+              // ── 清理舊記錄 ──────────────────────────────────────────
+              ],
               if (isAdmin) ...[
                 const SizedBox(height: 32),
                 const Divider(),
