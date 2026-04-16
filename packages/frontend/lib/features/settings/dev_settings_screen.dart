@@ -1,0 +1,224 @@
+// ==============================================================================
+// DevSettingsScreen — 開發者設定（Issue #36）
+//
+// 功能：
+//   執行時修改 API Base URL，無需重新 build APK。
+//   主要用途：Cloudflare Quick Tunnel 每次重啟都會產生新 URL，
+//   可在此直接貼上新 URL 即可，免去 flutter run --dart-define 重建流程。
+//
+// 設計：
+//   - URL 儲存於 FlutterSecureStorage（key: dev_api_base_url）
+//   - 立即更新 Dio.options.baseUrl（不需重啟 App）
+//   - Reset 按鈕恢復編譯期常數（kApiBaseUrl）
+//   - 入口：LoginScreen AppBar（登入前）+ HomeScreen 溢出選單（登入後）
+// ==============================================================================
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/constants.dart';
+import '../../providers/sync_provider.dart';
+
+class DevSettingsScreen extends StatefulWidget {
+  const DevSettingsScreen({super.key});
+
+  @override
+  State<DevSettingsScreen> createState() => _DevSettingsScreenState();
+}
+
+class _DevSettingsScreenState extends State<DevSettingsScreen> {
+  late final TextEditingController _urlController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentUrl = context.read<SyncProvider>().currentApiBaseUrl;
+    _urlController = TextEditingController(text: currentUrl);
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  // --------------------------------------------------------------------------
+
+  String? _validateUrl(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return '請輸入 API Base URL';
+    if (!v.startsWith('http://') && !v.startsWith('https://')) {
+      return '必須以 http:// 或 https:// 開頭';
+    }
+    if (v.endsWith('/')) return '結尾請勿加斜線 /';
+    return null;
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+    try {
+      final sync = context.read<SyncProvider>();
+      await sync.updateApiBaseUrl(_urlController.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已儲存：${_urlController.text.trim()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _reset() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('重置 API URL'),
+        content: const Text('將恢復為編譯期預設值：\n$kApiBaseUrl'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('重置'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    await context.read<SyncProvider>().resetApiBaseUrl();
+    if (mounted) {
+      _urlController.text = kApiBaseUrl;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已重置為預設 URL')),
+      );
+    }
+  }
+
+  // --------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    const defaultUrl = kApiBaseUrl;
+    final currentUrl = context.watch<SyncProvider>().currentApiBaseUrl;
+    final isCustom = currentUrl != defaultUrl;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('開發者設定'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 說明
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.amber.shade700),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        '此設定儲存在裝置本地，僅影響此安裝。\n'
+                        'Cloudflare Quick Tunnel 每次重啟會產生新 URL，'
+                        '貼上新網址後儲存即可，無需重新安裝 App。',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 編譯期預設
+              Text(
+                '編譯期預設值',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.grey),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                defaultUrl,
+                style: TextStyle(fontFamily: 'monospace', fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+
+              // 目前狀態
+              if (isCustom) ...[
+                Row(
+                  children: [
+                    Icon(Icons.edit_outlined, size: 14, color: Colors.indigo.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      '目前使用自訂 URL',
+                      style: TextStyle(fontSize: 12, color: Colors.indigo.shade400),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // URL 輸入欄
+              TextFormField(
+                controller: _urlController,
+                validator: _validateUrl,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: 'API Base URL',
+                  hintText: 'https://xxxx.trycloudflare.com',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.link),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 按鈕列
+              Row(
+                children: [
+                  if (isCustom)
+                    OutlinedButton.icon(
+                      onPressed: _isSaving ? null : _reset,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('重置為預設'),
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.grey),
+                    ),
+                  const Spacer(),
+                  _isSaving
+                      ? const SizedBox(
+                          width: 24, height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : FilledButton.icon(
+                          onPressed: _save,
+                          icon: const Icon(Icons.save_outlined, size: 16),
+                          label: const Text('儲存'),
+                        ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

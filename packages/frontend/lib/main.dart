@@ -15,6 +15,7 @@ import 'features/inventory/inventory_list_screen.dart';
 import 'features/inventory/stock_in_dialog.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
+import 'features/settings/dev_settings_screen.dart';
 import 'providers/sync_provider.dart';
 
 // ==============================================================================
@@ -146,6 +147,29 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.logout),
             tooltip: '登出',
             onPressed: () => _confirmLogout(context, sync),
+          ),
+          // 溢出選單（開發者設定等低頻操作）
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'dev_settings') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DevSettingsScreen()),
+                );
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'dev_settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('開發者設定'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

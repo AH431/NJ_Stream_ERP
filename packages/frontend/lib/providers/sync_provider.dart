@@ -71,6 +71,7 @@ class SyncProvider extends ChangeNotifier {
   // 常數定義
   static const _accessTokenKey = 'jwt_access_token';
   static const _refreshTokenKey = 'jwt_refresh_token';
+  static const _apiBaseUrlKey  = 'dev_api_base_url'; // Issue #36：執行時可覆寫的 API URL
   static const _batchSize = 50; // Sync Contract §5：上限 50 筆
 
   // 離線新增臨時 id 計數器（負數，以區別後端配發的正整數 id）
@@ -126,6 +127,9 @@ class SyncProvider extends ChangeNotifier {
 
   /// 使用者角色（sales / warehouse / admin）（從快取的 JWT payload 讀取）
   String? get role => _jwtPayload?['role'] as String?;
+
+  /// 目前生效的 API Base URL（執行時覆寫優先，否則回落編譯期常數）
+  String get currentApiBaseUrl => _dio.options.baseUrl;
 
   // ====================== 其他成員變數（如果還有） ======================
  
@@ -187,6 +191,12 @@ class SyncProvider extends ChangeNotifier {
   }
 
   Future<void> _loadTokens() async {
+    // Issue #36：若使用者曾手動設定過 API URL，優先套用（覆蓋 _initDio 設定的編譯期常數）
+    final storedUrl = await _storage.read(key: _apiBaseUrlKey);
+    if (storedUrl != null && storedUrl.isNotEmpty) {
+      _dio.options.baseUrl = storedUrl;
+    }
+
     final stored = await _storage.read(key: _accessTokenKey);
     if (stored != null) {
       _setToken(stored); // 同時設定 _currentAccessToken 與 _jwtPayload
@@ -320,6 +330,27 @@ class SyncProvider extends ChangeNotifier {
     _jwtPayload = null; // 清除快取，確保 userId / role getter 回傳 null
     await _storage.deleteAll();
     _emit(const SyncState());
+  }
+
+  // ----------------------------------------------------------------------------
+  // Issue #36：API Base URL 執行時更新
+  // ----------------------------------------------------------------------------
+
+  /// 更新 API Base URL（立即生效 + 持久化到 SecureStorage）
+  /// 下次啟動 App 時 _loadTokens 會自動套用儲存的 URL
+  Future<void> updateApiBaseUrl(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+    _dio.options.baseUrl = trimmed;
+    await _storage.write(key: _apiBaseUrlKey, value: trimmed);
+    notifyListeners();
+  }
+
+  /// 重置為編譯期預設值（清除 SecureStorage 中的覆寫值）
+  Future<void> resetApiBaseUrl() async {
+    _dio.options.baseUrl = kApiBaseUrl;
+    await _storage.delete(key: _apiBaseUrlKey);
+    notifyListeners();
   }
 
   // ----------------------------------------------------------------------------
