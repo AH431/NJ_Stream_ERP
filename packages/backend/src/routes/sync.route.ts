@@ -25,6 +25,7 @@ import { inventoryItems } from '@/schemas/inventory_items.schema.js';
 import { processedOperations } from '@/schemas/processed_operations.schema.js';
 import { orderItems } from '@/schemas/order_items.schema.js';
 import { processOperation } from '@/services/sync.service.js';
+import type { ProcessResult } from '@/services/sync.service.js';
 import { SYNC } from '@/constants/index.js';
 import type { FailedOperation } from '@/types/index.js';
 
@@ -96,6 +97,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
     // ── 4–6. 逐筆處理 ────────────────────────────────────
     const succeeded: string[] = [];
+    const idMap: Record<string, number> = {};
     const failed: FailedOperation[] = [];
     const { userId, role } = request.user;
 
@@ -114,9 +116,7 @@ export default async function syncRoutes(app: FastifyInstance) {
       //    Transaction 確保「業務寫入」和「記錄已處理」原子提交；
       //    若 DB 異常，兩者一起 rollback，下次推送可重試。
       try {
-        type TxResult = { ok: true } | { ok: false; failure: FailedOperation };
-
-        const result = await db.transaction(async (tx): Promise<TxResult> => {
+        const result = await db.transaction(async (tx): Promise<ProcessResult> => {
           const opResult = await processOperation(tx, op, userId, role);
 
           // 無論成功或失敗都寫入 processed_operations（審計記錄）
@@ -136,6 +136,7 @@ export default async function syncRoutes(app: FastifyInstance) {
         // ── 6. 彙整結果 ──────────────────────────────────
         if (result.ok) {
           succeeded.push(op.id);
+          if (result.serverId !== undefined) idMap[op.id] = result.serverId;
         } else {
           failed.push(result.failure);
         }
@@ -156,7 +157,7 @@ export default async function syncRoutes(app: FastifyInstance) {
     // 有任一 INSUFFICIENT_STOCK → 409 Conflict（前端偵測到 409 即強制 Pull）
     // 其他 failed（DATA_CONFLICT 等）仍回 200 partial success
     const hasInsufficientStock = failed.some(f => f.code === 'INSUFFICIENT_STOCK');
-    return reply.status(hasInsufficientStock ? 409 : 200).send({ succeeded, failed });
+    return reply.status(hasInsufficientStock ? 409 : 200).send({ succeeded, failed, idMap });
   });
 
   /**

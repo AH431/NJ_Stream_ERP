@@ -47,7 +47,7 @@ type SyncTx = PgTransaction<
 // ==============================================================================
 
 export type ProcessResult =
-  | { ok: true }
+  | { ok: true; serverId?: number }
   | { ok: false; failure: FailedOperation };
 
 // ==============================================================================
@@ -284,12 +284,12 @@ async function processCustomer(
         parsed.error.issues[0]?.message ?? 'payload 格式錯誤。');
     }
     const { name, contact, taxId } = parsed.data;
-    await tx.insert(customers).values({
+    const [inserted] = await tx.insert(customers).values({
       name,
       contact: contact ?? null,
       taxId: taxId ?? null,
-    });
-    return { ok: true };
+    }).returning({ id: customers.id });
+    return { ok: true, serverId: inserted.id };
   }
 
   if (op.operationType === 'update') {
@@ -451,7 +451,7 @@ async function processQuotation(
         })),
       );
     }
-    return { ok: true };
+    return { ok: true, serverId: created.id };
   }
 
   if (op.operationType === 'update') {
@@ -591,7 +591,7 @@ async function processSalesOrder(
         .where(eq(quotations.id, quotationId));
     }
 
-    return { ok: true };
+    return { ok: true, serverId: newOrder.id };
   }
 
   if (op.operationType === 'update') {

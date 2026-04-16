@@ -15,6 +15,7 @@ import '../database/dao/product_dao.dart';
 import '../database/dao/quotation_dao.dart';
 import '../database/dao/sales_order_dao.dart';
 import '../database/dao/inventory_items_dao.dart';
+import '../database/dao/remap_dao.dart';
 import 'package:uuid/uuid.dart';
 
 // ================================================
@@ -533,15 +534,21 @@ class SyncProvider extends ChangeNotifier {
     await _processPushResponse(batch, response.data);
   }
 
-  /// 解析 push 回傳的 {succeeded, failed} 並更新各 op 狀態。
+  /// 解析 push 回傳的 {succeeded, failed, idMap} 並更新各 op 狀態。
   /// 供 200 與 409 共用，避免重複邏輯。
+  ///
+  /// Pass 1：依後端結果逐筆標記 succeeded / failed。
+  /// Pass 2：針對 succeeded 的 create op，從 idMap 取得 server 配發 ID，
+  ///         執行本地負數 ID → server ID 的替換，並修正相關外鍵與 pending payloads。
   Future<void> _processPushResponse(
     List<PendingOperation> batch,
     Map<String, dynamic>? data,
   ) async {
     final succeeded = (data?['succeeded'] as List<dynamic>?)?.cast<String>() ?? [];
     final failedList = (data?['failed'] as List<dynamic>?) ?? [];
+    final idMap = (data?['idMap'] as Map<String, dynamic>?) ?? {};
 
+    // Pass 1: 標記所有 op 的最終狀態
     for (final op in batch) {
       if (succeeded.contains(op.operationId)) {
         await _updateOpStatus(op, 'succeeded');
@@ -558,6 +565,99 @@ class SyncProvider extends ChangeNotifier {
             error: 'Missing result from server');
       } else {
         await _handleError(op, failureInfo['code'] as String, failureInfo['server_state']);
+      }
+    }
+
+    // Pass 2: 將 succeeded create op 的本地負數 ID 替換為 server 配發 ID
+    // 必須在 Pass 1 完成後執行，確保所有狀態已確定再做 remap
+    for (final op in batch) {
+      if (!succeeded.contains(op.operationId)) continue;
+      if (op.operationType != 'create') continue;
+
+      final serverIdRaw = idMap[op.operationId];
+      if (serverIdRaw == null) continue;
+      final serverId = serverIdRaw is int
+          ? serverIdRaw
+          : int.tryParse(serverIdRaw.toString());
+      if (serverId == null) continue;
+
+      final localPayload = jsonDecode(op.payload) as Map<String, dynamic>;
+      final localId = localPayload['id'] as int?;
+      if (localId == null || localId >= 0) continue; // 只處理負數臨時 ID
+
+      await _applyIdRemap(op.entityType, localId, serverId);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // ID Remap 輔助方法（Issue #34）
+  // --------------------------------------------------------------------------
+
+  /// 將本地負數 ID 替換為 server 配發的正數 ID：
+  ///   1. DB entity 表：delete localId row + insert serverId row（含相關 FK 更新）
+  ///   2. pending_operations.relatedEntityId 字串更新
+  ///   3. pending_operations.payload 中的外鍵欄位更新；
+  ///      若 op 本身是 failed create（因外鍵引用失敗），重置為 pending 以便重試
+  Future<void> _applyIdRemap(
+      String entityType, int localId, int serverId) async {
+    // 1. 更新 entity 表 + 相關 FK
+    await _db.remapEntityId(entityType, localId, serverId);
+
+    // 2. 更新 pending_operations.relatedEntityId
+    await _db.updatePendingRelatedEntityId(entityType, localId, serverId);
+
+    // 3. 更新 pending_operations payload 中引用此 localId 的欄位
+    //    customer  → 其他 op 的 customerId 欄位
+    //    quotation → 其他 op 的 quotationId 欄位
+    //    sales_order → 同 entityType op 的 id 欄位（update/delete ops）
+    switch (entityType) {
+      case 'customer':
+        await _updatePendingPayloads('customerId', localId, serverId, null);
+      case 'quotation':
+        await _updatePendingPayloads('quotationId', localId, serverId, null);
+      case 'sales_order':
+        await _updatePendingPayloads('id', localId, serverId, 'sales_order');
+    }
+  }
+
+  /// 掃描 pending_operations，將 payload 中 [fieldName] == [localId] 的欄位
+  /// 替換為 [serverId]。若 op 是 failed create（外鍵引用錯誤），重置為 pending。
+  ///
+  /// [entityTypeFilter]：若非 null，只處理指定 entityType 的 ops（用於 sales_order:id 欄位）
+  Future<void> _updatePendingPayloads(
+    String fieldName,
+    int localId,
+    int serverId,
+    String? entityTypeFilter,
+  ) async {
+    final query = _db.select(_db.pendingOperations);
+    if (entityTypeFilter != null) {
+      query.where((t) => t.entityType.equals(entityTypeFilter));
+    }
+    final ops = await query.get();
+
+    for (final op in ops) {
+      try {
+        final payload = jsonDecode(op.payload) as Map<String, dynamic>;
+        if (payload[fieldName] != localId) continue;
+
+        payload[fieldName] = serverId;
+
+        // failed create op → 外鍵依賴已修復，重置為 pending 以便下次 push 重試
+        final resetToPending =
+            op.status == 'failed' && op.operationType == 'create';
+        final newStatus = resetToPending ? 'pending' : op.status;
+
+        await (_db.update(_db.pendingOperations)
+              ..where((t) => t.id.equals(op.id)))
+            .write(PendingOperationsCompanion(
+          payload: Value(jsonEncode(payload)),
+          status: Value(newStatus),
+          errorMessage:
+              resetToPending ? const Value(null) : const Value.absent(),
+        ));
+      } catch (_) {
+        // 忽略 malformed payload，不影響其他 op 的處理
       }
     }
   }

@@ -399,11 +399,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         !isOffline &&
         order.quotationId != null;
 
-    // 預留庫存：sales/admin、status=confirmed、已同步、有 quotationId
+    // 預留庫存：sales/admin、status=confirmed、已同步、有 quotationId、尚未預留
     final canReserve = (role == 'sales' || role == 'admin') &&
         order.status == 'confirmed' &&
         !isOffline &&
-        order.quotationId != null;
+        order.quotationId != null &&
+        order.reservedAt == null; // 已預留則隱藏，防止重複 enqueue reserve delta
 
     // 出貨：warehouse/admin、status=confirmed、已同步、有 quotationId、且已預留庫存
     final canShip = (role == 'warehouse' || role == 'admin') &&
