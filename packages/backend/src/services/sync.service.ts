@@ -550,6 +550,7 @@ async function processSalesOrder(
         parsed.error.issues[0]?.message ?? 'payload 格式錯誤。');
     }
     const { quotationId, customerId, createdBy, status } = parsed.data;
+    let sourceQuotationItems: typeof orderItems.$inferSelect[] = [];
 
     // First-to-Sync wins：若從報價轉單，確認報價尚未被其他裝置轉換
     if (quotationId != null) {
@@ -578,6 +579,14 @@ async function processSalesOrder(
         return makeFailure(op.id, 'FORBIDDEN_OPERATION',
           'First-to-Sync wins：此報價已被轉換為訂單，本次操作已取消。', quotState);
       }
+
+      sourceQuotationItems = await tx.select().from(orderItems)
+        .where(and(eq(orderItems.quotationId, quotationId), isNull(orderItems.salesOrderId)));
+
+      if (sourceQuotationItems.length === 0) {
+        return makeFailure(op.id, 'DATA_CONFLICT',
+          `quotationId=${quotationId} 缺少可轉換的明細資料。`);
+      }
     }
 
     // 建立訂單，若從報價轉入則同 transaction 更新報價狀態
@@ -586,6 +595,17 @@ async function processSalesOrder(
       .returning({ id: salesOrders.id });
 
     if (quotationId != null) {
+      await tx.insert(orderItems).values(
+        sourceQuotationItems.map((item) => ({
+          quotationId: null,
+          salesOrderId: newOrder.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal,
+        })),
+      );
+
       await tx.update(quotations)
         .set({ convertedToOrderId: newOrder.id, status: 'converted', updatedAt: new Date() })
         .where(eq(quotations.id, quotationId));

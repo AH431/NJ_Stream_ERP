@@ -21,6 +21,8 @@ class ProductListScreen extends StatelessWidget {
     final db = context.read<AppDatabase>();
     final canEdit = context.watch<SyncProvider>().role == 'admin';
 
+    final sync = context.read<SyncProvider>();
+
     return StreamBuilder<List<Product>>(
       stream: db.watchActiveProducts(),
       builder: (context, snapshot) {
@@ -33,38 +35,45 @@ class ProductListScreen extends StatelessWidget {
 
         // ── 空狀態 ──────────────────────────────────────────────────────────
         if (products.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          return RefreshIndicator(
+            onRefresh: () => sync.pullData(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                Icon(
-                  Icons.inventory_2_outlined,
-                  size: 72,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '尚無產品資料',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                if (canEdit) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '點擊右下角 ＋ 新增第一個產品',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                const SizedBox(height: 120),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 72,
+                          color: Theme.of(context).colorScheme.outline),
+                      const SizedBox(height: 16),
+                      Text('尚無產品資料',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      if (canEdit) ...[
+                        const SizedBox(height: 8),
+                        Text('點擊右下角 ＋ 新增第一個產品',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline)),
+                      ],
+                      const SizedBox(height: 8),
+                      Text('下拉以同步取得最新資料',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline)),
+                    ],
                   ),
-                ],
+                ),
               ],
             ),
           );
         }
 
         // ── 清單 ────────────────────────────────────────────────────────────
-        return ListView.separated(
+        return RefreshIndicator(
+          onRefresh: () => sync.pullData(),
+          child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: products.length,
           separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
@@ -144,6 +153,7 @@ class ProductListScreen extends StatelessWidget {
               ),
             );
           },
+          ),
         );
       },
     );
@@ -192,7 +202,7 @@ class ProductListScreen extends StatelessWidget {
       'id': product.id,
       'name': product.name,
       'sku': product.sku,
-      'unitPrice': product.unitPrice, // 已是 'xxx.xx' 字串格式
+      'unitPrice': product.unitPrice.toStringAsFixed(2),
       'minStockLevel': product.minStockLevel,
       'createdAt': product.createdAt.toUtc().toIso8601String(),
       'updatedAt': now.toIso8601String(),

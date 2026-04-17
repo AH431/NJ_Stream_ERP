@@ -49,7 +49,6 @@ declare module 'fastify' {
 
 export default fp(async (app) => {
   // Fastify 規定：在 route handler 使用 request.xxx 之前必須先 decorateRequest
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.decorateRequest('user', null as any);
 
   // ── verifyJwt ──────────────────────────────────────────

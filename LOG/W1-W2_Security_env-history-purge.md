@@ -148,7 +148,7 @@ Everything up-to-date ✅
 ### Step E：同步本地 repo
 
 ```bash
-cd /c/Users/archi/OneDrive/Desktop/NJ_Stream_ERP
+cd /c/Projects/NJ_Stream_ERP
 
 git fetch origin
 git reset --hard origin/main

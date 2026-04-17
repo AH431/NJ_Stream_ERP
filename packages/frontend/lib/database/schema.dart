@@ -105,9 +105,11 @@ class SalesOrders extends Table {
   IntColumn get customerId => integer()();
   IntColumn get createdBy => integer()();
   TextColumn get status => text()(); // pending, confirmed, shipped, cancelled
-  TextColumn get confirmedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
-  TextColumn get reservedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
-  TextColumn get shippedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get confirmedAt  => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get reservedAt   => text().map(const Iso8601DateTimeConverter()).nullable()();
+  /// 本地端標記庫存不足警示時間（不同步至伺服器）
+  TextColumn get stockAlertAt => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get shippedAt    => text().map(const Iso8601DateTimeConverter()).nullable()();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();

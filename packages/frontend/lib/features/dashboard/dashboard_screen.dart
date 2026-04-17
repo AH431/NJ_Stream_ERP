@@ -306,6 +306,13 @@ class _LowStockTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
+                  '庫存 ${item.onHand}　預留 ${item.reserved}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
                   '安全庫存 ${item.minStockLevel}　缺 $shortage',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

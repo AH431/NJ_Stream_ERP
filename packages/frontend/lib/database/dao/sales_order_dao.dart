@@ -26,13 +26,30 @@ extension SalesOrderDao on AppDatabase {
         .map((row) => row.read(countExp) ?? 0);
   }
 
-  /// 監聽所有未軟刪除的銷售訂單（供 SalesOrderListScreen 使用）
-  /// 依 updatedAt 降序（最近異動的排前面）
+  /// 監聽所有未軟刪除的銷售訂單（供 SalesOrderListScreen 使用）。
+  /// 排序：流程進度（待處理 → 確認未預留 → 確認已預留 → 出貨 → 取消），同狀態內 createdAt 升序
   Stream<List<SalesOrder>> watchActiveSalesOrders() {
     return (select(salesOrders)
-          ..where((t) => t.deletedAt.isNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-        .watch();
+          ..where((t) => t.deletedAt.isNull()))
+        .watch()
+        .map((list) {
+          list.sort((a, b) {
+            final pa = _orderPriority(a);
+            final pb = _orderPriority(b);
+            if (pa != pb) return pa.compareTo(pb);
+            return a.createdAt.compareTo(b.createdAt);
+          });
+          return list;
+        });
+  }
+
+  int _orderPriority(SalesOrder o) {
+    if (o.status == 'pending') return 0;
+    if (o.status == 'confirmed' && o.reservedAt == null) return 1;
+    if (o.status == 'confirmed' && o.reservedAt != null) return 2;
+    if (o.status == 'shipped') return 3;
+    if (o.status == 'cancelled') return 4;
+    return 9;
   }
 
   // --------------------------------------------------------------------------
@@ -65,12 +82,36 @@ extension SalesOrderDao on AppDatabase {
     );
   }
 
-  /// 標記庫存已預留（本地端，控制「出貨」按鈕可見性）
-  /// 在 _reserveInventory enqueue 完成後呼叫
+  /// 標記庫存已預留（本地端，控制「出貨」按鈕可見性），同時清除警示標記
   Future<void> markSalesOrderReserved(int id) async {
     final now = DateTime.now().toUtc();
     await (update(salesOrders)..where((t) => t.id.equals(id))).write(
-      SalesOrdersCompanion(reservedAt: Value(now)),
+      SalesOrdersCompanion(
+        reservedAt: Value(now),
+        stockAlertAt: const Value(null), // 預留成功，清除庫存不足警示
+      ),
+    );
+  }
+
+  /// 清除庫存預留標記（INSUFFICIENT_STOCK 409 時回滾，重新鎖定「出貨」按鈕）
+  Future<void> clearSalesOrderReserved(int id) async {
+    await (update(salesOrders)..where((t) => t.id.equals(id))).write(
+      const SalesOrdersCompanion(reservedAt: Value(null)),
+    );
+  }
+
+  /// 標記庫存不足警示（本地端，顯示橘色「庫存不足」按鈕）
+  Future<void> markSalesOrderStockAlert(int id) async {
+    final now = DateTime.now().toUtc();
+    await (update(salesOrders)..where((t) => t.id.equals(id))).write(
+      SalesOrdersCompanion(stockAlertAt: Value(now)),
+    );
+  }
+
+  /// 清除庫存不足警示（訂單取消或庫存補足後呼叫）
+  Future<void> clearSalesOrderStockAlert(int id) async {
+    await (update(salesOrders)..where((t) => t.id.equals(id))).write(
+      const SalesOrdersCompanion(stockAlertAt: Value(null)),
     );
   }
 

@@ -144,39 +144,13 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
       appBar: AppBar(
         title: const Text('開發者設定'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 說明
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.amber.shade700),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        '此設定儲存在裝置本地，僅影響此安裝。\n'
-                        'Cloudflare Quick Tunnel 每次重啟會產生新 URL，'
-                        '貼上新網址後儲存即可，無需重新安裝 App。',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // 編譯期預設
               Text(
                 '編譯期預設值',

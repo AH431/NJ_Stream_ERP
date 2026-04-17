@@ -1,15 +1,18 @@
 // ==============================================================================
 // ReserveInventoryDialog — 預留庫存確認（Issue #12）
 //
-// 職責：
-//   顯示報價明細 + 本地庫存快照，讓業務確認後才 enqueue reserve。
-//   警示邏輯：available < qty → ⚠️ 橘色列（不阻擋，服務端 INSUFFICIENT_STOCK 兜底）
+// 回傳值 ReserveDialogAction：
+//   confirmed   — 庫存充足，使用者確認預留
+//   waitForStock — 庫存不足，使用者選擇等待到貨
+//   splitOrder  — 庫存不足，使用者選擇拆單
 // ==============================================================================
 
 import 'package:flutter/material.dart';
 
 import '../../database/database.dart';
 import '../../database/dao/quotation_dao.dart';
+
+enum ReserveDialogAction { confirmed, waitForStock, splitOrder }
 
 class ReserveInventoryDialog extends StatelessWidget {
   final SalesOrder order;
@@ -27,7 +30,8 @@ class ReserveInventoryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasWarning = items.any((item) {
+    // 任一品項可出貨數 < 預留需求 → 顯示警示並封鎖確認按鈕
+    final hasInsufficient = items.any((item) {
       final inv = inventoryMap[item.productId];
       if (inv == null) return false;
       return (inv.quantityOnHand - inv.quantityReserved) < item.quantity;
@@ -45,17 +49,16 @@ class ReserveInventoryDialog extends StatelessWidget {
               '以下庫存將被預留，確認後不可撤回（需重新取消訂單才能釋放）。',
               style: TextStyle(fontSize: 13, color: Colors.black87),
             ),
-            if (hasWarning) ...[
+            if (hasInsufficient) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.warning_amber_outlined,
-                      size: 16, color: Colors.orange.shade700),
+                  Icon(Icons.block, size: 16, color: Colors.red.shade700),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '部分商品本地庫存可能不足，建議先同步後再執行。',
-                      style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                      '庫存不足，無法預留。請先同步最新庫存後再執行。',
+                      style: TextStyle(fontSize: 12, color: Colors.red.shade700),
                     ),
                   ),
                 ],
@@ -72,16 +75,32 @@ class ReserveInventoryDialog extends StatelessWidget {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('確認預留'),
-        ),
-      ],
+      actions: hasInsufficient
+          ? [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, ReserveDialogAction.waitForStock),
+                child: const Text('等待到貨通知'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, ReserveDialogAction.splitOrder),
+                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('請拆單'),
+              ),
+            ]
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, ReserveDialogAction.confirmed),
+                child: const Text('確認預留'),
+              ),
+            ],
     );
   }
 

@@ -180,6 +180,10 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
         (q.status == 'draft' || q.status == 'sent') &&
         q.convertedToOrderId == null &&
         !isOffline;
+    final pendingConvert = isOffline &&
+        (role == 'sales' || role == 'admin') &&
+        (q.status == 'draft' || q.status == 'sent') &&
+        q.convertedToOrderId == null;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -222,7 +226,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
               ],
             ),
             // 操作按鈕（有權限才顯示）
-            if (canConvert || canDelete) ...[
+            if (canConvert || pendingConvert || canDelete) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -233,6 +237,12 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                       icon: const Icon(Icons.swap_horiz, size: 16),
                       label: const Text('轉訂單'),
                       style: TextButton.styleFrom(foregroundColor: Colors.indigo),
+                    ),
+                  if (pendingConvert)
+                    TextButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: const Text('連線推送後轉訂單'),
                     ),
                   if (canDelete)
                     TextButton.icon(

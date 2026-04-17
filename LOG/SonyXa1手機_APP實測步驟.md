@@ -60,7 +60,7 @@ sdkmanager --licenses     # 全部輸入 y 接受
 ### 1-4. 驗收
 
 ```powershell
-cd c:\Users\archi\OneDrive\Desktop\NJ_Stream_ERP\packages\frontend
+cd c:\Projects\NJ_Stream_ERP\packages\frontend
 flutter doctor -v
 ```
 
@@ -73,7 +73,7 @@ flutter doctor -v
 > `packages/frontend/android/` 目前不存在，必須先產生才能編譯 APK。
 
 ```powershell
-cd c:\Users\archi\OneDrive\Desktop\NJ_Stream_ERP\packages\frontend
+cd c:\Projects\NJ_Stream_ERP\packages\frontend
 flutter create --platforms=android .
 ```
 
@@ -143,7 +143,7 @@ ipconfig
 ## H-6：啟動後端
 
 ```powershell
-cd c:\Users\archi\OneDrive\Desktop\NJ_Stream_ERP\packages\backend
+cd c:\Projects\NJ_Stream_ERP\packages\backend
 npm run dev
 ```
 
@@ -165,7 +165,7 @@ netsh advfirewall firewall add rule name="NJ ERP Dev" dir=in action=allow protoc
 ## H-7：編譯並部署 App 至手機
 
 ```powershell
-cd c:\Users\archi\OneDrive\Desktop\NJ_Stream_ERP\packages\frontend
+cd c:\Projects\NJ_Stream_ERP\packages\frontend
 
 # 將 192.168.1.105 換成 H-5 查到的 IPv4
 # 將 CB5A1TXXXX 換成 H-4 adb devices 查到的序號

@@ -101,7 +101,20 @@ export default async function syncRoutes(app: FastifyInstance) {
     const failed: FailedOperation[] = [];
     const { userId, role } = request.user;
 
+    // 批次內臨時 ID 映射：localId（負數）→ serverId（正整數）
+    // 解決同批次內 customer:create 先行，quotation:create 的 customerId 仍為負數的問題
+    const localToServer: Record<number, number> = {};
+
     for (const op of operations) {
+      // ── 批次內 FK 替換：將 payload 中的負數本地 ID 替換為已知的 server ID ──
+      const FK_FIELDS = ['customerId', 'quotationId', 'productId'];
+      for (const field of FK_FIELDS) {
+        const val = (op.payload as Record<string, unknown>)[field];
+        if (typeof val === 'number' && val < 0 && localToServer[val] !== undefined) {
+          (op.payload as Record<string, unknown>)[field] = localToServer[val];
+        }
+      }
+
       // ── 4. 冪等去重：已處理過的 operationId 直接視為成功 ─
       const [existing] = await db.select({ id: processedOperations.id })
         .from(processedOperations)
@@ -136,7 +149,14 @@ export default async function syncRoutes(app: FastifyInstance) {
         // ── 6. 彙整結果 ──────────────────────────────────
         if (result.ok) {
           succeeded.push(op.id);
-          if (result.serverId !== undefined) idMap[op.id] = result.serverId;
+          if (result.serverId !== undefined) {
+            idMap[op.id] = result.serverId;
+            // 記錄批次內本地 ID → server ID，供後續 op 的 FK 替換使用
+            const localId = (op.payload as Record<string, unknown>)['id'];
+            if (typeof localId === 'number' && localId < 0) {
+              localToServer[localId] = result.serverId;
+            }
+          }
         } else {
           failed.push(result.failure);
         }

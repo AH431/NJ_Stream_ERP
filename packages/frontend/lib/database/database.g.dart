@@ -1648,6 +1648,11 @@ class $SalesOrdersTable extends SalesOrders
               type: DriftSqlType.string, requiredDuringInsert: false)
           .withConverter<DateTime?>($SalesOrdersTable.$converterreservedAtn);
   @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> stockAlertAt =
+      GeneratedColumn<String>('stock_alert_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>($SalesOrdersTable.$converterstockAlertAtn);
+  @override
   late final GeneratedColumnWithTypeConverter<DateTime?, String> shippedAt =
       GeneratedColumn<String>('shipped_at', aliasedName, true,
               type: DriftSqlType.string, requiredDuringInsert: false)
@@ -1676,6 +1681,7 @@ class $SalesOrdersTable extends SalesOrders
         status,
         confirmedAt,
         reservedAt,
+        stockAlertAt,
         shippedAt,
         createdAt,
         updatedAt,
@@ -1745,6 +1751,9 @@ class $SalesOrdersTable extends SalesOrders
       reservedAt: $SalesOrdersTable.$converterreservedAtn.fromSql(
           attachedDatabase.typeMapping.read(
               DriftSqlType.string, data['${effectivePrefix}reserved_at'])),
+      stockAlertAt: $SalesOrdersTable.$converterstockAlertAtn.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}stock_alert_at'])),
       shippedAt: $SalesOrdersTable.$convertershippedAtn.fromSql(attachedDatabase
           .typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}shipped_at'])),
@@ -1773,6 +1782,10 @@ class $SalesOrdersTable extends SalesOrders
       const Iso8601DateTimeConverter();
   static TypeConverter<DateTime?, String?> $converterreservedAtn =
       NullAwareTypeConverter.wrap($converterreservedAt);
+  static TypeConverter<DateTime, String> $converterstockAlertAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterstockAlertAtn =
+      NullAwareTypeConverter.wrap($converterstockAlertAt);
   static TypeConverter<DateTime, String> $convertershippedAt =
       const Iso8601DateTimeConverter();
   static TypeConverter<DateTime?, String?> $convertershippedAtn =
@@ -1795,6 +1808,9 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
   final String status;
   final DateTime? confirmedAt;
   final DateTime? reservedAt;
+
+  /// 本地端標記庫存不足警示時間（不同步至伺服器）
+  final DateTime? stockAlertAt;
   final DateTime? shippedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1807,6 +1823,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
       required this.status,
       this.confirmedAt,
       this.reservedAt,
+      this.stockAlertAt,
       this.shippedAt,
       required this.createdAt,
       required this.updatedAt,
@@ -1828,6 +1845,10 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
     if (!nullToAbsent || reservedAt != null) {
       map['reserved_at'] = Variable<String>(
           $SalesOrdersTable.$converterreservedAtn.toSql(reservedAt));
+    }
+    if (!nullToAbsent || stockAlertAt != null) {
+      map['stock_alert_at'] = Variable<String>(
+          $SalesOrdersTable.$converterstockAlertAtn.toSql(stockAlertAt));
     }
     if (!nullToAbsent || shippedAt != null) {
       map['shipped_at'] = Variable<String>(
@@ -1863,6 +1884,9 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
       reservedAt: reservedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(reservedAt),
+      stockAlertAt: stockAlertAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockAlertAt),
       shippedAt: shippedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(shippedAt),
@@ -1885,6 +1909,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
       status: serializer.fromJson<String>(json['status']),
       confirmedAt: serializer.fromJson<DateTime?>(json['confirmedAt']),
       reservedAt: serializer.fromJson<DateTime?>(json['reservedAt']),
+      stockAlertAt: serializer.fromJson<DateTime?>(json['stockAlertAt']),
       shippedAt: serializer.fromJson<DateTime?>(json['shippedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1902,6 +1927,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
       'status': serializer.toJson<String>(status),
       'confirmedAt': serializer.toJson<DateTime?>(confirmedAt),
       'reservedAt': serializer.toJson<DateTime?>(reservedAt),
+      'stockAlertAt': serializer.toJson<DateTime?>(stockAlertAt),
       'shippedAt': serializer.toJson<DateTime?>(shippedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1917,6 +1943,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
           String? status,
           Value<DateTime?> confirmedAt = const Value.absent(),
           Value<DateTime?> reservedAt = const Value.absent(),
+          Value<DateTime?> stockAlertAt = const Value.absent(),
           Value<DateTime?> shippedAt = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt,
@@ -1929,6 +1956,8 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
         status: status ?? this.status,
         confirmedAt: confirmedAt.present ? confirmedAt.value : this.confirmedAt,
         reservedAt: reservedAt.present ? reservedAt.value : this.reservedAt,
+        stockAlertAt:
+            stockAlertAt.present ? stockAlertAt.value : this.stockAlertAt,
         shippedAt: shippedAt.present ? shippedAt.value : this.shippedAt,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -1947,6 +1976,9 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
           data.confirmedAt.present ? data.confirmedAt.value : this.confirmedAt,
       reservedAt:
           data.reservedAt.present ? data.reservedAt.value : this.reservedAt,
+      stockAlertAt: data.stockAlertAt.present
+          ? data.stockAlertAt.value
+          : this.stockAlertAt,
       shippedAt: data.shippedAt.present ? data.shippedAt.value : this.shippedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1964,6 +1996,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
           ..write('status: $status, ')
           ..write('confirmedAt: $confirmedAt, ')
           ..write('reservedAt: $reservedAt, ')
+          ..write('stockAlertAt: $stockAlertAt, ')
           ..write('shippedAt: $shippedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1981,6 +2014,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
       status,
       confirmedAt,
       reservedAt,
+      stockAlertAt,
       shippedAt,
       createdAt,
       updatedAt,
@@ -1996,6 +2030,7 @@ class SalesOrder extends DataClass implements Insertable<SalesOrder> {
           other.status == this.status &&
           other.confirmedAt == this.confirmedAt &&
           other.reservedAt == this.reservedAt &&
+          other.stockAlertAt == this.stockAlertAt &&
           other.shippedAt == this.shippedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -2010,6 +2045,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
   final Value<String> status;
   final Value<DateTime?> confirmedAt;
   final Value<DateTime?> reservedAt;
+  final Value<DateTime?> stockAlertAt;
   final Value<DateTime?> shippedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -2022,6 +2058,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
     this.status = const Value.absent(),
     this.confirmedAt = const Value.absent(),
     this.reservedAt = const Value.absent(),
+    this.stockAlertAt = const Value.absent(),
     this.shippedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2035,6 +2072,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
     required String status,
     this.confirmedAt = const Value.absent(),
     this.reservedAt = const Value.absent(),
+    this.stockAlertAt = const Value.absent(),
     this.shippedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -2052,6 +2090,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
     Expression<String>? status,
     Expression<String>? confirmedAt,
     Expression<String>? reservedAt,
+    Expression<String>? stockAlertAt,
     Expression<String>? shippedAt,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
@@ -2065,6 +2104,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
       if (status != null) 'status': status,
       if (confirmedAt != null) 'confirmed_at': confirmedAt,
       if (reservedAt != null) 'reserved_at': reservedAt,
+      if (stockAlertAt != null) 'stock_alert_at': stockAlertAt,
       if (shippedAt != null) 'shipped_at': shippedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2080,6 +2120,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
       Value<String>? status,
       Value<DateTime?>? confirmedAt,
       Value<DateTime?>? reservedAt,
+      Value<DateTime?>? stockAlertAt,
       Value<DateTime?>? shippedAt,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -2092,6 +2133,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
       status: status ?? this.status,
       confirmedAt: confirmedAt ?? this.confirmedAt,
       reservedAt: reservedAt ?? this.reservedAt,
+      stockAlertAt: stockAlertAt ?? this.stockAlertAt,
       shippedAt: shippedAt ?? this.shippedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2125,6 +2167,10 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
       map['reserved_at'] = Variable<String>(
           $SalesOrdersTable.$converterreservedAtn.toSql(reservedAt.value));
     }
+    if (stockAlertAt.present) {
+      map['stock_alert_at'] = Variable<String>(
+          $SalesOrdersTable.$converterstockAlertAtn.toSql(stockAlertAt.value));
+    }
     if (shippedAt.present) {
       map['shipped_at'] = Variable<String>(
           $SalesOrdersTable.$convertershippedAtn.toSql(shippedAt.value));
@@ -2154,6 +2200,7 @@ class SalesOrdersCompanion extends UpdateCompanion<SalesOrder> {
           ..write('status: $status, ')
           ..write('confirmedAt: $confirmedAt, ')
           ..write('reservedAt: $reservedAt, ')
+          ..write('stockAlertAt: $stockAlertAt, ')
           ..write('shippedAt: $shippedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2609,17 +2656,17 @@ class $InventoryItemsTable extends InventoryItems
   @override
   late final GeneratedColumn<int> quantityOnHand = GeneratedColumn<int>(
       'quantity_on_hand', aliasedName, false,
-      check: () => ComparableExpr(quantityOnHand).isBiggerOrEqualValue(0),
       type: DriftSqlType.int,
-      requiredDuringInsert: true);
+      requiredDuringInsert: true,
+      $customConstraints: 'NOT NULL CHECK (quantity_on_hand >= 0)');
   static const VerificationMeta _quantityReservedMeta =
       const VerificationMeta('quantityReserved');
   @override
   late final GeneratedColumn<int> quantityReserved = GeneratedColumn<int>(
       'quantity_reserved', aliasedName, false,
-      check: () => ComparableExpr(quantityReserved).isBiggerOrEqualValue(0),
       type: DriftSqlType.int,
-      requiredDuringInsert: true);
+      requiredDuringInsert: true,
+      $customConstraints: 'NOT NULL CHECK (quantity_reserved >= 0)');
   static const VerificationMeta _minStockLevelMeta =
       const VerificationMeta('minStockLevel');
   @override
@@ -3045,9 +3092,9 @@ class $InventoryDeltasTable extends InventoryDeltas
   @override
   late final GeneratedColumn<int> amount = GeneratedColumn<int>(
       'amount', aliasedName, false,
-      check: () => ComparableExpr(amount).isBiggerThanValue(0),
       type: DriftSqlType.int,
-      requiredDuringInsert: true);
+      requiredDuringInsert: true,
+      $customConstraints: 'NOT NULL CHECK (amount > 0)');
   static const VerificationMeta _deltaTypeMeta =
       const VerificationMeta('deltaType');
   @override
@@ -3760,9 +3807,10 @@ class $PendingOperationsTable extends PendingOperations
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
       'status', aliasedName, false,
-      check: () => status.isIn(['pending', 'syncing', 'succeeded', 'failed']),
       type: DriftSqlType.string,
       requiredDuringInsert: false,
+      $customConstraints:
+          'NOT NULL CHECK (status IN (\'pending\', \'syncing\', \'succeeded\', \'failed\'))',
       defaultValue: const Constant('pending'));
   static const VerificationMeta _retryCountMeta =
       const VerificationMeta('retryCount');
@@ -5195,6 +5243,7 @@ typedef $$SalesOrdersTableCreateCompanionBuilder = SalesOrdersCompanion
   required String status,
   Value<DateTime?> confirmedAt,
   Value<DateTime?> reservedAt,
+  Value<DateTime?> stockAlertAt,
   Value<DateTime?> shippedAt,
   required DateTime createdAt,
   required DateTime updatedAt,
@@ -5209,6 +5258,7 @@ typedef $$SalesOrdersTableUpdateCompanionBuilder = SalesOrdersCompanion
   Value<String> status,
   Value<DateTime?> confirmedAt,
   Value<DateTime?> reservedAt,
+  Value<DateTime?> stockAlertAt,
   Value<DateTime?> shippedAt,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -5247,6 +5297,11 @@ class $$SalesOrdersTableFilterComposer
   ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get reservedAt =>
       $composableBuilder(
           column: $table.reservedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String>
+      get stockAlertAt => $composableBuilder(
+          column: $table.stockAlertAt,
           builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get shippedAt =>
@@ -5300,6 +5355,10 @@ class $$SalesOrdersTableOrderingComposer
   ColumnOrderings<String> get reservedAt => $composableBuilder(
       column: $table.reservedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get stockAlertAt => $composableBuilder(
+      column: $table.stockAlertAt,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get shippedAt => $composableBuilder(
       column: $table.shippedAt, builder: (column) => ColumnOrderings(column));
 
@@ -5345,6 +5404,10 @@ class $$SalesOrdersTableAnnotationComposer
       $composableBuilder(
           column: $table.reservedAt, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<DateTime?, String> get stockAlertAt =>
+      $composableBuilder(
+          column: $table.stockAlertAt, builder: (column) => column);
+
   GeneratedColumnWithTypeConverter<DateTime?, String> get shippedAt =>
       $composableBuilder(column: $table.shippedAt, builder: (column) => column);
 
@@ -5388,6 +5451,7 @@ class $$SalesOrdersTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<DateTime?> confirmedAt = const Value.absent(),
             Value<DateTime?> reservedAt = const Value.absent(),
+            Value<DateTime?> stockAlertAt = const Value.absent(),
             Value<DateTime?> shippedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -5401,6 +5465,7 @@ class $$SalesOrdersTableTableManager extends RootTableManager<
             status: status,
             confirmedAt: confirmedAt,
             reservedAt: reservedAt,
+            stockAlertAt: stockAlertAt,
             shippedAt: shippedAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -5414,6 +5479,7 @@ class $$SalesOrdersTableTableManager extends RootTableManager<
             required String status,
             Value<DateTime?> confirmedAt = const Value.absent(),
             Value<DateTime?> reservedAt = const Value.absent(),
+            Value<DateTime?> stockAlertAt = const Value.absent(),
             Value<DateTime?> shippedAt = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
@@ -5427,6 +5493,7 @@ class $$SalesOrdersTableTableManager extends RootTableManager<
             status: status,
             confirmedAt: confirmedAt,
             reservedAt: reservedAt,
+            stockAlertAt: stockAlertAt,
             shippedAt: shippedAt,
             createdAt: createdAt,
             updatedAt: updatedAt,

@@ -116,6 +116,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final role = sync.role ?? '';
     final pending = sync.state.pendingCount;
 
+    // Tab 切換請求（來自子頁面，如「請拆單」後跳到報價管理）
+    final requestedTab = sync.pendingTabSwitch;
+    if (requestedTab != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() => _selectedIndex = requestedTab);
+        sync.clearTabSwitch();
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),

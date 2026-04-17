@@ -3,7 +3,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { customers } from './customers.schema.ts';
 import { users } from './users.schema.ts';
-import { QUOTATION_STATUSES } from '@/constants/index.js';
+import type { QUOTATION_STATUSES } from '@/constants/index.js';
 
 /**
  * 報價表

@@ -101,12 +101,22 @@ extension QuotationDao on AppDatabase {
             ));
   }
 
-  /// 監聽未軟刪除的報價清單，依 updatedAt 降序排列。
+  /// 監聽未軟刪除的報價清單。
+  /// 排序：流程進度（草稿 → 發送 → 過期 → 已轉訂），同狀態內 createdAt 升序（最早最急）
   Stream<List<Quotation>> watchActiveQuotations() {
+    const priority = {'draft': 0, 'sent': 1, 'expired': 2, 'converted': 3};
     return (select(quotations)
-          ..where((t) => t.deletedAt.isNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-        .watch();
+          ..where((t) => t.deletedAt.isNull()))
+        .watch()
+        .map((list) {
+          list.sort((a, b) {
+            final pa = priority[a.status] ?? 9;
+            final pb = priority[b.status] ?? 9;
+            if (pa != pb) return pa.compareTo(pb);
+            return a.createdAt.compareTo(b.createdAt);
+          });
+          return list;
+        });
   }
 
   // --------------------------------------------------------------------------

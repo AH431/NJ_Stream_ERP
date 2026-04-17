@@ -4,7 +4,7 @@ import {
 import { customers } from './customers.schema.ts';
 import { users } from './users.schema.ts';
 import { quotations } from './quotations.schema.ts';
-import { SALES_ORDER_STATUSES } from '@/constants/index.js';
+import type { SALES_ORDER_STATUSES } from '@/constants/index.js';
 
 export const salesOrders = pgTable('sales_orders', {
   id:          serial('id').primaryKey(),

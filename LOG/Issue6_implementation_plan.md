@@ -25,7 +25,7 @@
 ---
 
 ### Phase 1: API Contract 完善 (Agent A 視角)
-#### [MODIFY] [api-contract-sync-v1.6.yaml](file:///c:/Users/archi/OneDrive/Desktop/NJ_Stream_ERP/docs/api-contract-sync-v1.6.yaml)
+#### [MODIFY] [api-contract-sync-v1.6.yaml](file:///c:/Projects/NJ_Stream_ERP/docs/api-contract-sync-v1.6.yaml)
 - 補齊 `GET /api/v1/sync/pull` 端點。
 - 確立回傳結構。例如：
   ```json
@@ -39,17 +39,17 @@
   ```
 
 ### Phase 2: 後端 Pull 端點開發 (Agent A 視角)
-#### [NEW] [pull.route.ts](file:///c:/Users/archi/OneDrive/Desktop/NJ_Stream_ERP/packages/backend/src/routes/sync/pull.route.ts) （或於 sync.route 中實作）
+#### [NEW] [pull.route.ts](file:///c:/Projects/NJ_Stream_ERP/packages/backend/src/routes/sync/pull.route.ts) （或於 sync.route 中實作）
 - 建立 `GET /api/v1/sync/pull` 端點，讀取 `since` 參數。
 - 撈出 `customers`、`products` 等資料表中 `updated_at > since` 的紀錄，並做權限過濾後回傳。
 
 ### Phase 3: 前端 SyncProvider 修復與 Pull 機制 (Agent B 視角)
-#### [MODIFY] [sync_provider.dart](file:///c:/Users/archi/OneDrive/Desktop/NJ_Stream_ERP/packages/frontend/lib/providers/sync_provider.dart)
+#### [MODIFY] [sync_provider.dart](file:///c:/Projects/NJ_Stream_ERP/packages/frontend/lib/providers/sync_provider.dart)
 - **修正 Push Req/Res 合約不匹配**：將舊代碼 `entity` / `operation` 修改為 `entityType` / `operationType`，並依照 `{succeeded: [], failed: []}` 格式正確解析後端回應（目前是錯讀了舊版 `results` 陣列，這在稍早 `Push` 結果中無法發揮作用）。
 - **Pull 增量狀態**：增加 `flutter_secure_storage` 紀錄 `last_sync_at` 機制。
 - **實作 `pullData()`**：定時或在 Push 成功/遇到庫存異常與 Force Overwrite 時觸發拉取。
 
-#### [MODIFY] [app_database.dart 等諸多 Dao](file:///c:/Users/archi/OneDrive/Desktop/NJ_Stream_ERP/packages/frontend/lib/database/database.dart)
+#### [MODIFY] [app_database.dart 等諸多 Dao](file:///c:/Projects/NJ_Stream_ERP/packages/frontend/lib/database/database.dart)
 - 實踐 **LWW (Last-Write-Wins)**：`upsertCustomerFromServer(serverState)` 比對 `server.updatedAt` 與 `local.updatedAt`。如果伺服器資料較新，則覆蓋至 Drift。
 - **清除滯留離線資料**：Pull 前移除本地多餘且不在 pending 狀態的 `id < 0` 的實體。
 

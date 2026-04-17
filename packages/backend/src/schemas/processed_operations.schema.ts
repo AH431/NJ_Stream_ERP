@@ -1,9 +1,8 @@
 import {
   pgTable, serial, varchar, jsonb, timestamp, unique, index,
 } from 'drizzle-orm/pg-core';
-import {
+import type {
   ENTITY_TYPES, OPERATION_TYPES, DELTA_TYPES, PROCESSED_OP_STATUSES,
-  SYNC,
 } from '@/constants/index.js';
 
 /**
@@ -12,7 +11,7 @@ import {
  * 職責：
  *   1. 冪等去重：以 operation_id UNIQUE 確保相同 UUID 只處理一次
  *   2. 審計追蹤：保留原始 payload 快照供事後查驗
- *   3. 定期清理：排程任務每週刪除 processedAt 超過 SYNC.CLEANUP_DAYS（30 天）的記錄
+ *   3. 定期清理：排程任務每週刪除 processedAt 超過 30 天的記錄
  *
  * 索引設計：
  *   - idx_processed_at：支援清理排程的範圍查詢（WHERE processed_at < NOW() - INTERVAL '30 days'）
@@ -38,7 +37,7 @@ export const processedOperations = pgTable('processed_operations', {
                    .default('success'),
   errorMessage:  varchar('error_message', { length: 1000 }),
   createdAt:     timestamp('created_at',   { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  /** 清理排程依此欄位進行範圍刪除（保留 SYNC.CLEANUP_DAYS = ${SYNC.CLEANUP_DAYS} 天）*/
+  /** 清理排程依此欄位進行範圍刪除（保留 30 天）*/
   processedAt:   timestamp('processed_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   deletedAt:     timestamp('deleted_at',   { withTimezone: true, mode: 'date' }),
 }, (table) => [

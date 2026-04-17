@@ -64,53 +64,65 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(Icons.cloud_sync, size: 80, color: Colors.indigo),
-                const SizedBox(height: 32),
-                TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: '帳號',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+      resizeToAvoidBottomInset: true,
+      body: context.watch<SyncProvider>().isInitializing
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    top: 24,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: '密碼',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.password),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 32),
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else
-                  FilledButton(
-                    onPressed: _login,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Icon(Icons.cloud_sync, size: 80, color: Colors.indigo),
+                        const SizedBox(height: 32),
+                        TextField(
+                          controller: _usernameController,
+                          decoration: const InputDecoration(
+                            labelText: '帳號',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _passwordController,
+                          decoration: const InputDecoration(
+                            labelText: '密碼',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.password),
+                          ),
+                          obscureText: true,
+                          onSubmitted: (_) => _login(),
+                        ),
+                        const SizedBox(height: 32),
+                        if (_isLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else
+                          FilledButton(
+                            onPressed: _login,
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: const Text('登入', style: TextStyle(fontSize: 16)),
+                          ),
+                      ],
                     ),
-                    child: const Text('登入', style: TextStyle(fontSize: 16)),
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
+
 
   @override
   void dispose() {

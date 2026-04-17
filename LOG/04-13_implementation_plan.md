@@ -26,7 +26,7 @@
 
 ### [Backend] SCM & Sync
 
-#### [MODIFY] [sync.route.ts](file:///c:/Users/archi/OneDrive/Desktop/NJ_Stream_ERP/packages/backend/src/routes/sync.route.ts)
+#### [MODIFY] [sync.route.ts](file:///c:/Projects/NJ_Stream_ERP/packages/backend/src/routes/sync.route.ts)
 - 補齊 `GET /pull` 中 `quotations` 與 `salesOrders` 的明細查詢。
 - 優化查詢效率，避免 N+1 問題。
 
@@ -34,7 +34,7 @@
 
 ### [Frontend] Database & Providers
 
-#### [MODIFY] [sync_provider.dart](file:///c:/Users/archi/OneDrive/Desktop/NJ_Stream_ERP/packages/frontend/lib/providers/sync_provider.dart)
+#### [MODIFY] [sync_provider.dart](file:///c:/Projects/NJ_Stream_ERP/packages/frontend/lib/providers/sync_provider.dart)
 - 修改 `pullData` 以使用 `_db.batch` 執行所有 Upsert 操作。
 - 修正 `dart analyze` 檢出的警告與提示。
 

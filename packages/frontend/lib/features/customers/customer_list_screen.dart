@@ -23,6 +23,8 @@ class CustomerListScreen extends StatelessWidget {
     final role = context.watch<SyncProvider>().role ?? '';
     final canEdit = role == 'sales' || role == 'admin';
 
+    final sync = context.read<SyncProvider>();
+
     return StreamBuilder<List<Customer>>(
       stream: db.watchActiveCustomers(),
       builder: (context, snapshot) {
@@ -35,38 +37,45 @@ class CustomerListScreen extends StatelessWidget {
 
         // ── 空狀態 ──────────────────────────────────────────────────────────
         if (customers.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          return RefreshIndicator(
+            onRefresh: () => sync.pullData(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                Icon(
-                  Icons.people_outline,
-                  size: 72,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '尚無客戶資料',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                if (canEdit) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '點擊右下角 ＋ 新增第一位客戶',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                const SizedBox(height: 120),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.people_outline, size: 72,
+                          color: Theme.of(context).colorScheme.outline),
+                      const SizedBox(height: 16),
+                      Text('尚無客戶資料',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      if (canEdit) ...[
+                        const SizedBox(height: 8),
+                        Text('點擊右下角 ＋ 新增第一位客戶',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline)),
+                      ],
+                      const SizedBox(height: 8),
+                      Text('下拉以同步取得最新資料',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline)),
+                    ],
                   ),
-                ],
+                ),
               ],
             ),
           );
         }
 
         // ── 清單 ────────────────────────────────────────────────────────────
-        return ListView.separated(
+        return RefreshIndicator(
+          onRefresh: () => sync.pullData(),
+          child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: customers.length,
           separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
@@ -121,6 +130,7 @@ class CustomerListScreen extends StatelessWidget {
               ),
             );
           },
+          ),
         );
       },
     );

@@ -21,7 +21,7 @@ import '../../database/dao/product_dao.dart';
 import '../../database/dao/sales_order_dao.dart';
 import '../../database/dao/quotation_dao.dart';
 import '../../providers/sync_provider.dart';
-import 'reserve_inventory_dialog.dart';
+import 'reserve_inventory_dialog.dart' show ReserveInventoryDialog, ReserveDialogAction;
 import 'ship_order_dialog.dart';
 
 class SalesOrderListScreen extends StatefulWidget {
@@ -174,7 +174,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     if (!context.mounted) return;
 
     // 顯示 ReserveInventoryDialog
-    final reserveConfirmed = await showDialog<bool>(
+    final action = await showDialog<ReserveDialogAction>(
       context: context,
       builder: (_) => ReserveInventoryDialog(
         order: order,
@@ -184,22 +184,84 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       ),
     );
 
-    if (reserveConfirmed != true) return;
+    if (!context.mounted) return;
 
-    // enqueue inventory_delta:reserve × N
-    for (final item in items) {
-      await sync.enqueueDeltaUpdate('inventory_delta', 'reserve', {
-        'productId': item.productId,
-        'amount': item.quantity,
-      });
+    switch (action) {
+      case ReserveDialogAction.confirmed:
+        // enqueue inventory_delta:reserve × N（orderId 供 409 錯誤回滾 reservedAt 用）
+        for (final item in items) {
+          await sync.enqueueDeltaUpdate('inventory_delta', 'reserve', {
+            'productId': item.productId,
+            'amount': item.quantity,
+            'orderId': order.id,
+          });
+        }
+        await db.markSalesOrderReserved(order.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('庫存預留已排入待同步佇列')),
+          );
+        }
+
+      case ReserveDialogAction.waitForStock:
+        await db.markSalesOrderStockAlert(order.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已標記庫存不足，等待到貨後可重新嘗試預留')),
+          );
+        }
+
+      case ReserveDialogAction.splitOrder:
+        await _doSplitOrder(context, db, sync, order);
+
+      case null:
+        break; // 使用者取消，不做任何動作
     }
+  }
 
-    // 標記本地已預留，解鎖「出貨」按鈕
-    await db.markSalesOrderReserved(order.id);
+  /// 拆單：取消本張訂單並跳到報價管理頁面新增拆單報價
+  Future<void> _doSplitOrder(
+    BuildContext context,
+    AppDatabase db,
+    SyncProvider sync,
+    SalesOrder order,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('確認拆單'),
+        content: const Text(
+          '此訂單將被取消，請至報價管理建立新報價單並重新轉訂單。\n\n確定要拆單嗎？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('返回'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('確認拆單'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !context.mounted) return;
+
+    final now = DateTime.now().toUtc();
+    await db.updateSalesOrderStatus(order.id, 'cancelled');
+    await sync.enqueueUpdate('sales_order', order.id, {
+      'id': order.id,
+      'status': 'cancelled',
+      'updatedAt': now.toIso8601String(),
+    });
+
+    // 切換到報價管理 tab（index 3）
+    sync.requestTabSwitch(3);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('庫存預留已排入待同步佇列')),
+        const SnackBar(content: Text('訂單已取消，請建立新報價單並拆分品項後重新轉訂單')),
       );
     }
   }
@@ -399,12 +461,16 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         !isOffline &&
         order.quotationId != null;
 
-    // 預留庫存：sales/admin、status=confirmed、已同步、有 quotationId、尚未預留
+    // 庫存不足警示中：已確認、有警示標記、尚未預留
+    final hasStockAlert = order.stockAlertAt != null && order.reservedAt == null;
+
+    // 預留庫存：sales/admin、status=confirmed、已同步、有 quotationId、尚未預留、無庫存警示
     final canReserve = (role == 'sales' || role == 'admin') &&
         order.status == 'confirmed' &&
         !isOffline &&
         order.quotationId != null &&
-        order.reservedAt == null; // 已預留則隱藏，防止重複 enqueue reserve delta
+        order.reservedAt == null &&
+        !hasStockAlert; // 有警示時改顯示橘色「庫存不足」按鈕
 
     // 出貨：warehouse/admin、status=confirmed、已同步、有 quotationId、且已預留庫存
     final canShip = (role == 'warehouse' || role == 'admin') &&
@@ -468,7 +534,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
               ],
             ),
             // 操作按鈕（有權限才顯示）
-            if (canConfirm || canReserve || canShip || canCancel) ...[
+            if (canConfirm || canReserve || hasStockAlert || canShip || canCancel) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -486,6 +552,13 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                       icon: const Icon(Icons.inventory_outlined, size: 16),
                       label: const Text('預留庫存'),
                       style: TextButton.styleFrom(foregroundColor: Colors.indigo),
+                    ),
+                  if (hasStockAlert)
+                    TextButton.icon(
+                      onPressed: () => _reserveInventory(context, order),
+                      icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                      label: const Text('庫存不足'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.orange),
                     ),
                   if (canShip)
                     TextButton.icon(

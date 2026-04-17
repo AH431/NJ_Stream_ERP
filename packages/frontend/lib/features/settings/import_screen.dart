@@ -93,22 +93,89 @@ class _ImportScreenState extends State<ImportScreen> {
         fileName: file.name,
         csvBytes: file.bytes!,
       );
+      final succeeded = response['succeeded'] as int? ?? 0;
+      final failed = (response['failed'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [];
       setState(() {
-        _succeeded = response['succeeded'] as int?;
-        _failed = (response['failed'] as List<dynamic>?)
-                ?.cast<Map<String, dynamic>>() ??
-            [];
+        _succeeded = succeeded;
+        _failed = failed;
+        _uploadError = null;
       });
+      if (mounted) _showResultDialog(succeeded, failed);
     } on DioException catch (e) {
       final msg = (e.response?.data as Map<String, dynamic>?)?['message']
           ?? e.message
           ?? '上傳失敗';
       setState(() => _uploadError = msg);
+      if (mounted) _showErrorDialog(msg);
     } catch (e) {
       setState(() => _uploadError = e.toString());
+      if (mounted) _showErrorDialog(e.toString());
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  void _showResultDialog(int succeeded, List<Map<String, dynamic>> failed) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green.shade600),
+            const SizedBox(width: 8),
+            Text('成功匯入 $succeeded 筆'),
+          ],
+        ),
+        content: failed.isEmpty
+            ? const Text('無失敗行')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('另有 ${failed.length} 行失敗：',
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  ...failed.map((f) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '第 ${f['row']} 行：${f['reason']}',
+                          style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                        ),
+                      )),
+                ],
+              ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('確定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String msg) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade600),
+            const SizedBox(width: 8),
+            const Text('上傳失敗'),
+          ],
+        ),
+        content: Text(msg),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('確定'),
+          ),
+        ],
+      ),
+    );
   }
 
   // --------------------------------------------------------------------------

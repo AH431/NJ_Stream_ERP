@@ -88,6 +88,20 @@ class SyncProvider extends ChangeNotifier {
   SyncState _state = const SyncState();
   SyncState get state => _state;
 
+  // ====================== Tab 切換請求 ======================
+
+  int? _pendingTabSwitch;
+  int? get pendingTabSwitch => _pendingTabSwitch;
+
+  void requestTabSwitch(int index) {
+    _pendingTabSwitch = index;
+    notifyListeners();
+  }
+
+  void clearTabSwitch() {
+    _pendingTabSwitch = null;
+  }
+
   // ====================== 核心狀態 ======================
   
   /// 目前有效的 Access Token（只存記憶體，不存入 Secure Storage）
@@ -114,6 +128,10 @@ class SyncProvider extends ChangeNotifier {
   Map<String, dynamic>? _jwtPayload;
 
   // ====================== 公開 Getters ======================
+
+  /// 啟動時讀取 SecureStorage 期間為 true，避免 async 間隙誤跳 LoginScreen
+  bool _isInitializing = true;
+  bool get isInitializing => _isInitializing;
 
   /// 是否已登入（有有效的 Access Token）
   bool get isLoggedIn => _currentAccessToken != null && !JwtDecoder.isExpired(_currentAccessToken!);
@@ -202,6 +220,7 @@ class SyncProvider extends ChangeNotifier {
       _setToken(stored); // 同時設定 _currentAccessToken 與 _jwtPayload
       _scheduleProactiveRefresh();
     }
+    _isInitializing = false;
     notifyListeners();
   }
 
@@ -328,7 +347,9 @@ class SyncProvider extends ChangeNotifier {
     _proactiveRefreshTimer?.cancel();
     _currentAccessToken = null;
     _jwtPayload = null; // 清除快取，確保 userId / role getter 回傳 null
-    await _storage.deleteAll();
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: 'last_sync_at');
     _emit(const SyncState());
   }
 
@@ -791,21 +812,36 @@ class SyncProvider extends ChangeNotifier {
           }
         }
         await _updateOpStatus(op, 'failed', error: errorCode);
+        return;
 
       // INSUFFICIENT_STOCK：標記 failed（同步協定 v1.6 §6 Fail-to-Pull）
       // 後端回 409 時，_pushBatch 已在呼叫端觸發 pullData()；
       // 此處保留作為防禦性兜底（未來協定調整或直接呼叫 _handleError 的情境）
       case 'INSUFFICIENT_STOCK':
         await _updateOpStatus(op, 'failed', error: errorCode);
+        // reserve 失敗 → 清除本地 reservedAt，重新鎖定「出貨」按鈕
+        if (op.deltaType == 'reserve') {
+          final payload = jsonDecode(op.payload) as Map<String, dynamic>;
+          final orderId = payload['orderId'] as int?;
+          if (orderId != null) {
+            await _db.clearSalesOrderReserved(orderId);
+          } else {
+            // 舊版 op 無 orderId：push 中觸發，先標記後由 pullData cleanup 收尾
+            await _cleanupStaleReservedOrders();
+          }
+        }
+        return;
 
       // DATA_CONFLICT：標記 failed，人工介入
       case 'DATA_CONFLICT':
         await _updateOpStatus(op, 'failed', error: errorCode);
+        return;
 
       default:
         // 未知錯誤：incremental retry
         await _updateOpStatus(op, 'pending',
             error: errorCode, incrementRetry: true);
+        return;
     }
   }
 
@@ -943,7 +979,10 @@ class SyncProvider extends ChangeNotifier {
       });
 
       await _storage.write(key: 'last_sync_at', value: DateTime.now().toUtc().toIso8601String());
-      
+
+      // 清理 stale reservedAt：舊版 reserve op 無 orderId，失敗後 reservedAt 殘留
+      await _cleanupStaleReservedOrders();
+
       final remaining = await _countPending();
       _emit(_state.copyWith(
         status: SyncStatus.success,
@@ -955,6 +994,58 @@ class SyncProvider extends ChangeNotifier {
         status: SyncStatus.failed,
         errorMessage: 'Pull failed: $e',
       ));
+    }
+  }
+
+  // ----------------------------------------------------------------------------
+  // Stale-state cleanup
+  // ----------------------------------------------------------------------------
+
+  /// Pull 後掃描 failed inventory_delta:reserve ops，清除殘留的本地 reservedAt。
+  /// 舊版 op payload 無 orderId；以 productId 比對報價明細找出對應訂單。
+  Future<void> _cleanupStaleReservedOrders() async {
+    final failedReserveOps = await (_db.select(_db.pendingOperations)
+          ..where((t) => t.status.equals('failed'))
+          ..where((t) => t.entityType.equals('inventory_delta'))
+          ..where((t) => t.deltaType.equals('reserve')))
+        .get();
+
+    if (failedReserveOps.isEmpty) return;
+
+    final reservedOrders = await (_db.select(_db.salesOrders)
+          ..where((t) => t.reservedAt.isNotNull())
+          ..where((t) => t.status.equals('confirmed')))
+        .get();
+
+    if (reservedOrders.isEmpty) return;
+
+    for (final op in failedReserveOps) {
+      final payload = jsonDecode(op.payload) as Map<String, dynamic>;
+      final orderId = payload['orderId'] as int?;
+
+      if (orderId != null) {
+        // New-style op: clear directly
+        await _db.clearSalesOrderReserved(orderId);
+        continue;
+      }
+
+      // Old-style op (no orderId): match by productId → quotation items
+      final productId = payload['productId'] as int?;
+      if (productId == null) continue;
+
+      for (final order in reservedOrders) {
+        if (order.quotationId == null) continue;
+        final quot = await (_db.select(_db.quotations)
+              ..where((t) => t.id.equals(order.quotationId!)))
+            .getSingleOrNull();
+        if (quot == null) continue;
+        try {
+          final items = jsonDecode(quot.items) as List<dynamic>;
+          if (items.any((i) => (i as Map<String, dynamic>)['productId'] == productId)) {
+            await _db.clearSalesOrderReserved(order.id);
+          }
+        } catch (_) {}
+      }
     }
   }
 
