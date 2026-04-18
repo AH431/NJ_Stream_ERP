@@ -380,6 +380,28 @@ class SyncProvider extends ChangeNotifier {
 
   /// 清理後端超齡記錄 + 本地已完成的 pending_operations（須 admin 角色）。
   ///
+  /// 下載 PDF 並回傳 bytes（供 UI 存檔後開啟）
+  /// [apiPath] 例如 '/api/v1/quotations/2/pdf'
+  Future<List<int>> downloadPdfBytes(String apiPath) async {
+    final token = await _getValidToken();
+    if (token == null) throw Exception('尚未登入');
+    final response = await _dio.get<List<int>>(
+      apiPath,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data!;
+  }
+
+  /// 呼叫 email 寄送 API，回傳後端 message 字串
+  /// [apiPath] 例如 '/api/v1/quotations/2/send-email'
+  /// [body] POST body，對帳單需傳 {year, month}，其餘可傳 {}
+  Future<String> sendDocumentEmail(String apiPath, [Map<String, dynamic>? body]) async {
+    final token = await _getValidToken();
+    if (token == null) throw Exception('尚未登入');
+    final response = await _dio.post<Map<String, dynamic>>(apiPath, data: body ?? {});
+    return (response.data?['message'] as String?) ?? '已寄送';
+  }
+
   /// 後端：processed_operations > 30 天、各 entity 軟刪除記錄 > 30 天
   /// 本地：pending_operations status = 'succeeded' 且 lastAttemptAt > 7 天前
   ///
@@ -852,10 +874,11 @@ class SyncProvider extends ChangeNotifier {
     final data = serverState as Map<String, dynamic>;
     if (entityType == 'customer') {
       await _db.upsertCustomerFromServer(CustomersCompanion(
-        id: Value(data['id'] as int),
-        name: Value(data['name'] as String),
-        contact: Value(data['contact'] as String?),
-        taxId: Value(data['taxId'] as String?),
+        id:        Value(data['id'] as int),
+        name:      Value(data['name'] as String),
+        contact:   Value(data['contact'] as String?),
+        email:     Value(data['email'] as String?),
+        taxId:     Value(data['taxId'] as String?),
         createdAt: Value(DateTime.parse(data['createdAt'] as String)),
         updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
         deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),

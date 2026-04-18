@@ -284,6 +284,13 @@ class $CustomersTable extends Customers
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 255),
       type: DriftSqlType.string,
       requiredDuringInsert: false);
+  static const VerificationMeta _emailMeta = const VerificationMeta('email');
+  @override
+  late final GeneratedColumn<String> email = GeneratedColumn<String>(
+      'email', aliasedName, true,
+      additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 255),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
   static const VerificationMeta _taxIdMeta = const VerificationMeta('taxId');
   @override
   late final GeneratedColumn<String> taxId = GeneratedColumn<String>(
@@ -308,7 +315,7 @@ class $CustomersTable extends Customers
           .withConverter<DateTime?>($CustomersTable.$converterdeletedAtn);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, contact, taxId, createdAt, updatedAt, deletedAt];
+      [id, name, contact, email, taxId, createdAt, updatedAt, deletedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -332,6 +339,10 @@ class $CustomersTable extends Customers
       context.handle(_contactMeta,
           contact.isAcceptableOrUnknown(data['contact']!, _contactMeta));
     }
+    if (data.containsKey('email')) {
+      context.handle(
+          _emailMeta, email.isAcceptableOrUnknown(data['email']!, _emailMeta));
+    }
     if (data.containsKey('tax_id')) {
       context.handle(
           _taxIdMeta, taxId.isAcceptableOrUnknown(data['tax_id']!, _taxIdMeta));
@@ -351,6 +362,8 @@ class $CustomersTable extends Customers
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       contact: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}contact']),
+      email: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}email']),
       taxId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tax_id']),
       createdAt: $CustomersTable.$convertercreatedAt.fromSql(attachedDatabase
@@ -384,6 +397,7 @@ class Customer extends DataClass implements Insertable<Customer> {
   final int id;
   final String name;
   final String? contact;
+  final String? email;
   final String? taxId;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -392,6 +406,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       {required this.id,
       required this.name,
       this.contact,
+      this.email,
       this.taxId,
       required this.createdAt,
       required this.updatedAt,
@@ -403,6 +418,9 @@ class Customer extends DataClass implements Insertable<Customer> {
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || contact != null) {
       map['contact'] = Variable<String>(contact);
+    }
+    if (!nullToAbsent || email != null) {
+      map['email'] = Variable<String>(email);
     }
     if (!nullToAbsent || taxId != null) {
       map['tax_id'] = Variable<String>(taxId);
@@ -429,6 +447,8 @@ class Customer extends DataClass implements Insertable<Customer> {
       contact: contact == null && nullToAbsent
           ? const Value.absent()
           : Value(contact),
+      email:
+          email == null && nullToAbsent ? const Value.absent() : Value(email),
       taxId:
           taxId == null && nullToAbsent ? const Value.absent() : Value(taxId),
       createdAt: Value(createdAt),
@@ -446,6 +466,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       contact: serializer.fromJson<String?>(json['contact']),
+      email: serializer.fromJson<String?>(json['email']),
       taxId: serializer.fromJson<String?>(json['taxId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -459,6 +480,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'contact': serializer.toJson<String?>(contact),
+      'email': serializer.toJson<String?>(email),
       'taxId': serializer.toJson<String?>(taxId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -470,6 +492,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           {int? id,
           String? name,
           Value<String?> contact = const Value.absent(),
+          Value<String?> email = const Value.absent(),
           Value<String?> taxId = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt,
@@ -478,6 +501,7 @@ class Customer extends DataClass implements Insertable<Customer> {
         id: id ?? this.id,
         name: name ?? this.name,
         contact: contact.present ? contact.value : this.contact,
+        email: email.present ? email.value : this.email,
         taxId: taxId.present ? taxId.value : this.taxId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -488,6 +512,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       contact: data.contact.present ? data.contact.value : this.contact,
+      email: data.email.present ? data.email.value : this.email,
       taxId: data.taxId.present ? data.taxId.value : this.taxId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -501,6 +526,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('contact: $contact, ')
+          ..write('email: $email, ')
           ..write('taxId: $taxId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -510,8 +536,8 @@ class Customer extends DataClass implements Insertable<Customer> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, contact, taxId, createdAt, updatedAt, deletedAt);
+  int get hashCode => Object.hash(
+      id, name, contact, email, taxId, createdAt, updatedAt, deletedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -519,6 +545,7 @@ class Customer extends DataClass implements Insertable<Customer> {
           other.id == this.id &&
           other.name == this.name &&
           other.contact == this.contact &&
+          other.email == this.email &&
           other.taxId == this.taxId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -529,6 +556,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
   final Value<int> id;
   final Value<String> name;
   final Value<String?> contact;
+  final Value<String?> email;
   final Value<String?> taxId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -537,6 +565,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.contact = const Value.absent(),
+    this.email = const Value.absent(),
     this.taxId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -546,6 +575,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.id = const Value.absent(),
     required String name,
     this.contact = const Value.absent(),
+    this.email = const Value.absent(),
     this.taxId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -557,6 +587,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? contact,
+    Expression<String>? email,
     Expression<String>? taxId,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
@@ -566,6 +597,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (contact != null) 'contact': contact,
+      if (email != null) 'email': email,
       if (taxId != null) 'tax_id': taxId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -577,6 +609,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       {Value<int>? id,
       Value<String>? name,
       Value<String?>? contact,
+      Value<String?>? email,
       Value<String?>? taxId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -585,6 +618,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       id: id ?? this.id,
       name: name ?? this.name,
       contact: contact ?? this.contact,
+      email: email ?? this.email,
       taxId: taxId ?? this.taxId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -603,6 +637,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     }
     if (contact.present) {
       map['contact'] = Variable<String>(contact.value);
+    }
+    if (email.present) {
+      map['email'] = Variable<String>(email.value);
     }
     if (taxId.present) {
       map['tax_id'] = Variable<String>(taxId.value);
@@ -628,6 +665,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('contact: $contact, ')
+          ..write('email: $email, ')
           ..write('taxId: $taxId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -4568,6 +4606,7 @@ typedef $$CustomersTableCreateCompanionBuilder = CustomersCompanion Function({
   Value<int> id,
   required String name,
   Value<String?> contact,
+  Value<String?> email,
   Value<String?> taxId,
   required DateTime createdAt,
   required DateTime updatedAt,
@@ -4577,6 +4616,7 @@ typedef $$CustomersTableUpdateCompanionBuilder = CustomersCompanion Function({
   Value<int> id,
   Value<String> name,
   Value<String?> contact,
+  Value<String?> email,
   Value<String?> taxId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -4600,6 +4640,9 @@ class $$CustomersTableFilterComposer
 
   ColumnFilters<String> get contact => $composableBuilder(
       column: $table.contact, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get email => $composableBuilder(
+      column: $table.email, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get taxId => $composableBuilder(
       column: $table.taxId, builder: (column) => ColumnFilters(column));
@@ -4638,6 +4681,9 @@ class $$CustomersTableOrderingComposer
   ColumnOrderings<String> get contact => $composableBuilder(
       column: $table.contact, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get email => $composableBuilder(
+      column: $table.email, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get taxId => $composableBuilder(
       column: $table.taxId, builder: (column) => ColumnOrderings(column));
 
@@ -4668,6 +4714,9 @@ class $$CustomersTableAnnotationComposer
 
   GeneratedColumn<String> get contact =>
       $composableBuilder(column: $table.contact, builder: (column) => column);
+
+  GeneratedColumn<String> get email =>
+      $composableBuilder(column: $table.email, builder: (column) => column);
 
   GeneratedColumn<String> get taxId =>
       $composableBuilder(column: $table.taxId, builder: (column) => column);
@@ -4708,6 +4757,7 @@ class $$CustomersTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String?> contact = const Value.absent(),
+            Value<String?> email = const Value.absent(),
             Value<String?> taxId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -4717,6 +4767,7 @@ class $$CustomersTableTableManager extends RootTableManager<
             id: id,
             name: name,
             contact: contact,
+            email: email,
             taxId: taxId,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -4726,6 +4777,7 @@ class $$CustomersTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             required String name,
             Value<String?> contact = const Value.absent(),
+            Value<String?> email = const Value.absent(),
             Value<String?> taxId = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
@@ -4735,6 +4787,7 @@ class $$CustomersTableTableManager extends RootTableManager<
             id: id,
             name: name,
             contact: contact,
+            email: email,
             taxId: taxId,
             createdAt: createdAt,
             updatedAt: updatedAt,

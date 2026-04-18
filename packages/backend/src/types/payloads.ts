@@ -8,6 +8,7 @@ export interface CustomerPayload {
   id: number;
   name: string;
   contact: string | null;
+  email: string | null;
   taxId: string | null;
   createdAt: string;
   updatedAt: string;

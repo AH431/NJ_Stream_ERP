@@ -40,7 +40,8 @@ class Customers extends Table {
   IntColumn get id => integer()();
   TextColumn get name => text().withLength(max: 255)();
   TextColumn get contact => text().nullable().withLength(max: 255)();
-  TextColumn get taxId => text().nullable().withLength(max: 20)();
+  TextColumn get email   => text().nullable().withLength(max: 255)();
+  TextColumn get taxId   => text().nullable().withLength(max: 20)();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())(); 
   TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();

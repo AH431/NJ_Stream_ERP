@@ -133,6 +133,7 @@ function customerToState(row: typeof customers.$inferSelect): CustomerPayload {
     id: row.id,
     name: row.name,
     contact: row.contact ?? null,
+    email: row.email ?? null,
     taxId: row.taxId ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -177,6 +178,7 @@ const CustomerCreateSchema = z.object({
   customerId: z.number().optional(), // 建立時忽略，後端配發
   name:    z.string().min(1).max(255),
   contact: z.string().max(255).nullable().optional(),
+  email:   z.string().email().max(255).nullable().optional(),
   taxId:   z.string().max(20).nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -186,6 +188,7 @@ const CustomerMutateSchema = z.object({
   id:      z.number().int().positive(),
   name:    z.string().min(1).max(255).optional(),
   contact: z.string().max(255).nullable().optional(),
+  email:   z.string().email().max(255).nullable().optional(),
   taxId:   z.string().max(20).nullable().optional(),
   updatedAt: z.string().datetime(),
 });
@@ -283,11 +286,12 @@ async function processCustomer(
       return makeFailure(op.id, 'VALIDATION_ERROR',
         parsed.error.issues[0]?.message ?? 'payload 格式錯誤。');
     }
-    const { name, contact, taxId } = parsed.data;
+    const { name, contact, email, taxId } = parsed.data;
     const [inserted] = await tx.insert(customers).values({
       name,
       contact: contact ?? null,
-      taxId: taxId ?? null,
+      email:   email   ?? null,
+      taxId:   taxId   ?? null,
     }).returning({ id: customers.id });
     return { ok: true, serverId: inserted.id };
   }

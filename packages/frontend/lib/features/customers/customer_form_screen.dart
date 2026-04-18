@@ -26,15 +26,17 @@ class CustomerFormScreen extends StatefulWidget {
 
 class _CustomerFormScreenState extends State<CustomerFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
+  final _nameCtrl    = TextEditingController();
   final _contactCtrl = TextEditingController();
-  final _taxIdCtrl = TextEditingController();
+  final _emailCtrl   = TextEditingController();
+  final _taxIdCtrl   = TextEditingController();
   bool _saving = false;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _contactCtrl.dispose();
+    _emailCtrl.dispose();
     _taxIdCtrl.dispose();
     super.dispose();
   }
@@ -55,19 +57,19 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       // 負數臨時 id（W1–W2：離線新增用，Issue #6 pull 後覆蓋為後端真實 id）
       final localId = SyncProvider.nextLocalId();
 
-      final name = _nameCtrl.text.trim();
-      final contact =
-          _contactCtrl.text.trim().isEmpty ? null : _contactCtrl.text.trim();
-      final taxId =
-          _taxIdCtrl.text.trim().isEmpty ? null : _taxIdCtrl.text.trim();
+      final name    = _nameCtrl.text.trim();
+      final contact = _contactCtrl.text.trim().isEmpty ? null : _contactCtrl.text.trim();
+      final email   = _emailCtrl.text.trim().isEmpty   ? null : _emailCtrl.text.trim();
+      final taxId   = _taxIdCtrl.text.trim().isEmpty   ? null : _taxIdCtrl.text.trim();
 
       // Step 1：寫入本地 Drift
       await db.insertCustomer(
         CustomersCompanion(
-          id: Value(localId),
-          name: Value(name),
-          contact: Value(contact),
-          taxId: Value(taxId),
+          id:        Value(localId),
+          name:      Value(name),
+          contact:   Value(contact),
+          email:     Value(email),
+          taxId:     Value(taxId),
           createdAt: Value(now),
           updatedAt: Value(now),
         ),
@@ -75,10 +77,11 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
 
       // Step 2：排入同步佇列（payload 為完整 entity 快照）
       await sync.enqueueCreate('customer', {
-        'id': localId,
-        'name': name,
-        'contact': contact,
-        'taxId': taxId,
+        'id':        localId,
+        'name':      name,
+        'contact':   contact,
+        'email':     email,
+        'taxId':     taxId,
         'createdAt': now.toIso8601String(),
         'updatedAt': now.toIso8601String(),
         'deletedAt': null,
@@ -172,6 +175,28 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+
+            // Email（選填，用於寄送報價單/訂單/對帳單）
+            TextFormField(
+              controller: _emailCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: '例：contact@company.com',
+                prefixIcon: Icon(Icons.email_outlined),
+                border: OutlineInputBorder(),
+                helperText: '用於寄送報價單、訂單、月結對帳單',
+              ),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
+                  return '請輸入有效的 Email 格式';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
 

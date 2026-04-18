@@ -27,6 +27,7 @@ import { USER_ROLES } from '@/constants/index.js';
 const CreateCustomerBody = z.object({
   name:    z.string().min(1).max(255),
   contact: z.string().max(255).optional(),
+  email:   z.string().email().max(255).optional(),
   taxId:   z.string().max(20).optional(),
 });
 
@@ -37,6 +38,7 @@ const CreateCustomerBody = z.object({
 const UpdateCustomerBody = z.object({
   name:    z.string().min(1).max(255).optional(),
   contact: z.string().max(255).nullable().optional(),
+  email:   z.string().email().max(255).nullable().optional(),
   taxId:   z.string().max(20).nullable().optional(),
 }).refine(
   (data) => Object.keys(data).length > 0,
@@ -101,10 +103,10 @@ export default async function customersRoutes(app: FastifyInstance) {
       });
     }
 
-    const { name, contact, taxId } = parsed.data;
+    const { name, contact, email, taxId } = parsed.data;
     const [created] = await db
       .insert(customers)
-      .values({ name, contact: contact ?? null, taxId: taxId ?? null })
+      .values({ name, contact: contact ?? null, email: email ?? null, taxId: taxId ?? null })
       .returning();
 
     return reply.status(201).send(created);

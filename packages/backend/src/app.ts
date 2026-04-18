@@ -11,6 +11,7 @@ import productsRoutes from '@/routes/products.route.js';
 import syncRoutes  from '@/routes/sync.route.js';
 import adminRoutes from '@/routes/admin.route.js';
 import importRoutes from '@/routes/import.route.js';
+import documentsRoutes from '@/routes/documents.route.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -63,7 +64,8 @@ export function buildApp() {
   app.register(productsRoutes,  { prefix: '/api/v1/products' });
   app.register(syncRoutes,      { prefix: '/api/v1/sync' });
   app.register(adminRoutes,     { prefix: '/api/v1/admin' });
-  app.register(importRoutes,    { prefix: '/api/v1/admin' });
+  app.register(importRoutes,     { prefix: '/api/v1/admin' });
+  app.register(documentsRoutes,  { prefix: '/api/v1' });
 
   return app;
 }

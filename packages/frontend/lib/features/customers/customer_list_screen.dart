@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/document_actions.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/database.dart';
 import '../../providers/sync_provider.dart';
@@ -113,6 +114,16 @@ class CustomerListScreen extends StatelessWidget {
                         Icons.cloud_upload_outlined,
                         size: 16,
                         color: Colors.orange,
+                      ),
+                    ),
+                  if (canEdit && customer.id > 0)
+                    IconButton(
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      tooltip: '寄月結對帳單',
+                      color: Colors.teal,
+                      onPressed: () => pickMonthAndSendStatement(
+                        ctx,
+                        customerId: customer.id,
                       ),
                     ),
                   if (canEdit)

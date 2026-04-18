@@ -220,6 +220,7 @@ export default async function syncRoutes(app: FastifyInstance) {
         id: r.id,
         name: r.name,
         contact: r.contact ?? null,
+        email: r.email ?? null,
         taxId: r.taxId ?? null,
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),

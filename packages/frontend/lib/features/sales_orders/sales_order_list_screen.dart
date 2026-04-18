@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/document_actions.dart';
 import '../../database/database.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/dao/inventory_items_dao.dart';
@@ -534,11 +535,32 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
               ],
             ),
             // 操作按鈕（有權限才顯示）
-            if (canConfirm || canReserve || hasStockAlert || canShip || canCancel) ...[
+            if (canConfirm || canReserve || hasStockAlert || canShip || canCancel || (!isOffline && (role == 'sales' || role == 'admin'))) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (!isOffline && (role == 'sales' || role == 'admin')) ...[
+                    TextButton.icon(
+                      onPressed: () => downloadAndOpenPdf(
+                        context,
+                        apiPath: '/api/v1/sales-orders/${order.id}/pdf',
+                        filename: 'order-${order.id}.pdf',
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                      label: const Text('PDF'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => sendEmail(
+                        context,
+                        apiPath: '/api/v1/sales-orders/${order.id}/send-email',
+                      ),
+                      icon: const Icon(Icons.email_outlined, size: 16),
+                      label: const Text('寄信'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.teal),
+                    ),
+                  ],
                   if (canConfirm)
                     TextButton.icon(
                       onPressed: () => _confirmOrder(context, order),

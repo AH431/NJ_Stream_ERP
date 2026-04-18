@@ -26,6 +26,7 @@
 | 庫存查詢             | 唯讀         | 讀寫             | 讀寫     |
 | 產品管理             | 唯讀         | 唯讀             | 讀寫     |
 | 使用者管理           | 無           | 無               | 讀寫     |
+| PDF 匯出 / Email 寄送 | 可執行      | 無               | 可執行   |
 
 **說明**：
 - Sales 可建立報價並轉訂單，但不可執行實際入出庫。
@@ -63,6 +64,19 @@
   - 本月報價總額（含稅）
 - **離線同步機制**：詳見獨立文件《NJ_Stream_ERP MVP 同步協定規格 v1.6》
 - **稅額顯示**：離線時顯示「預估稅額」，同步後若後端覆蓋則顯示「已調整」提示。
+- **文件輸出與 Email 通知**：
+  - 報價單 / 訂單匯出 PDF（後端以 `pdfkit` 產生，前端透過 API 下載）
+  - 一鍵 email 寄送 PDF 給客戶（後端以 `nodemailer` + SMTP 寄送，收件地址取自 customers 表）
+  - 客戶月結對帳單：依年月查詢該客戶所有訂單，合併產生一份 PDF 並可 email 寄送
+  - **後端新增 API**：
+    - `GET  /quotations/:id/pdf`
+    - `GET  /sales-orders/:id/pdf`
+    - `GET  /customers/:id/statement?year=&month=`
+    - `POST /quotations/:id/send-email`
+    - `POST /sales-orders/:id/send-email`
+    - `POST /customers/:id/send-statement`
+  - **權限**：Sales / Admin 可執行；Warehouse 無此功能
+  - **SMTP 設定**：透過後端 `.env`（`SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`）
 
 ## 5. 非功能性需求
 - 離線同步機制詳見《NJ_Stream_ERP MVP 同步協定規格 v1.6》

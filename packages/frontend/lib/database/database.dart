@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   ///   3. 在 onUpgrade 的對應 from 版本中加入 migration 操作
   ///   4. 執行 build_runner build 重新產生 database.g.dart
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -74,6 +74,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             // v4 → v5: SalesOrders 補 stockAlertAt 欄位
             await m.addColumn(salesOrders, salesOrders.stockAlertAt);
+          }
+          if (from < 6) {
+            // v5 → v6: Customers 補 email 欄位
+            await m.addColumn(customers, customers.email);
           }
         },
       );

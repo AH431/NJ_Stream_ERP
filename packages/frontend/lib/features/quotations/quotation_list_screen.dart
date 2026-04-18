@@ -17,6 +17,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/document_actions.dart';
 import '../../database/database.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/dao/quotation_dao.dart';
@@ -226,11 +227,32 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
               ],
             ),
             // 操作按鈕（有權限才顯示）
-            if (canConvert || pendingConvert || canDelete) ...[
+            if (canConvert || pendingConvert || canDelete || (!isOffline && (role == 'sales' || role == 'admin'))) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (!isOffline && (role == 'sales' || role == 'admin')) ...[
+                    TextButton.icon(
+                      onPressed: () => downloadAndOpenPdf(
+                        context,
+                        apiPath: '/api/v1/quotations/${q.id}/pdf',
+                        filename: 'quotation-${q.id}.pdf',
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                      label: const Text('PDF'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => sendEmail(
+                        context,
+                        apiPath: '/api/v1/quotations/${q.id}/send-email',
+                      ),
+                      icon: const Icon(Icons.email_outlined, size: 16),
+                      label: const Text('寄信'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.teal),
+                    ),
+                  ],
                   if (canConvert)
                     TextButton.icon(
                       onPressed: () => _convertToOrder(context, db, sync, q),
