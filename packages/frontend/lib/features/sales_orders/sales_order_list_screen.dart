@@ -6,7 +6,7 @@
 //   2. 顯示狀態 Chip（pending / confirmed / shipped / cancelled）
 //   3. 確認訂單（sales / admin）：僅更新 status，不觸發 reserve
 //   4. 預留庫存（sales / admin）：confirmed 後手動觸發，顯示庫存快照確認
-//   5. 取消訂單（sales / admin）：若已 confirmed 則同時 enqueue cancel delta
+//   5. 取消訂單：長按進入選取模式 → 頂部工具列批次取消（sales / admin）
 // ==============================================================================
 
 import 'dart:convert';
@@ -35,6 +35,11 @@ class SalesOrderListScreen extends StatefulWidget {
 class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   Map<int, String> _customerMap = {};
 
+  // 選取模式
+  bool _selectionMode = false;
+  final Set<int> _selectedIds = {};
+  List<SalesOrder> _orders = [];  // 供批次取消使用
+
   @override
   void initState() {
     super.initState();
@@ -51,14 +56,141 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     }
   }
 
+  // ─── 選取模式 ────────────────────────────────────────────────────────────────
+
+  void _enterSelectionMode(int id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _toggleItem(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _batchCancel(BuildContext context) async {
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('確認取消訂單'),
+        content: Text('確定要取消 $count 筆訂單？取消後資料僅能從後台查詢。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('返回'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('確認取消', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final db   = context.read<AppDatabase>();
+    final sync = context.read<SyncProvider>();
+    final now  = DateTime.now().toUtc();
+
+    for (final id in _selectedIds) {
+      final order = _orders.where((o) => o.id == id).firstOrNull;
+      if (order == null) continue;
+
+      final wasConfirmed = order.status == 'confirmed';
+
+      await db.updateSalesOrderStatus(id, 'cancelled');
+      await sync.enqueueUpdate('sales_order', id, {
+        'id': id,
+        'status': 'cancelled',
+        'updatedAt': now.toIso8601String(),
+      });
+
+      // 若原為 confirmed → 釋放庫存預留
+      if (wasConfirmed && order.quotationId != null) {
+        final quotation = await (db.select(db.quotations)
+              ..where((t) => t.id.equals(order.quotationId!)))
+            .getSingleOrNull();
+        if (quotation != null) {
+          try {
+            final rawList = jsonDecode(quotation.items) as List<dynamic>;
+            final items = rawList
+                .cast<Map<String, dynamic>>()
+                .map(QuotationItemModel.fromJson)
+                .toList();
+            for (final item in items) {
+              await sync.enqueueDeltaUpdate('inventory_delta', 'cancel', {
+                'productId': item.productId,
+                'amount': item.quantity,
+              });
+            }
+          } catch (_) {
+            debugPrint('[SalesOrderListScreen] 批次取消：無法解析 items，cancel delta 未排入');
+          }
+        }
+      }
+    }
+
+    _exitSelectionMode();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已取消 $count 筆訂單，待同步後更新')),
+      );
+    }
+  }
+
+  Widget _buildSelectionBar(BuildContext context, String role) {
+    final canCancel = role == 'sales' || role == 'admin';
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: '離開選取',
+            onPressed: _exitSelectionMode,
+          ),
+          Expanded(
+            child: Text(
+              '已選取 ${_selectedIds.length} 項',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (canCancel)
+            TextButton.icon(
+              onPressed: _selectedIds.isEmpty ? null : () => _batchCancel(context),
+              icon: const Icon(Icons.cancel_outlined, size: 18),
+              label: const Text('取消訂單'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+
   // ─── 狀態 Chip ──────────────────────────────────────────────────────────────
 
   Widget _buildStatusLabel(String status) {
     final (label, icon, color) = switch (status) {
-      'confirmed' => ('已確認', Icons.check_circle_outline,  Colors.blue),
+      'confirmed' => ('已確認', Icons.check_circle_outline,    Colors.blue),
       'shipped'   => ('已出貨', Icons.local_shipping_outlined, Colors.green),
-      'cancelled' => ('已取消', Icons.cancel_outlined,        Colors.red),
-      _           => ('待處理', Icons.schedule,               Colors.grey),
+      'cancelled' => ('已取消', Icons.cancel_outlined,         Colors.red),
+      _           => ('待處理', Icons.schedule,                Colors.grey),
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -73,7 +205,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   // ─── 確認訂單 ───────────────────────────────────────────────────────────────
 
   Future<void> _confirmOrder(BuildContext context, SalesOrder order) async {
-    // 確認 dialog（防止誤觸）
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -100,10 +231,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     final sync = context.read<SyncProvider>();
     final now  = DateTime.now().toUtc();
 
-    // 本地樂觀更新
     await db.updateSalesOrderStatus(order.id, 'confirmed', confirmedAt: now);
-
-    // enqueue sales_order:update（不含 reserve）
     await sync.enqueueUpdate('sales_order', order.id, {
       'id': order.id,
       'status': 'confirmed',
@@ -162,7 +290,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       return;
     }
 
-    // 建立 productMap + inventoryMap
     final products   = await db.getActiveProducts();
     final productMap = <int, Product>{for (final p in products) p.id: p};
 
@@ -174,7 +301,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (!context.mounted) return;
 
-    // 顯示 ReserveInventoryDialog
     final action = await showDialog<ReserveDialogAction>(
       context: context,
       builder: (_) => ReserveInventoryDialog(
@@ -189,7 +315,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     switch (action) {
       case ReserveDialogAction.confirmed:
-        // enqueue inventory_delta:reserve × N（orderId 供 409 錯誤回滾 reservedAt 用）
         for (final item in items) {
           await sync.enqueueDeltaUpdate('inventory_delta', 'reserve', {
             'productId': item.productId,
@@ -216,11 +341,10 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         await _doSplitOrder(context, db, sync, order);
 
       case null:
-        break; // 使用者取消，不做任何動作
+        break;
     }
   }
 
-  /// 拆單：取消本張訂單並跳到報價管理頁面新增拆單報價
   Future<void> _doSplitOrder(
     BuildContext context,
     AppDatabase db,
@@ -257,7 +381,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       'updatedAt': now.toIso8601String(),
     });
 
-    // 切換到報價管理 tab（index 3）
     sync.requestTabSwitch(3);
 
     if (context.mounted) {
@@ -267,94 +390,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     }
   }
 
-  // ─── 取消訂單 ───────────────────────────────────────────────────────────────
-
-  Future<void> _cancelOrder(BuildContext context, SalesOrder order) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('取消訂單'),
-        content: Text(
-          order.status == 'confirmed'
-              ? '此訂單已確認，取消後將釋放庫存預留，確定要取消？'
-              : '確定要取消此訂單？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('返回'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('確認取消', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    final db   = context.read<AppDatabase>();
-    final sync = context.read<SyncProvider>();
-    final wasConfirmed = order.status == 'confirmed';
-    final now = DateTime.now().toUtc();
-
-    // 本地樂觀更新
-    await db.updateSalesOrderStatus(order.id, 'cancelled');
-
-    // enqueue sales_order:update
-    await sync.enqueueUpdate('sales_order', order.id, {
-      'id': order.id,
-      'status': 'cancelled',
-      'updatedAt': now.toIso8601String(),
-    });
-
-    // 若原為 confirmed → 釋放庫存預留（cancel delta）
-    if (wasConfirmed && order.quotationId != null) {
-      final quotation = await (db.select(db.quotations)
-            ..where((t) => t.id.equals(order.quotationId!)))
-          .getSingleOrNull();
-
-      if (quotation != null) {
-        try {
-          final rawList = jsonDecode(quotation.items) as List<dynamic>;
-          final items = rawList
-              .cast<Map<String, dynamic>>()
-              .map(QuotationItemModel.fromJson)
-              .toList();
-
-          for (final item in items) {
-            await sync.enqueueDeltaUpdate('inventory_delta', 'cancel', {
-              'productId': item.productId,
-              'amount': item.quantity,
-            });
-          }
-        } catch (_) {
-          // items 解析失敗：cancel delta 無法排入，後台需手動核對
-          debugPrint('[SalesOrderListScreen] 取消訂單：無法解析 items，cancel delta 未排入');
-        }
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('訂單已取消，庫存預留釋放已排入待同步佇列')),
-        );
-      }
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('訂單已取消')),
-        );
-      }
-    }
-  }
-
   // ─── 出貨 ────────────────────────────────────────────────────────────────────
 
   Future<void> _shipOrder(BuildContext context, SalesOrder order) async {
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
 
-    // 讀取報價明細
     final quotation = await (db.select(db.quotations)
           ..where((t) => t.id.equals(order.quotationId!)))
         .getSingleOrNull();
@@ -393,7 +434,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       return;
     }
 
-    // 建立 productMap + inventoryMap
     final products   = await db.getActiveProducts();
     final productMap = <int, Product>{for (final p in products) p.id: p};
 
@@ -405,11 +445,9 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (!context.mounted) return;
 
-    // 出貨前先 Pull，確保本地庫存快照（reserved/onHand）與伺服器一致
     await sync.pullData();
     if (!context.mounted) return;
 
-    // 顯示 ShipOrderDialog（onHand / reserved 雙扣預覽）
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => ShipOrderDialog(
@@ -424,10 +462,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     final now = DateTime.now().toUtc();
 
-    // 本地樂觀更新
     await db.updateSalesOrderStatus(order.id, 'shipped', shippedAt: now);
-
-    // enqueue sales_order:update
     await sync.enqueueUpdate('sales_order', order.id, {
       'id': order.id,
       'status': 'shipped',
@@ -435,7 +470,6 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       'updatedAt': now.toIso8601String(),
     });
 
-    // enqueue inventory_delta:out × N（同時扣 onHand 與 reserved）
     for (final item in items) {
       await sync.enqueueDeltaUpdate('inventory_delta', 'out', {
         'productId': item.productId,
@@ -456,150 +490,160 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     final customerName = _customerMap[order.customerId] ?? '客戶 #${order.customerId}';
     final isOffline = order.id < 0;
 
-    // 確認訂單：sales/admin、status=pending、已同步(id>0)、有 quotationId
     final canConfirm = (role == 'sales' || role == 'admin') &&
         order.status == 'pending' &&
         !isOffline &&
         order.quotationId != null;
 
-    // 庫存不足警示中：已確認、有警示標記、尚未預留
     final hasStockAlert = order.stockAlertAt != null && order.reservedAt == null;
 
-    // 預留庫存：sales/admin、status=confirmed、已同步、有 quotationId、尚未預留、無庫存警示
     final canReserve = (role == 'sales' || role == 'admin') &&
         order.status == 'confirmed' &&
         !isOffline &&
         order.quotationId != null &&
         order.reservedAt == null &&
-        !hasStockAlert; // 有警示時改顯示橘色「庫存不足」按鈕
+        !hasStockAlert;
 
-    // 出貨：warehouse/admin、status=confirmed、已同步、有 quotationId、且已預留庫存
     final canShip = (role == 'warehouse' || role == 'admin') &&
         order.status == 'confirmed' &&
         !isOffline &&
         order.quotationId != null &&
         order.reservedAt != null;
 
-    // 取消訂單：sales/admin、status=pending 或 confirmed、已同步
-    final canCancel = (role == 'sales' || role == 'admin') &&
+    // 可選取取消：sales/admin、pending 或 confirmed、已同步
+    final isSelectable = (role == 'sales' || role == 'admin') &&
         (order.status == 'pending' || order.status == 'confirmed') &&
         !isOffline;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 第一行：客戶名 + 來源標記 + 離線 icon
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    customerName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                ),
-                if (order.quotationId != null)
-                  Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: Text(
-                      '報價轉入 #${order.quotationId}',
-                      style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
-                    ),
-                  ),
-                Icon(
-                  isOffline ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
-                  size: 18,
-                  color: isOffline ? Colors.orange : Colors.green,
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // 第二行：狀態 Chip + 訂單日期
-            Row(
-              children: [
-                _buildStatusLabel(order.status),
-                const SizedBox(width: 8),
-                Text(
-                  '建立：${_formatDate(order.createdAt)}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            // 操作按鈕（有權限才顯示）
-            if (canConfirm || canReserve || hasStockAlert || canShip || canCancel || (!isOffline && (role == 'sales' || role == 'admin'))) ...[
-              const SizedBox(height: 8),
+    final isSelected = _selectedIds.contains(order.id);
+
+    return GestureDetector(
+      onLongPress: (!_selectionMode && isSelectable)
+          ? () => _enterSelectionMode(order.id)
+          : null,
+      onTap: (_selectionMode && isSelectable) ? () => _toggleItem(order.id) : null,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        color: isSelected
+            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 第一行：(checkbox) + 客戶名 + 來源標記 + 離線 icon
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (!isOffline && (role == 'sales' || role == 'admin')) ...[
-                    TextButton.icon(
-                      onPressed: () => downloadAndOpenPdf(
-                        context,
-                        apiPath: '/api/v1/sales-orders/${order.id}/pdf',
-                        filename: 'order-${order.id}.pdf',
+                  if (_selectionMode && isSelectable)
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => _toggleItem(order.id),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  Expanded(
+                    child: Text(
+                      customerName,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                  if (order.quotationId != null)
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.orange.shade200),
                       ),
-                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                      label: const Text('PDF'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => sendEmail(
-                        context,
-                        apiPath: '/api/v1/sales-orders/${order.id}/send-email',
+                      child: Text(
+                        '報價轉入 #${order.quotationId}',
+                        style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
                       ),
-                      icon: const Icon(Icons.email_outlined, size: 16),
-                      label: const Text('寄信'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.teal),
                     ),
-                  ],
-                  if (canConfirm)
-                    TextButton.icon(
-                      onPressed: () => _confirmOrder(context, order),
-                      icon: const Icon(Icons.check_circle_outline, size: 16),
-                      label: const Text('確認訂單'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                    ),
-                  if (canReserve)
-                    TextButton.icon(
-                      onPressed: () => _reserveInventory(context, order),
-                      icon: const Icon(Icons.inventory_outlined, size: 16),
-                      label: const Text('預留庫存'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.indigo),
-                    ),
-                  if (hasStockAlert)
-                    TextButton.icon(
-                      onPressed: () => _reserveInventory(context, order),
-                      icon: const Icon(Icons.warning_amber_rounded, size: 16),
-                      label: const Text('庫存不足'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.orange),
-                    ),
-                  if (canShip)
-                    TextButton.icon(
-                      onPressed: () => _shipOrder(context, order),
-                      icon: const Icon(Icons.local_shipping_outlined, size: 16),
-                      label: const Text('出貨'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.green),
-                    ),
-                  if (canCancel)
-                    TextButton.icon(
-                      onPressed: () => _cancelOrder(context, order),
-                      icon: const Icon(Icons.cancel_outlined, size: 16),
-                      label: const Text('取消'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                    ),
+                  Icon(
+                    isOffline ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
+                    size: 18,
+                    color: isOffline ? Colors.orange : Colors.green,
+                  ),
                 ],
               ),
+              const SizedBox(height: 6),
+              // 第二行：狀態 Chip + 訂單日期
+              Row(
+                children: [
+                  _buildStatusLabel(order.status),
+                  const SizedBox(width: 8),
+                  Text(
+                    '建立：${_formatDate(order.createdAt)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              // 操作按鈕（選取模式下隱藏）
+              if (!_selectionMode &&
+                  (canConfirm || canReserve || hasStockAlert || canShip ||
+                      (!isOffline && (role == 'sales' || role == 'admin')))) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 0,
+                  runSpacing: 0,
+                  children: [
+                    if (!isOffline && (role == 'sales' || role == 'admin')) ...[
+                      TextButton.icon(
+                        onPressed: () => downloadAndOpenPdf(
+                          context,
+                          apiPath: '/api/v1/sales-orders/${order.id}/pdf',
+                          filename: 'order-${order.id}.pdf',
+                        ),
+                        icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                        label: const Text('PDF'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => sendEmail(
+                          context,
+                          apiPath: '/api/v1/sales-orders/${order.id}/send-email',
+                        ),
+                        icon: const Icon(Icons.email_outlined, size: 16),
+                        label: const Text('寄信'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.teal),
+                      ),
+                    ],
+                    if (canConfirm)
+                      TextButton.icon(
+                        onPressed: () => _confirmOrder(context, order),
+                        icon: const Icon(Icons.check_circle_outline, size: 16),
+                        label: const Text('確認訂單'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                      ),
+                    if (canReserve)
+                      TextButton.icon(
+                        onPressed: () => _reserveInventory(context, order),
+                        icon: const Icon(Icons.inventory_outlined, size: 16),
+                        label: const Text('預留庫存'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.indigo),
+                      ),
+                    if (hasStockAlert)
+                      TextButton.icon(
+                        onPressed: () => _reserveInventory(context, order),
+                        icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                        label: const Text('庫存不足'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                      ),
+                    if (canShip)
+                      TextButton.icon(
+                        onPressed: () => _shipOrder(context, order),
+                        icon: const Icon(Icons.local_shipping_outlined, size: 16),
+                        label: const Text('出貨'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.green),
+                      ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -625,28 +669,37 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         }
 
         final orders = snapshot.data ?? [];
+        // 更新快取供批次取消使用
+        _orders = orders;
 
-        return RefreshIndicator(
-          onRefresh: () => sync.pullData(),
-          child: orders.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    SizedBox(height: 120),
-                    Center(
-                      child: Text(
-                        '目前無訂單\n下拉以同步，或由報價轉入',
-                        textAlign: TextAlign.center,
+        return Column(
+          children: [
+            if (_selectionMode) _buildSelectionBar(context, role),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => sync.pullData(),
+                child: orders.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 120),
+                          Center(
+                            child: Text(
+                              '目前無訂單\n下拉以同步，或由報價轉入',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: orders.length,
+                        itemBuilder: (context, index) =>
+                            _buildOrderTile(orders[index], role),
                       ),
-                    ),
-                  ],
-                )
-              : ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: orders.length,
-                  itemBuilder: (context, index) =>
-                      _buildOrderTile(orders[index], role),
-                ),
+              ),
+            ),
+          ],
         );
       },
     );

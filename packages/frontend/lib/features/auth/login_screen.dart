@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(Icons.cloud_sync, size: 80, color: Colors.indigo),
+                        Image.asset('assets/images/app_icon.png', width: 80, height: 80),
                         const SizedBox(height: 32),
                         TextField(
                           controller: _usernameController,

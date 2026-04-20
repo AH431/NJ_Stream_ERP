@@ -16,6 +16,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../core/constants.dart';
 import '../../providers/sync_provider.dart';
 import 'import_screen.dart';
@@ -140,9 +141,11 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
     final isCustom = currentUrl != defaultUrl;
     final isAdmin = sync.role == 'admin';
 
+    final s = context.watch<AppStrings>();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('開發者設定'),
+        title: Text(s.devTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -151,6 +154,17 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── 語言切換 ────────────────────────────────────────────────
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('English UI'),
+                subtitle: Text(s.isEnglish ? '切換為中文' : 'Switch to English'),
+                value: s.isEnglish,
+                onChanged: (v) async => context.read<AppStrings>().setEnglish(v),
+              ),
+              const Divider(),
+              const SizedBox(height: 12),
+
               // 編譯期預設
               Text(
                 '編譯期預設值',

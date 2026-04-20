@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_strings.dart';
 import 'database/database.dart';
 import 'features/customers/customer_form_screen.dart';
 import 'features/customers/customer_list_screen.dart';
@@ -22,7 +23,7 @@ import 'providers/sync_provider.dart';
 // 程式入口
 // ==============================================================================
 
-void main() {
+Future<void> main() async {
   // Flutter binding 必須在任何 Flutter API 呼叫之前初始化
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -30,6 +31,10 @@ void main() {
   final db = AppDatabase();
   final dio = Dio();
   const storage = FlutterSecureStorage();
+
+  // 語言設定在 runApp 前載入，確保 Activity recreation 後語言設定仍保留
+  final appStrings = AppStrings(storage);
+  await appStrings.init();
 
   runApp(
     // MultiProvider：將所有共用狀態注入 Widget tree
@@ -54,6 +59,11 @@ void main() {
             storage: storage,
           ),
         ),
+
+        // ── AppStrings ───────────────────────────────────────────────────────
+        // 語言切換（zh / en），setEnglish(bool) 觸發全 App rebuild
+        // 已在 main() await init()，Activity recreation 後語言設定仍還原
+        ChangeNotifierProvider<AppStrings>.value(value: appStrings),
       ],
       child: const NjStreamErpApp(),
     ),
@@ -108,13 +118,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const _titles = ['儀表板', '客戶管理', '產品管理', '報價管理', '訂單管理', '庫存查詢'];
-
   @override
   Widget build(BuildContext context) {
     final sync = context.watch<SyncProvider>();
+    final s    = AppStrings.of(context);
     final role = sync.role ?? '';
     final pending = sync.state.pendingCount;
+
+    final titles = [
+      s.titleDashboard, s.titleCustomers, s.titleProducts,
+      s.titleQuotations, s.titleOrders, s.titleInventory,
+    ];
 
     // Tab 切換請求（來自子頁面，如「請拆單」後跳到報價管理）
     final requestedTab = sync.pendingTabSwitch;
@@ -127,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
+        title: Text(titles[_selectedIndex]),
         actions: [
           // 同步狀態 badge + 推送按鈕
           Badge(
@@ -142,10 +156,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         : Icons.cloud_upload_outlined,
               ),
               tooltip: sync.state.status == SyncStatus.failed
-                  ? '同步失敗：${sync.state.errorMessage}'
+                  ? s.tooltipSyncFailed(sync.state.errorMessage ?? '')
                   : pending > 0
-                      ? '推送 $pending 筆待同步操作'
-                      : '已同步',
+                      ? s.tooltipSyncPending(pending)
+                      : s.tooltipSynced,
               onPressed: sync.state.status == SyncStatus.syncing
                   ? null
                   : () => sync.pushPendingOperations(),
@@ -154,8 +168,8 @@ class _HomeScreenState extends State<HomeScreen> {
           // 登出
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: '登出',
-            onPressed: () => _confirmLogout(context, sync),
+            tooltip: s.tooltipLogout,
+            onPressed: () => _confirmLogout(context, sync, s),
           ),
           // 溢出選單（開發者設定等低頻操作）
           PopupMenuButton<String>(
@@ -167,14 +181,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
             },
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'dev_settings',
                 child: Row(
                   children: [
-                    Icon(Icons.settings_outlined, size: 18),
-                    SizedBox(width: 8),
-                    Text('開發者設定'),
+                    const Icon(Icons.settings_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Text(s.menuDevSettings),
                   ],
                 ),
               ),
@@ -196,41 +210,41 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-      floatingActionButton: _buildFab(context, role),
+      floatingActionButton: _buildFab(context, role, s),
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: '儀表板',
+            icon: const Icon(Icons.dashboard_outlined),
+            selectedIcon: const Icon(Icons.dashboard),
+            label: s.navDashboard,
           ),
           NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: '客戶',
+            icon: const Icon(Icons.people_outline),
+            selectedIcon: const Icon(Icons.people),
+            label: s.navCustomers,
           ),
           NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: '產品',
+            icon: const Icon(Icons.inventory_2_outlined),
+            selectedIcon: const Icon(Icons.inventory_2),
+            label: s.navProducts,
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: '報價',
+            icon: const Icon(Icons.receipt_long_outlined),
+            selectedIcon: const Icon(Icons.receipt_long),
+            label: s.navQuotations,
           ),
           NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag),
-            label: '訂單',
+            icon: const Icon(Icons.shopping_bag_outlined),
+            selectedIcon: const Icon(Icons.shopping_bag),
+            label: s.navOrders,
           ),
           NavigationDestination(
-            icon: Icon(Icons.warehouse_outlined),
-            selectedIcon: Icon(Icons.warehouse),
-            label: '庫存',
+            icon: const Icon(Icons.warehouse_outlined),
+            selectedIcon: const Icon(Icons.warehouse),
+            label: s.navInventory,
           ),
         ],
       ),
@@ -238,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // FAB 按角色與現作 tab 動態顯示
-  Widget? _buildFab(BuildContext context, String role) {
+  Widget? _buildFab(BuildContext context, String role, AppStrings s) {
     if (_selectedIndex == 1 && (role == 'sales' || role == 'admin')) {
       return FloatingActionButton(
         heroTag: 'fab_customer',
@@ -246,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(builder: (_) => const CustomerFormScreen()),
         ),
-        tooltip: '新增客戶',
+        tooltip: s.fabAddCustomer,
         child: const Icon(Icons.person_add_outlined),
       );
     }
@@ -257,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(builder: (_) => const ProductFormScreen()),
         ),
-        tooltip: '新增產品',
+        tooltip: s.fabAddProduct,
         child: const Icon(Icons.library_add_outlined),
       );
     }
@@ -268,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
         ),
-        tooltip: '新增報價單',
+        tooltip: s.fabAddQuotation,
         child: const Icon(Icons.note_add_outlined),
       );
     }
@@ -281,12 +295,13 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (_) => const StockInDialog(),
           );
           if (result == true && context.mounted) {
+            final snackS = context.read<AppStrings>();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('入庫已排入待同步佇列，同步後庫存將更新')),
+              SnackBar(content: Text(snackS.snackStockInQueued)),
             );
           }
         },
-        tooltip: '入庫',
+        tooltip: s.fabStockIn,
         child: const Icon(Icons.add_box_outlined),
       );
     }
@@ -294,25 +309,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 登出確認對話框（有待同步資料時會提示）
-  Future<void> _confirmLogout(BuildContext context, SyncProvider sync) async {
+  Future<void> _confirmLogout(
+      BuildContext context, SyncProvider sync, AppStrings s) async {
     final pending = sync.state.pendingCount;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('確認登出'),
-        content: Text(
-          pending > 0
-              ? '您有 $pending 筆操作尚未同步。\n登出後、這些操作將在下次登入後繼續同步。\n確定登出嗎？'
-              : '確定登出嗎？',
-        ),
+        title: Text(s.logoutTitle),
+        content: Text(s.logoutBody(pending)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(s.btnCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('登出'),
+            child: Text(s.btnLogout),
           ),
         ],
       ),

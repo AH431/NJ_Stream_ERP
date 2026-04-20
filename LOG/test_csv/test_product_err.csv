@@ -1,0 +1,4 @@
+name,sku,unitPrice,minStockLevel
+正常品,SKU-003,15.00,3
+錯誤品,SKU-004,invalid,5
+無SKU,,20.00,2

@@ -4,7 +4,7 @@
 // 功能：
 //   - StreamBuilder 監聽 watchActiveQuotations()（deleted_at IS NULL）
 //   - 每列顯示客戶名、合計金額、狀態標籤（Row Icon+Text）、離線 icon
-//   - 軟刪除（sales / admin，converted 不可刪）
+//   - 軟刪除：長按進入選取模式 → 頂部工具列批次刪除（sales / admin，converted 不可選）
 //   - 轉訂單（draft / sent，convertedToOrderId == null，已同步）
 //
 // UI 規範：
@@ -32,8 +32,12 @@ class QuotationListScreen extends StatefulWidget {
 }
 
 class _QuotationListScreenState extends State<QuotationListScreen> {
-  /// 快取 customerId → customerName，一次查詢後存放，避免 N+1
   Map<int, String> _customerMap = {};
+
+  // 選取模式
+  bool _selectionMode = false;
+  final Set<int> _selectedIds = {};
+  List<Quotation> _quotations = [];  // 供批次刪除使用
 
   @override
   void initState() {
@@ -48,6 +52,115 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     setState(() {
       _customerMap = {for (final c in customers) c.id: c.name};
     });
+  }
+
+  // ─── 選取模式 ────────────────────────────────────────────────────────────────
+
+  void _enterSelectionMode(int id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _toggleItem(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _batchDelete(BuildContext context) async {
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('確認刪除'),
+        content: Text('確定要刪除 $count 張報價單？此操作無法復原，資料僅能從後台查詢。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('刪除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final db   = context.read<AppDatabase>();
+    final sync = context.read<SyncProvider>();
+    final now  = DateTime.now().toUtc();
+
+    for (final id in _selectedIds) {
+      final q = _quotations.where((q) => q.id == id).firstOrNull;
+      if (q == null) continue;
+
+      await db.softDeleteQuotation(id, now);
+      await sync.enqueueDelete('quotation', id, {
+        'id': q.id,
+        'customerId': q.customerId,
+        'createdBy': q.createdBy,
+        'items': q.items,
+        'totalAmount': q.totalAmount,
+        'taxAmount': q.taxAmount,
+        'status': q.status,
+        'convertedToOrderId': q.convertedToOrderId,
+        'createdAt': q.createdAt.toUtc().toIso8601String(),
+        'updatedAt': now.toIso8601String(),
+        'deletedAt': now.toIso8601String(),
+      });
+    }
+
+    _exitSelectionMode();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已刪除 $count 張報價單，待同步後從伺服器移除')),
+      );
+    }
+  }
+
+  Widget _buildSelectionBar(BuildContext context, String? role) {
+    final canDelete = role == 'sales' || role == 'admin';
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: '離開選取',
+            onPressed: _exitSelectionMode,
+          ),
+          Expanded(
+            child: Text(
+              '已選取 ${_selectedIds.length} 項',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (canDelete)
+            TextButton.icon(
+              onPressed: _selectedIds.isEmpty ? null : () => _batchDelete(context),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('刪除'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
   }
 
   // ─── 狀態標籤 ───────────────────────────────────────────────────────────────
@@ -67,59 +180,6 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
         Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
       ],
     );
-  }
-
-  // ─── 軟刪除 ─────────────────────────────────────────────────────────────────
-
-  Future<void> _confirmDelete(
-    BuildContext context,
-    AppDatabase db,
-    SyncProvider sync,
-    Quotation quotation,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('確認刪除'),
-        content: const Text('刪除後無法復原，確定要刪除此報價單嗎？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('刪除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) return;
-
-    final now = DateTime.now().toUtc();
-    await db.softDeleteQuotation(quotation.id, now);
-
-    final payload = {
-      'id': quotation.id,
-      'customerId': quotation.customerId,
-      'createdBy': quotation.createdBy,
-      'items': quotation.items,
-      'totalAmount': quotation.totalAmount,
-      'taxAmount': quotation.taxAmount,
-      'status': quotation.status,
-      'convertedToOrderId': quotation.convertedToOrderId,
-      'createdAt': quotation.createdAt.toUtc().toIso8601String(),
-      'updatedAt': now.toIso8601String(),
-      'deletedAt': now.toIso8601String(),
-    };
-    await sync.enqueueDelete('quotation', quotation.id, payload);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('報價單已刪除，待下次同步')),
-      );
-    }
   }
 
   // ─── 轉訂單 ─────────────────────────────────────────────────────────────────
@@ -175,8 +235,6 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     final customerName = _customerMap[q.customerId] ?? '客戶 #${q.customerId}';
     final isOffline = q.id < 0;
 
-    final canDelete = (role == 'sales' || role == 'admin') &&
-        q.status != 'converted';
     final canConvert = (role == 'sales' || role == 'admin') &&
         (q.status == 'draft' || q.status == 'sent') &&
         q.convertedToOrderId == null &&
@@ -186,97 +244,115 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
         (q.status == 'draft' || q.status == 'sent') &&
         q.convertedToOrderId == null;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 第一行：客戶名 + 離線 icon
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    customerName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                ),
-                Icon(
-                  isOffline ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
-                  size: 18,
-                  color: isOffline ? Colors.orange : Colors.green,
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // 第二行：狀態標籤 + 合計金額
-            Row(
-              children: [
-                _buildStatusLabel(q.status),
-                const SizedBox(width: 12),
-                Text(
-                  '合計：${q.totalAmount}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _formatDate(q.createdAt),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            // 操作按鈕（有權限才顯示）
-            if (canConvert || pendingConvert || canDelete || (!isOffline && (role == 'sales' || role == 'admin'))) ...[
-              const SizedBox(height: 8),
+    // 已轉訂的報價不可選取刪除
+    final isSelectable = q.status != 'converted' &&
+        (role == 'sales' || role == 'admin');
+
+    final isSelected = _selectedIds.contains(q.id);
+
+    return GestureDetector(
+      onLongPress: (!_selectionMode && isSelectable)
+          ? () => _enterSelectionMode(q.id)
+          : null,
+      onTap: (_selectionMode && isSelectable) ? () => _toggleItem(q.id) : null,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        color: isSelected
+            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 第一行：(checkbox) + 客戶名 + 離線 icon
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (!isOffline && (role == 'sales' || role == 'admin')) ...[
-                    TextButton.icon(
-                      onPressed: () => downloadAndOpenPdf(
-                        context,
-                        apiPath: '/api/v1/quotations/${q.id}/pdf',
-                        filename: 'quotation-${q.id}.pdf',
-                      ),
-                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                      label: const Text('PDF'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
+                  if (_selectionMode && isSelectable)
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => _toggleItem(q.id),
+                      visualDensity: VisualDensity.compact,
                     ),
-                    TextButton.icon(
-                      onPressed: () => sendEmail(
-                        context,
-                        apiPath: '/api/v1/quotations/${q.id}/send-email',
-                      ),
-                      icon: const Icon(Icons.email_outlined, size: 16),
-                      label: const Text('寄信'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.teal),
+                  Expanded(
+                    child: Text(
+                      customerName,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
-                  ],
-                  if (canConvert)
-                    TextButton.icon(
-                      onPressed: () => _convertToOrder(context, db, sync, q),
-                      icon: const Icon(Icons.swap_horiz, size: 16),
-                      label: const Text('轉訂單'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.indigo),
-                    ),
-                  if (pendingConvert)
-                    TextButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.swap_horiz, size: 16),
-                      label: const Text('連線推送後轉訂單'),
-                    ),
-                  if (canDelete)
-                    TextButton.icon(
-                      onPressed: () => _confirmDelete(context, db, sync, q),
-                      icon: const Icon(Icons.delete_outline, size: 16),
-                      label: const Text('刪除'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                    ),
+                  ),
+                  Icon(
+                    isOffline ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
+                    size: 18,
+                    color: isOffline ? Colors.orange : Colors.green,
+                  ),
                 ],
               ),
+              const SizedBox(height: 6),
+              // 第二行：狀態標籤 + 合計金額 + 日期
+              Row(
+                children: [
+                  _buildStatusLabel(q.status),
+                  const SizedBox(width: 12),
+                  Text(
+                    '合計：${q.totalAmount}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatDate(q.createdAt),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              // 操作按鈕（選取模式下隱藏）
+              if (!_selectionMode &&
+                  (canConvert || pendingConvert ||
+                      (!isOffline && (role == 'sales' || role == 'admin')))) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 0,
+                  runSpacing: 0,
+                  children: [
+                    if (!isOffline && (role == 'sales' || role == 'admin')) ...[
+                      TextButton.icon(
+                        onPressed: () => downloadAndOpenPdf(
+                          context,
+                          apiPath: '/api/v1/quotations/${q.id}/pdf',
+                          filename: 'quotation-${q.id}.pdf',
+                        ),
+                        icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                        label: const Text('PDF'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => sendEmail(
+                          context,
+                          apiPath: '/api/v1/quotations/${q.id}/send-email',
+                        ),
+                        icon: const Icon(Icons.email_outlined, size: 16),
+                        label: const Text('寄信'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.teal),
+                      ),
+                    ],
+                    if (canConvert)
+                      TextButton.icon(
+                        onPressed: () => _convertToOrder(context, db, sync, q),
+                        icon: const Icon(Icons.swap_horiz, size: 16),
+                        label: const Text('轉訂單'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.indigo),
+                      ),
+                    if (pendingConvert)
+                      TextButton.icon(
+                        onPressed: null,
+                        icon: const Icon(Icons.swap_horiz, size: 16),
+                        label: const Text('連線推送後轉訂單'),
+                      ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -302,28 +378,37 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
         }
 
         final quotations = snapshot.data ?? [];
+        // 更新快取供批次刪除使用
+        _quotations = quotations;
 
-        return RefreshIndicator(
-          onRefresh: () => sync.pullData(),
-          child: quotations.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    SizedBox(height: 120),
-                    Center(
-                      child: Text(
-                        '尚無報價單\n下拉以同步取得最新資料',
-                        textAlign: TextAlign.center,
+        return Column(
+          children: [
+            if (_selectionMode) _buildSelectionBar(context, role),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => sync.pullData(),
+                child: quotations.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 120),
+                          Center(
+                            child: Text(
+                              '尚無報價單\n下拉以同步取得最新資料',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: quotations.length,
+                        itemBuilder: (context, index) =>
+                            _buildQuotationTile(context, quotations[index], role),
                       ),
-                    ),
-                  ],
-                )
-              : ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: quotations.length,
-                  itemBuilder: (context, index) =>
-                      _buildQuotationTile(context, quotations[index], role),
-                ),
+              ),
+            ),
+          ],
         );
       },
     );

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- open_filex：PDF 暫存於 App 內部快取 -->
     <cache-path name="cache" path="." />
     <external-cache-path name="external_cache" path="." />
+    <!-- file_picker：Android 8.0 在此路徑建立暫存檔後以 FileProvider URI 回傳 -->
+    <files-path name="files" path="." />
+    <external-path name="external" path="." />
+    <external-files-path name="external_files" path="." />
 </paths>
