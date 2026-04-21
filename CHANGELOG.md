@@ -87,8 +87,6 @@
 - Auth JWT 中間件 + bcrypt + Role 權限矩陣
 - POST /api/v1/sync/push 骨架 + 錯誤碼
 
-### 資安事件
-- `.env` 洩漏進 git history → `git-filter-repo` 清除 17 commits，金鑰全數輪換
 
 ### W1 Gate
 - API contract 凍結 ✅
