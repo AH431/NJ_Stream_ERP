@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/database.dart';
 import '../../database/dao/inventory_items_dao.dart';
 import '../../database/dao/product_dao.dart';
@@ -79,15 +80,16 @@ class _StockInDialogState extends State<StockInDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return AlertDialog(
-      title: const Text('入庫'),
+      title: Text(s.stockInTitle),
       content: _loading
           ? const SizedBox(
               height: 80,
               child: Center(child: CircularProgressIndicator()),
             )
           : _eligibleProducts.isEmpty
-              ? const Text('目前無可入庫的產品。\n請先同步以取得庫存資料。')
+              ? Text(s.stockInNoProducts)
               : Form(
                   key: _formKey,
                   child: Column(
@@ -96,7 +98,7 @@ class _StockInDialogState extends State<StockInDialog> {
                       // 產品選擇
                       DropdownButtonFormField<int>(
                         value: _selectedProductId,
-                        decoration: const InputDecoration(labelText: '產品'),
+                        decoration: InputDecoration(labelText: s.stockInFieldProd),
                         items: _eligibleProducts
                             .map((p) => DropdownMenuItem(
                                   value: p.id,
@@ -105,21 +107,21 @@ class _StockInDialogState extends State<StockInDialog> {
                                 ))
                             .toList(),
                         onChanged: (v) => setState(() => _selectedProductId = v),
-                        validator: (v) => v == null ? '請選擇產品' : null,
+                        validator: (v) => v == null ? s.isEnglish ? 'Please select a product.' : '請選擇產品' : null,
                       ),
                       const SizedBox(height: 12),
                       // 入庫數量
                       TextFormField(
                         controller: _amountController,
-                        decoration: const InputDecoration(
-                          labelText: '入庫數量',
-                          hintText: '請輸入正整數',
+                        decoration: InputDecoration(
+                          labelText: s.stockInFieldQty,
+                          hintText: s.isEnglish ? 'Enter a positive integer' : '請輸入正整數',
                         ),
                         keyboardType: TextInputType.number,
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) return '請輸入數量';
+                          if (v == null || v.trim().isEmpty) return s.stockInErrQty;
                           final n = int.tryParse(v.trim());
-                          if (n == null || n <= 0) return '請輸入大於 0 的整數';
+                          if (n == null || n <= 0) return s.stockInErrQty;
                           return null;
                         },
                       ),
@@ -129,7 +131,7 @@ class _StockInDialogState extends State<StockInDialog> {
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.pop(context, false),
-          child: const Text('取消'),
+          child: Text(s.btnCancel),
         ),
         if (!_loading && _eligibleProducts.isNotEmpty)
           FilledButton(
@@ -139,7 +141,7 @@ class _StockInDialogState extends State<StockInDialog> {
                     width: 16, height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('確認入庫'),
+                : Text(s.btnSubmitStockIn),
           ),
       ],
     );

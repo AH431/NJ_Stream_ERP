@@ -115,6 +115,7 @@ class AppStrings extends ChangeNotifier {
   String custDeleted(String name) =>
       _isEnglish ? '"$name" deleted.' : '已刪除「$name」';
   String get custTaxIdPrefix  => _s('統編：', 'Tax ID: ');
+  String get custTaxId        => _s('統編：', 'Tax ID: ');
 
   // ── Customer Form ─────────────────────────────────────────────────────────
   String get custFormTitle     => _s('新增客戶',    'New Customer');
@@ -152,6 +153,7 @@ class AppStrings extends ChangeNotifier {
   String get prodFieldPrice    => _s('單價 *',       'Unit Price *');
   String get prodFieldMinStock => _s('最低庫存警示', 'Min Stock Level');
   String get btnSaveProduct    => _s('儲存產品',     'Save Product');
+  String get btnSavingProduct  => _s('儲存中…',      'Saving…');
 
   // ── Quotation List ────────────────────────────────────────────────────────
   String get quotEmptyHint      =>
@@ -171,11 +173,13 @@ class AppStrings extends ChangeNotifier {
   String get quotFieldCustomer => _s('客戶 *',     'Customer *');
   String get quotErrCustomer   => _s('請選擇客戶', 'Please select a customer.');
   String get quotFieldProduct  => _s('產品 *',     'Product *');
+  String get quotErrProduct    => _s('請選擇產品', 'Please select a product.');
   String get quotErrRequired   => _s('必填',       'Required');
   String get quotFieldQty      => _s('數量',       'Qty');
   String get quotErrQtyInvalid => _s('正整數',     'Positive integer');
   String get quotFieldPrice    => _s('單價',       'Unit Price');
   String get quotErrPriceFmt   => _s('格式錯誤',   'Invalid format');
+  String get quotErrPriceEmpty => _s('請輸入單價', 'Please enter a unit price.');
   String get quotFieldSubtotal => _s('小計',       'Subtotal');
   String get quotBtnAddRow     => _s('新增明細行', 'Add line item');
   String get quotWithTax       => _s('含稅（5%）', 'Include Tax (5%)');
@@ -282,5 +286,31 @@ class AppStrings extends ChangeNotifier {
   String get importErrTooShort  =>
       _s('CSV 至少需要 header 行與一筆資料', 'CSV must have a header row and at least one data row.');
   String get importFailedDetail => _s('失敗明細', 'Failed Rows');
+  String get importFolderLabel  => _s('資料夾', 'Folder');
+  String get importRescanBtn    => _s('重新掃描', 'Re-scan');
+  String importFileListTitle(String type) =>
+      _isEnglish ? 'CSV files matching "$type"' : '符合「$type」的 CSV 檔案';
+  String get importPreviewLabel => _s('內容預覽', 'Content Preview');
+  String importConfirmBtn(String type) =>
+      _isEnglish ? 'Confirm import: $type' : '確認匯入$type';
+  String get importNoMatchFiles => _s('目錄中無符合的 CSV 檔案', 'No matching CSV files in directory.');
+  String get importDirNotFound  => _s('找不到資料夾', 'Directory not found.');
+  String get importAdbHint      => _s('請先執行 adb push 將 CSV 推送到手機：', 'Push the CSV to your device first:');
+  String importErrReadDir(String detail) =>
+      _isEnglish ? 'Cannot read directory: $detail' : '無法讀取資料夾：$detail';
+  String importErrReadFile(String detail) =>
+      _isEnglish ? 'Cannot read file: $detail' : '無法讀取檔案：$detail';
+  String importDoneMsg(int succeeded, int failed) =>
+      _isEnglish ? 'Import complete: $succeeded succeeded, $failed failed'
+                 : '匯入完成：$succeeded 筆成功，$failed 筆失敗';
+  String get importFormatProduct =>
+      _isEnglish ? 'name,sku,unitPrice,minStockLevel\nExample: Widget-A,SKU-001,25.50,10'
+                 : 'name,sku,unitPrice,minStockLevel\n範例：螺絲A,SKU-001,25.50,10';
+  String get importFormatCustomer =>
+      _isEnglish ? 'name,contact,taxId\nExample: TW Electronics,02-12345678,12345678'
+                 : 'name,contact,taxId\n範例：台灣電子,02-12345678,12345678';
+  String get importFormatInventory =>
+      _isEnglish ? 'sku,quantity\nExample: SKU-001,100'
+                 : 'sku,quantity\n範例：SKU-001,100';
   String get btnOk              => _s('確定', 'OK');
 }

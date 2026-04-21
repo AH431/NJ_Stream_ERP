@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:drift/drift.dart' show Value;
 
+import '../../core/app_strings.dart';
 import '../../database/database.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/dao/product_dao.dart';
@@ -206,13 +207,15 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('新增報價單')),
+      appBar: AppBar(title: Text(s.quotFormTitle)),
       body: _masterDataLoaded ? _buildForm() : const Center(child: CircularProgressIndicator()),
     );
   }
 
   Widget _buildForm() {
+    final s = AppStrings.of(context);
     return Form(
       key: _formKey,
       onChanged: () => setState(() {}), // 即時重算金額
@@ -229,11 +232,11 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                 TextButton.icon(
                   onPressed: _addRow,
                   icon: const Icon(Icons.add),
-                  label: const Text('新增明細行'),
+                  label: Text(s.quotBtnAddRow),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
-                  title: const Text('含稅（5%）'),
+                  title: Text(s.quotWithTax),
                   value: _withTax,
                   onChanged: (v) => setState(() => _withTax = v),
                 ),
@@ -247,7 +250,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: _save,
-                child: const Text('儲存報價單'),
+                child: Text(s.btnSaveQuotation),
               ),
             ),
           ),
@@ -261,12 +264,13 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // --------------------------------------------------------------------------
 
   Widget _buildCustomerDropdown() {
+    final s = AppStrings.of(context);
     return DropdownButtonFormField<int>(
-      decoration: const InputDecoration(labelText: '客戶 *', border: OutlineInputBorder()),
+      decoration: InputDecoration(labelText: s.quotFieldCustomer, border: const OutlineInputBorder()),
       value: _selectedCustomerId,
       items: _customers.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
       onChanged: (v) => setState(() => _selectedCustomerId = v),
-      validator: (v) => v == null ? '請選擇客戶' : null,
+      validator: (v) => v == null ? s.quotErrCustomer : null,
     );
   }
 
@@ -275,6 +279,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // --------------------------------------------------------------------------
 
   List<Widget> _buildItemRows() {
+    final s = AppStrings.of(context);
     return List.generate(_rows.length, (i) {
       final row = _rows[i];
       return Card(
@@ -288,9 +293,9 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      decoration: const InputDecoration(
-                        labelText: '產品 *',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: s.quotFieldProduct,
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                       value: row.productId,
@@ -299,7 +304,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                         child: Text('${p.name} (${p.sku})', overflow: TextOverflow.ellipsis),
                       )).toList(),
                       onChanged: (v) => _onProductSelected(i, v),
-                      validator: (v) => v == null ? '必填' : null,
+                      validator: (v) => v == null ? s.quotErrProduct : null,
                     ),
                   ),
                   if (_rows.length > 1)
@@ -317,12 +322,12 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                     width: 80,
                     child: TextFormField(
                       controller: row.qtyCtrl,
-                      decoration: const InputDecoration(labelText: '數量', border: OutlineInputBorder(), isDense: true),
+                      decoration: InputDecoration(labelText: s.quotFieldQty, border: const OutlineInputBorder(), isDense: true),
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setState(() {}),
                       validator: (v) {
                         final n = int.tryParse(v ?? '');
-                        if (n == null || n <= 0) return '正整數';
+                        if (n == null || n <= 0) return s.quotErrQtyInvalid;
                         return null;
                       },
                     ),
@@ -332,12 +337,12 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: row.priceCtrl,
-                      decoration: const InputDecoration(labelText: '單價', border: OutlineInputBorder(), isDense: true),
+                      decoration: InputDecoration(labelText: s.quotFieldPrice, border: const OutlineInputBorder(), isDense: true),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       onChanged: (_) => setState(() {}),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return '必填';
-                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(v)) return '格式錯誤';
+                        if (v == null || v.isEmpty) return s.quotErrPriceEmpty;
+                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(v)) return s.quotErrPriceFmt;
                         return null;
                       },
                     ),
@@ -347,7 +352,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                   SizedBox(
                     width: 90,
                     child: InputDecorator(
-                      decoration: const InputDecoration(labelText: '小計', border: OutlineInputBorder(), isDense: true),
+                      decoration: InputDecoration(labelText: s.quotFieldSubtotal, border: const OutlineInputBorder(), isDense: true),
                       child: Text(
                         row.subtotal.toStringAsFixed(2),
                         style: Theme.of(context).textTheme.bodyMedium,
@@ -368,6 +373,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // --------------------------------------------------------------------------
 
   Widget _buildAmountSummary() {
+    final s     = AppStrings.of(context);
     final sub   = _subtotalSum.toStringAsFixed(2);
     final tax   = _taxAmount.toStringAsFixed(2);
     final total = _totalAmount.toStringAsFixed(2);
@@ -381,9 +387,9 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('小計：$sub'),
-              Text(_withTax ? '稅額（5%）：$tax' : '稅額：$tax'),
-              Text('合計：$total',
+              Text('${s.quotLabelSubtotal}$sub'),
+              Text('${s.quotLabelTax(_withTax)}$tax'),
+              Text('${s.quotLabelTotal}$total',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),

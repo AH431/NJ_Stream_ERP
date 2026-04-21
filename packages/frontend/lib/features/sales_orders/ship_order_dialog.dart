@@ -9,7 +9,9 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/database.dart';
 import '../../database/dao/quotation_dao.dart';
 
@@ -29,6 +31,7 @@ class ShipOrderDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.read<AppStrings>();
     final hasNotReserved = items.any((item) {
       final inv = inventoryMap[item.productId];
       return inv != null && inv.quantityReserved < item.quantity;
@@ -39,23 +42,23 @@ class ShipOrderDialog extends StatelessWidget {
     });
 
     return AlertDialog(
-      title: const Text('出貨確認'),
+      title: Text(s.shipTitle),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '確認後在庫數量與預留數量將同步扣除，此操作不可逆。',
-              style: TextStyle(fontSize: 13, color: Colors.black87),
+            Text(
+              s.shipWarningBody,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
             if (hasNotReserved) ...[
               const SizedBox(height: 8),
               _buildBanner(
                 icon: Icons.warning_amber_outlined,
                 color: Colors.orange,
-                text: '部分商品尚未執行庫存預留，服務端將拒絕出貨並觸發強制同步。建議先執行「預留庫存」。',
+                text: s.shipBannerNoReserve,
               ),
             ],
             if (hasInsufficient) ...[
@@ -63,7 +66,7 @@ class ShipOrderDialog extends StatelessWidget {
               _buildBanner(
                 icon: Icons.error_outline,
                 color: Colors.red,
-                text: '部分商品在庫數量不足，建議先同步確認庫存後再執行出貨。',
+                text: s.shipBannerInsufficient,
               ),
             ],
             const SizedBox(height: 12),
@@ -72,7 +75,7 @@ class ShipOrderDialog extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              itemBuilder: (_, i) => _buildItemRow(items[i]),
+              itemBuilder: (_, i) => _buildItemRow(items[i], s),
             ),
           ],
         ),
@@ -80,12 +83,12 @@ class ShipOrderDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('取消'),
+          child: Text(s.btnCancel),
         ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: Colors.green),
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('確認出貨'),
+          child: Text(s.btnConfirmShip),
         ),
       ],
     );
@@ -111,7 +114,7 @@ class ShipOrderDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildItemRow(QuotationItemModel item) {
+  Widget _buildItemRow(QuotationItemModel item, AppStrings s) {
     final product  = productMap[item.productId];
     final inv      = inventoryMap[item.productId];
 
@@ -128,6 +131,9 @@ class ShipOrderDialog extends StatelessWidget {
       rowColor = Colors.orange.shade50;
     }
 
+    final onHandLabel    = s.isEnglish ? 'On Hand' : '在庫';
+    final reservedLabel  = s.isEnglish ? 'Reserved' : '預留';
+
     return Container(
       color: rowColor,
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -140,7 +146,7 @@ class ShipOrderDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product?.name ?? '產品 #${item.productId}',
+                  product?.name ?? (s.isEnglish ? 'Product #${item.productId}' : '產品 #${item.productId}'),
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                 ),
                 if (product != null)
@@ -156,7 +162,7 @@ class ShipOrderDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '出貨 ${item.quantity}',
+                s.shipQty(item.quantity),
                 style: const TextStyle(
                     fontSize: 13,
                     color: Colors.indigo,
@@ -164,23 +170,23 @@ class ShipOrderDialog extends StatelessWidget {
               ),
               if (inv != null) ...[
                 Text(
-                  '在庫 ${inv.quantityOnHand} → ${postOnHand! < 0 ? '⚠ $postOnHand' : '$postOnHand'}',
+                  '$onHandLabel ${inv.quantityOnHand} → ${postOnHand! < 0 ? '⚠ $postOnHand' : '$postOnHand'}',
                   style: TextStyle(
                     fontSize: 11,
                     color: isInsufficient ? Colors.red.shade700 : Colors.green.shade700,
                   ),
                 ),
                 Text(
-                  '預留 ${inv.quantityReserved} → ${postReserved! < 0 ? '⚠ $postReserved' : '$postReserved'}',
+                  '$reservedLabel ${inv.quantityReserved} → ${postReserved! < 0 ? '⚠ $postReserved' : '$postReserved'}',
                   style: TextStyle(
                     fontSize: 11,
                     color: isNotReserved ? Colors.orange.shade700 : Colors.grey.shade600,
                   ),
                 ),
               ] else
-                const Text(
-                  '— 無本地記錄',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                Text(
+                  s.shipNoRecord,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
             ],
           ),

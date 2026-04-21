@@ -13,6 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/database.dart';
 import '../../database/dao/inventory_items_dao.dart';
 import '../../database/dao/product_dao.dart';
@@ -47,7 +48,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
   // ─── 低庫存警示 badge ────────────────────────────────────────────────────────
 
-  Widget? _buildLowStockBadge(InventoryItem item) {
+  Widget? _buildLowStockBadge(InventoryItem item, AppStrings s) {
     if (item.quantityOnHand > item.minStockLevel) return null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -57,7 +58,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         border: Border.all(color: Colors.red.shade300),
       ),
       child: Text(
-        '⚠ 低庫存',
+        s.invLowStockBadge,
         style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold),
       ),
     );
@@ -78,11 +79,13 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   // ─── 庫存列表項目 ────────────────────────────────────────────────────────────
 
   Widget _buildInventoryTile(InventoryItem item) {
-    final product = _productMap[item.productId];
-    final productName = product?.name ?? '產品 #${item.productId}';
-    final sku = product?.sku ?? '—';
-    final available = item.quantityOnHand - item.quantityReserved;
-    final lowStockBadge = _buildLowStockBadge(item);
+    final s           = AppStrings.of(context);
+    final product     = _productMap[item.productId];
+    final productName = product?.name ??
+        (s.isEnglish ? 'Product #${item.productId}' : '產品 #${item.productId}');
+    final sku         = product?.sku ?? '—';
+    final available   = item.quantityOnHand - item.quantityReserved;
+    final lowStockBadge = _buildLowStockBadge(item, s);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -113,16 +116,16 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildQtyColumn('在庫', item.quantityOnHand, Colors.blue.shade700),
-                _buildQtyColumn('已預留', item.quantityReserved, Colors.orange.shade700),
-                _buildQtyColumn('可出貨', available < 0 ? 0 : available, Colors.green.shade700),
+                _buildQtyColumn(s.invColOnHand,     item.quantityOnHand,     Colors.blue.shade700),
+                _buildQtyColumn(s.invColReserved,   item.quantityReserved,   Colors.orange.shade700),
+                _buildQtyColumn(s.invColAvailable,  available < 0 ? 0 : available, Colors.green.shade700),
               ],
             ),
             // 低庫存時補充閾值說明
             if (lowStockBadge != null) ...[
               const SizedBox(height: 6),
               Text(
-                '最低庫存閾值：${item.minStockLevel}',
+                s.invMinStock(item.minStockLevel),
                 style: TextStyle(fontSize: 11, color: Colors.red.shade400),
               ),
             ],
@@ -136,6 +139,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s    = AppStrings.of(context);
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
 
@@ -153,11 +157,11 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           child: items.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    SizedBox(height: 120),
+                  children: [
+                    const SizedBox(height: 120),
                     Center(
                       child: Text(
-                        '尚無庫存記錄\n下拉以同步取得最新庫存資料',
+                        s.invEmptyHint,
                         textAlign: TextAlign.center,
                       ),
                     ),

@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../core/document_actions.dart';
 import '../../database/database.dart';
 import '../../database/dao/customer_dao.dart';
@@ -83,23 +84,30 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   }
 
   Future<void> _batchCancel(BuildContext context) async {
+    final s     = context.read<AppStrings>();
     final count = _selectedIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('確認取消訂單'),
-        content: Text('確定要取消 $count 筆訂單？取消後資料僅能從後台查詢。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('返回'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('確認取消', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final ds = ctx.read<AppStrings>();
+        return AlertDialog(
+          title: Text(ds.isEnglish ? 'Confirm Cancel Orders' : '確認取消訂單'),
+          content: Text(ds.isEnglish
+              ? 'Cancel $count orders? This cannot be undone.'
+              : '確定要取消 $count 筆訂單？取消後資料僅能從後台查詢。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ds.isEnglish ? 'Back' : '返回'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ds.isEnglish ? 'Confirm Cancel' : '確認取消',
+                  style: const TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -148,12 +156,15 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     _exitSelectionMode();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已取消 $count 筆訂單，待同步後更新')),
+        SnackBar(content: Text(s.isEnglish
+            ? '$count orders cancelled (pending sync).'
+            : '已取消 $count 筆訂單，待同步後更新')),
       );
     }
   }
 
   Widget _buildSelectionBar(BuildContext context, String role) {
+    final s         = AppStrings.of(context);
     final canCancel = role == 'sales' || role == 'admin';
     return ColoredBox(
       color: Theme.of(context).colorScheme.primaryContainer,
@@ -161,12 +172,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         children: [
           IconButton(
             icon: const Icon(Icons.close),
-            tooltip: '離開選取',
+            tooltip: s.isEnglish ? 'Exit selection' : '離開選取',
             onPressed: _exitSelectionMode,
           ),
           Expanded(
             child: Text(
-              '已選取 ${_selectedIds.length} 項',
+              s.isEnglish ? '${_selectedIds.length} selected' : '已選取 ${_selectedIds.length} 項',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -174,7 +185,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
             TextButton.icon(
               onPressed: _selectedIds.isEmpty ? null : () => _batchCancel(context),
               icon: const Icon(Icons.cancel_outlined, size: 18),
-              label: const Text('取消訂單'),
+              label: Text(s.isEnglish ? 'Cancel Orders' : '取消訂單'),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
           const SizedBox(width: 8),
@@ -185,12 +196,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
   // ─── 狀態 Chip ──────────────────────────────────────────────────────────────
 
-  Widget _buildStatusLabel(String status) {
+  Widget _buildStatusLabel(String status, AppStrings s) {
     final (label, icon, color) = switch (status) {
-      'confirmed' => ('已確認', Icons.check_circle_outline,    Colors.blue),
-      'shipped'   => ('已出貨', Icons.local_shipping_outlined, Colors.green),
-      'cancelled' => ('已取消', Icons.cancel_outlined,         Colors.red),
-      _           => ('待處理', Icons.schedule,                Colors.grey),
+      'confirmed' => (s.orderStatusConfirmed, Icons.check_circle_outline,    Colors.blue),
+      'shipped'   => (s.orderStatusShipped,   Icons.local_shipping_outlined, Colors.green),
+      'cancelled' => (s.orderStatusCancelled, Icons.cancel_outlined,         Colors.red),
+      _           => (s.orderStatusPending,   Icons.schedule,                Colors.grey),
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -207,28 +218,31 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   Future<void> _confirmOrder(BuildContext context, SalesOrder order) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('確認訂單'),
-        content: const Text(
-          '確認後訂單狀態將變更為「已確認」。\n'
-          '庫存預留需在確認後另行執行。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('確認訂單'),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final ds = ctx.read<AppStrings>();
+        return AlertDialog(
+          title: Text(ds.btnConfirmOrder),
+          content: Text(ds.isEnglish
+              ? 'Order status will change to "Confirmed".\nInventory reservation must be done separately.'
+              : '確認後訂單狀態將變更為「已確認」。\n庫存預留需在確認後另行執行。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ds.btnCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ds.btnConfirmOrder),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !context.mounted) return;
 
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
+    final s    = context.read<AppStrings>();
     final now  = DateTime.now().toUtc();
 
     await db.updateSalesOrderStatus(order.id, 'confirmed', confirmedAt: now);
@@ -241,7 +255,9 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('訂單已確認。請在訂單列表點選「預留庫存」執行庫存預留。')),
+        SnackBar(content: Text(s.isEnglish
+            ? 'Order confirmed. Tap "Reserve" to reserve inventory.'
+            : '訂單已確認。請在訂單列表點選「預留庫存」執行庫存預留。')),
       );
     }
   }
@@ -258,8 +274,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (quotation == null) {
       if (context.mounted) {
+        final s = context.read<AppStrings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('找不到對應報價，請先同步後再執行預留。')),
+          SnackBar(content: Text(s.isEnglish
+              ? 'Quotation not found. Please sync first.'
+              : '找不到對應報價，請先同步後再執行預留。')),
         );
       }
       return;
@@ -274,8 +293,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
           .toList();
     } catch (_) {
       if (context.mounted) {
+        final s = context.read<AppStrings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('無法解析報價明細，請重新同步。')),
+          SnackBar(content: Text(s.isEnglish
+              ? 'Cannot parse quotation items. Please sync again.'
+              : '無法解析報價明細，請重新同步。')),
         );
       }
       return;
@@ -283,8 +305,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (items.isEmpty) {
       if (context.mounted) {
+        final s = context.read<AppStrings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('此報價無明細，無法執行庫存預留。')),
+          SnackBar(content: Text(s.isEnglish
+              ? 'No items in this quotation. Cannot reserve inventory.'
+              : '此報價無明細，無法執行庫存預留。')),
         );
       }
       return;
@@ -324,16 +349,22 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         }
         await db.markSalesOrderReserved(order.id);
         if (context.mounted) {
+          final s = context.read<AppStrings>();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('庫存預留已排入待同步佇列')),
+            SnackBar(content: Text(s.isEnglish
+                ? 'Inventory reservation queued for sync.'
+                : '庫存預留已排入待同步佇列')),
           );
         }
 
       case ReserveDialogAction.waitForStock:
         await db.markSalesOrderStockAlert(order.id);
         if (context.mounted) {
+          final s = context.read<AppStrings>();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('已標記庫存不足，等待到貨後可重新嘗試預留')),
+            SnackBar(content: Text(s.isEnglish
+                ? 'Marked as insufficient stock. Retry when restocked.'
+                : '已標記庫存不足，等待到貨後可重新嘗試預留')),
           );
         }
 
@@ -353,26 +384,30 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   ) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('確認拆單'),
-        content: const Text(
-          '此訂單將被取消，請至報價管理建立新報價單並重新轉訂單。\n\n確定要拆單嗎？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('返回'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('確認拆單'),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final ds = ctx.read<AppStrings>();
+        return AlertDialog(
+          title: Text(ds.isEnglish ? 'Confirm Split Order' : '確認拆單'),
+          content: Text(ds.isEnglish
+              ? 'This order will be cancelled. Please create a new quotation and split the items.\n\nConfirm?'
+              : '此訂單將被取消，請至報價管理建立新報價單並重新轉訂單。\n\n確定要拆單嗎？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ds.isEnglish ? 'Back' : '返回'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+              child: Text(ds.isEnglish ? 'Confirm Split' : '確認拆單'),
+            ),
+          ],
+        );
+      },
     );
     if (confirm != true || !context.mounted) return;
 
+    final s   = context.read<AppStrings>();
     final now = DateTime.now().toUtc();
     await db.updateSalesOrderStatus(order.id, 'cancelled');
     await sync.enqueueUpdate('sales_order', order.id, {
@@ -385,7 +420,9 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('訂單已取消，請建立新報價單並拆分品項後重新轉訂單')),
+        SnackBar(content: Text(s.isEnglish
+            ? 'Order cancelled. Create a new quotation and split items.'
+            : '訂單已取消，請建立新報價單並拆分品項後重新轉訂單')),
       );
     }
   }
@@ -402,8 +439,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (quotation == null) {
       if (context.mounted) {
+        final s = context.read<AppStrings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('找不到對應報價，請先同步再執行出貨。')),
+          SnackBar(content: Text(s.isEnglish
+              ? 'Quotation not found. Please sync first.'
+              : '找不到對應報價，請先同步再執行出貨。')),
         );
       }
       return;
@@ -418,8 +458,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
           .toList();
     } catch (_) {
       if (context.mounted) {
+        final s = context.read<AppStrings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('無法解析報價明細，請重新同步。')),
+          SnackBar(content: Text(s.isEnglish
+              ? 'Cannot parse quotation items. Please sync again.'
+              : '無法解析報價明細，請重新同步。')),
         );
       }
       return;
@@ -427,8 +470,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
     if (items.isEmpty) {
       if (context.mounted) {
+        final s = context.read<AppStrings>();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('無法取得訂單明細，請重新同步後再試。')),
+          SnackBar(content: Text(s.isEnglish
+              ? 'No order items found. Please sync again.'
+              : '無法取得訂單明細，請重新同步後再試。')),
         );
       }
       return;
@@ -478,8 +524,11 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     }
 
     if (context.mounted) {
+      final s = context.read<AppStrings>();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('出貨完成，庫存扣除已排入待同步佇列')),
+        SnackBar(content: Text(s.isEnglish
+            ? 'Shipment complete. Inventory deduction queued for sync.'
+            : '出貨完成，庫存扣除已排入待同步佇列')),
       );
     }
   }
@@ -487,7 +536,9 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   // ─── 訂單列表項目 ────────────────────────────────────────────────────────────
 
   Widget _buildOrderTile(SalesOrder order, String role) {
-    final customerName = _customerMap[order.customerId] ?? '客戶 #${order.customerId}';
+    final s            = AppStrings.of(context);
+    final customerName = _customerMap[order.customerId] ??
+        (s.isEnglish ? 'Customer #${order.customerId}' : '客戶 #${order.customerId}');
     final isOffline = order.id < 0;
 
     final canConfirm = (role == 'sales' || role == 'admin') &&
@@ -557,7 +608,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                         border: Border.all(color: Colors.orange.shade200),
                       ),
                       child: Text(
-                        '報價轉入 #${order.quotationId}',
+                        s.orderFromQuot(order.quotationId!),
                         style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
                       ),
                     ),
@@ -572,10 +623,10 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
               // 第二行：狀態 Chip + 訂單日期
               Row(
                 children: [
-                  _buildStatusLabel(order.status),
+                  _buildStatusLabel(order.status, s),
                   const SizedBox(width: 8),
                   Text(
-                    '建立：${_formatDate(order.createdAt)}',
+                    s.orderCreatedAt(_formatDate(order.createdAt)),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -598,7 +649,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                           filename: 'order-${order.id}.pdf',
                         ),
                         icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                        label: const Text('PDF'),
+                        label: Text(s.btnPdf),
                         style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
                       ),
                       TextButton.icon(
@@ -607,7 +658,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                           apiPath: '/api/v1/sales-orders/${order.id}/send-email',
                         ),
                         icon: const Icon(Icons.email_outlined, size: 16),
-                        label: const Text('寄信'),
+                        label: Text(s.btnSendEmail),
                         style: TextButton.styleFrom(foregroundColor: Colors.teal),
                       ),
                     ],
@@ -615,28 +666,28 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                       TextButton.icon(
                         onPressed: () => _confirmOrder(context, order),
                         icon: const Icon(Icons.check_circle_outline, size: 16),
-                        label: const Text('確認訂單'),
+                        label: Text(s.btnConfirmOrder),
                         style: TextButton.styleFrom(foregroundColor: Colors.blue),
                       ),
                     if (canReserve)
                       TextButton.icon(
                         onPressed: () => _reserveInventory(context, order),
                         icon: const Icon(Icons.inventory_outlined, size: 16),
-                        label: const Text('預留庫存'),
+                        label: Text(s.btnReserveInventory),
                         style: TextButton.styleFrom(foregroundColor: Colors.indigo),
                       ),
                     if (hasStockAlert)
                       TextButton.icon(
                         onPressed: () => _reserveInventory(context, order),
                         icon: const Icon(Icons.warning_amber_rounded, size: 16),
-                        label: const Text('庫存不足'),
+                        label: Text(s.btnInsufficientStock),
                         style: TextButton.styleFrom(foregroundColor: Colors.orange),
                       ),
                     if (canShip)
                       TextButton.icon(
                         onPressed: () => _shipOrder(context, order),
                         icon: const Icon(Icons.local_shipping_outlined, size: 16),
-                        label: const Text('出貨'),
+                        label: Text(s.btnShipOrder),
                         style: TextButton.styleFrom(foregroundColor: Colors.green),
                       ),
                   ],
@@ -657,6 +708,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s    = AppStrings.of(context);
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
     final role = sync.role ?? '';
@@ -681,11 +733,13 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                 child: orders.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 120),
+                        children: [
+                          const SizedBox(height: 120),
                           Center(
                             child: Text(
-                              '目前無訂單\n下拉以同步，或由報價轉入',
+                              s.isEnglish
+                                  ? 'No orders yet.\nPull to sync or convert from a quotation.'
+                                  : '目前無訂單\n下拉以同步，或由報價轉入',
                               textAlign: TextAlign.center,
                             ),
                           ),

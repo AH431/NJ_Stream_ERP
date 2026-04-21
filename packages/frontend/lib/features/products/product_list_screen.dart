@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/dao/product_dao.dart';
 import '../../database/database.dart';
 import '../../providers/sync_provider.dart';
@@ -54,27 +55,33 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   Future<void> _batchDelete(BuildContext context) async {
+    final s     = context.read<AppStrings>();
     final count = _selectedIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('刪除產品'),
-        content: Text('確定要刪除 $count 個產品？此操作無法復原，資料僅能從後台查詢。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-              foregroundColor: Theme.of(ctx).colorScheme.onError,
+      builder: (ctx) {
+        final ds = ctx.read<AppStrings>();
+        return AlertDialog(
+          title: Text(ds.prodDelTitle),
+          content: Text(ds.isEnglish
+              ? 'Delete $count products? This cannot be undone.'
+              : '確定要刪除 $count 個產品？此操作無法復原。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ds.btnCancel),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ds.btnDelete),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -103,7 +110,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('已刪除 $count 個產品（等待同步）'),
+          content: Text(s.isEnglish
+              ? '$count products deleted (pending sync).'
+              : '已刪除 $count 個產品（等待同步）'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -111,25 +120,28 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   Widget _buildSelectionBar(BuildContext context) {
+    final s = AppStrings.of(context);
     return ColoredBox(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.close),
-            tooltip: '離開選取',
+            tooltip: s.isEnglish ? 'Exit selection' : '離開選取',
             onPressed: _exitSelectionMode,
           ),
           Expanded(
             child: Text(
-              '已選取 ${_selectedIds.length} 項',
+              s.isEnglish
+                  ? '${_selectedIds.length} selected'
+                  : '已選取 ${_selectedIds.length} 項',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           TextButton.icon(
             onPressed: _selectedIds.isEmpty ? null : () => _batchDelete(context),
             icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('刪除'),
+            label: Text(s.btnDelete),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
           ),
           const SizedBox(width: 8),
@@ -142,6 +154,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s      = AppStrings.of(context);
     final db     = context.read<AppDatabase>();
     final sync   = context.watch<SyncProvider>();
     final canEdit = sync.role == 'admin';
@@ -170,17 +183,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       Icon(Icons.inventory_2_outlined, size: 72,
                           color: Theme.of(context).colorScheme.outline),
                       const SizedBox(height: 16),
-                      Text('尚無產品資料',
+                      Text(s.prodEmptyTitle,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       if (canEdit) ...[
                         const SizedBox(height: 8),
-                        Text('點擊右下角 ＋ 新增第一個產品',
+                        Text(s.isEnglish ? 'Tap ＋ to add your first product.' : '點擊右下角 ＋ 新增第一個產品',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context).colorScheme.outline)),
                       ],
                       const SizedBox(height: 8),
-                      Text('下拉以同步取得最新資料',
+                      Text(s.prodEmptySync,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.outline)),
                     ],
@@ -205,6 +218,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
                   itemBuilder: (ctx, index) {
                     final product = products[index];
+                    final ls = ctx.read<AppStrings>();
                     final isSelected = _selectedIds.contains(product.id);
                     // 離線新增（id < 0）不可選取刪除
                     final isSelectable = canEdit && product.id > 0;
@@ -238,7 +252,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           product.name,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: Text('SKU：${product.sku}'),
+                        subtitle: Text('SKU: ${product.sku}'),
                         trailing: _selectionMode
                             ? null
                             : Row(
@@ -257,7 +271,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                       ),
                                       if (product.minStockLevel > 0)
                                         Text(
-                                          '警示：${product.minStockLevel} 件',
+                                          ls.prodMinStock(product.minStockLevel),
                                           style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
                                                 color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                                               ),
@@ -267,7 +281,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   if (product.id < 0) ...[
                                     const SizedBox(width: 4),
                                     Tooltip(
-                                      message: '等待同步',
+                                      message: ls.custTooltipSync,
                                       child: Icon(
                                         Icons.cloud_upload_outlined,
                                         size: 16,

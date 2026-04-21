@@ -8,7 +8,9 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/database.dart';
 import '../../database/dao/quotation_dao.dart';
 
@@ -30,6 +32,7 @@ class ReserveInventoryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.read<AppStrings>();
     // 任一品項可出貨數 < 預留需求 → 顯示警示並封鎖確認按鈕
     final hasInsufficient = items.any((item) {
       final inv = inventoryMap[item.productId];
@@ -38,16 +41,16 @@ class ReserveInventoryDialog extends StatelessWidget {
     });
 
     return AlertDialog(
-      title: const Text('預留庫存確認'),
+      title: Text(s.reserveTitle),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '以下庫存將被預留，確認後不可撤回（需重新取消訂單才能釋放）。',
-              style: TextStyle(fontSize: 13, color: Colors.black87),
+            Text(
+              s.reserveWarning,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
             if (hasInsufficient) ...[
               const SizedBox(height: 8),
@@ -57,7 +60,7 @@ class ReserveInventoryDialog extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '庫存不足，無法預留。請先同步最新庫存後再執行。',
+                      s.reserveInsuffMsg,
                       style: TextStyle(fontSize: 12, color: Colors.red.shade700),
                     ),
                   ),
@@ -70,7 +73,7 @@ class ReserveInventoryDialog extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              itemBuilder: (_, i) => _buildItemRow(items[i]),
+              itemBuilder: (_, i) => _buildItemRow(items[i], s),
             ),
           ],
         ),
@@ -79,32 +82,32 @@ class ReserveInventoryDialog extends StatelessWidget {
           ? [
               TextButton(
                 onPressed: () => Navigator.pop(context, null),
-                child: const Text('取消'),
+                child: Text(s.btnCancel),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, ReserveDialogAction.waitForStock),
-                child: const Text('等待到貨通知'),
+                child: Text(s.btnWaitForStock),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, ReserveDialogAction.splitOrder),
                 style: FilledButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text('請拆單'),
+                child: Text(s.btnSplitOrder),
               ),
             ]
           : [
               TextButton(
                 onPressed: () => Navigator.pop(context, null),
-                child: const Text('取消'),
+                child: Text(s.btnCancel),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, ReserveDialogAction.confirmed),
-                child: const Text('確認預留'),
+                child: Text(s.btnConfirmReserve),
               ),
             ],
     );
   }
 
-  Widget _buildItemRow(QuotationItemModel item) {
+  Widget _buildItemRow(QuotationItemModel item, AppStrings s) {
     final product  = productMap[item.productId];
     final inv      = inventoryMap[item.productId];
     final available = inv != null
@@ -124,7 +127,7 @@ class ReserveInventoryDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product?.name ?? '產品 #${item.productId}',
+                  product?.name ?? (s.isEnglish ? 'Product #${item.productId}' : '產品 #${item.productId}'),
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                 ),
                 if (product != null)
@@ -140,14 +143,14 @@ class ReserveInventoryDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '預留 ${item.quantity}',
+                s.reserveQty(item.quantity),
                 style: const TextStyle(
                     fontSize: 13, color: Colors.indigo, fontWeight: FontWeight.w600),
               ),
               Text(
                 available != null
-                    ? '可出貨 $available'
-                    : '— 無本地記錄',
+                    ? s.reserveAvailable(available)
+                    : s.reserveNoRecord,
                 style: TextStyle(
                   fontSize: 11,
                   color: isWarning

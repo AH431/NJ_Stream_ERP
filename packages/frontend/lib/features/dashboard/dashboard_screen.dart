@@ -16,6 +16,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/database.dart';
 import '../../database/dao/sales_order_dao.dart';
 import '../../database/dao/inventory_items_dao.dart';
@@ -63,6 +64,7 @@ class _ConfirmedOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return StreamBuilder<int>(
       stream: db.watchConfirmedOrderCount(),
       builder: (context, snapshot) {
@@ -70,9 +72,9 @@ class _ConfirmedOrderCard extends StatelessWidget {
         return _SummaryCard(
           icon: Icons.local_shipping_outlined,
           iconColor: count > 0 ? Colors.orange : Colors.green,
-          label: '待出貨訂單',
+          label: s.dashPendingShipments,
           value: '$count',
-          unit: '筆',
+          unit: s.dashPendingUnit,
         );
       },
     );
@@ -89,8 +91,9 @@ class _MonthlyQuotationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     final now = DateTime.now();
-    final monthLabel = '${now.month} 月報價';
+    final monthLabel = s.isEnglish ? s.dashMonthlyQuotations : '${now.month} ${s.dashMonthlyQuotations}';
 
     return StreamBuilder<Decimal>(
       stream: db.watchCurrentMonthQuotationTotal(),
@@ -103,7 +106,7 @@ class _MonthlyQuotationCard extends StatelessWidget {
           iconColor: Colors.blue,
           label: monthLabel,
           value: formatted,
-          unit: '元',
+          unit: s.dashCurrencyUnit,
         );
       },
     );
@@ -202,10 +205,12 @@ class _LowStockSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return StreamBuilder<List<LowStockItem>>(
       stream: db.watchLowStockItems(),
       builder: (context, snapshot) {
         final items = snapshot.data ?? [];
+        final countLabel = s.isEnglish ? '${items.length} items' : '${items.length} 項';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +225,7 @@ class _LowStockSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '低庫存警示',
+                  s.dashLowStockAlert,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -228,7 +233,7 @@ class _LowStockSection extends StatelessWidget {
                 const SizedBox(width: 8),
                 if (items.isNotEmpty)
                   Text(
-                    '${items.length} 項',
+                    countLabel,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.orange,
                         ),
@@ -242,7 +247,7 @@ class _LowStockSection extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  '目前無低庫存品項',
+                  s.dashNoLowStock,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -263,6 +268,7 @@ class _LowStockTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     final shortage = item.minStockLevel - item.available;
 
     return Card(
@@ -299,21 +305,21 @@ class _LowStockTile extends StatelessWidget {
                     const Icon(Icons.inventory_2_outlined, size: 13, color: Colors.orange),
                     const SizedBox(width: 4),
                     Text(
-                      '可出貨 ${item.available}',
+                      s.dashAvailable(item.available),
                       style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '庫存 ${item.onHand}　預留 ${item.reserved}',
+                  s.dashOnHandReserved(item.onHand, item.reserved),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '安全庫存 ${item.minStockLevel}　缺 $shortage',
+                  s.dashSafetyShortage(item.minStockLevel, shortage),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),

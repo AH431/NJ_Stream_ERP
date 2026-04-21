@@ -6,21 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../providers/sync_provider.dart';
-
-// ── 常數 ──────────────────────────────────────────────────────────────────────
-
-const _formats = {
-  'product':   'name,sku,unitPrice,minStockLevel\n範例：螺絲A,SKU-001,25.50,10',
-  'customer':  'name,contact,taxId\n範例：台灣電子,02-12345678,12345678',
-  'inventory': 'sku,quantity\n範例：SKU-001,100',
-};
-
-const _typeLabels = {
-  'product':   '產品',
-  'customer':  '客戶',
-  'inventory': '庫存初始化',
-};
 
 // 資料夾掃描關鍵字（檔名含此字串即符合）
 const _typeKeywords = {
@@ -56,6 +43,26 @@ class _ImportScreenState extends State<ImportScreen> {
 
   // --------------------------------------------------------------------------
 
+  String _typeLabel(AppStrings s) {
+    switch (_selectedType) {
+      case 'product':   return s.importTypeProduct;
+      case 'customer':  return s.importTypeCustomer;
+      case 'inventory': return s.importTypeInventory;
+      default:          return _selectedType;
+    }
+  }
+
+  String _formatStr(AppStrings s) {
+    switch (_selectedType) {
+      case 'product':   return s.importFormatProduct;
+      case 'customer':  return s.importFormatCustomer;
+      case 'inventory': return s.importFormatInventory;
+      default:          return '';
+    }
+  }
+
+  // --------------------------------------------------------------------------
+
   @override
   void initState() {
     super.initState();
@@ -70,10 +77,11 @@ class _ImportScreenState extends State<ImportScreen> {
     }
   }
 
-  /// 掃描資料夾，列出符合目前類型關鍵字的 .csv 檔案
   Future<void> _scanDirectory() async {
     final dirPath = _dirController.text.trim();
     if (dirPath.isEmpty) return;
+
+    final s = context.read<AppStrings>();
 
     if (mounted) {
       setState(() {
@@ -108,7 +116,7 @@ class _ImportScreenState extends State<ImportScreen> {
       if (mounted) {
         setState(() {
           _isScanning = false;
-          _uploadError = '無法讀取資料夾：${e.osError?.message ?? e.message}';
+          _uploadError = s.importErrReadDir(e.osError?.message ?? e.message);
         });
       }
     } catch (e) {
@@ -116,30 +124,34 @@ class _ImportScreenState extends State<ImportScreen> {
     }
   }
 
-  /// 選取檔案並載入前幾行作為預覽
   Future<void> _selectAndPreview(String fullPath) async {
+    final s = context.read<AppStrings>();
     try {
       final bytes = await File(fullPath).readAsBytes();
       final content = String.fromCharCodes(bytes);
       final lines = content.trim().split(RegExp(r'\r?\n'));
-      setState(() {
-        _selectedFilePath = fullPath;
-        _previewLines = lines.take(8).toList();
-        _succeeded = null;
-        _failed = [];
-        _uploadError = null;
-      });
+      if (mounted) {
+        setState(() {
+          _selectedFilePath = fullPath;
+          _previewLines = lines.take(8).toList();
+          _succeeded = null;
+          _failed = [];
+          _uploadError = null;
+        });
+      }
     } on FileSystemException catch (e) {
-      setState(() => _uploadError = '無法讀取檔案：${e.osError?.message ?? e.message}');
+      if (mounted) {
+        setState(() => _uploadError = s.importErrReadFile(e.osError?.message ?? e.message));
+      }
     }
   }
 
-  /// 確認並上傳選取的檔案
   Future<void> _confirmImport() async {
     if (_selectedFilePath == null) return;
 
     final scaffoldMsg = ScaffoldMessenger.of(context);
     final sync        = context.read<SyncProvider>();
+    final s           = context.read<AppStrings>();
     final type        = _selectedType;
     final path        = _selectedFilePath!;
 
@@ -149,14 +161,14 @@ class _ImportScreenState extends State<ImportScreen> {
     try {
       bytes = await File(path).readAsBytes();
     } on FileSystemException catch (e) {
-      final msg = '無法讀取檔案：${e.osError?.message ?? e.message}';
+      final msg = s.importErrReadFile(e.osError?.message ?? e.message);
       if (mounted) { setState(() => _uploadError = msg); _showErrorDialog(msg); }
       return;
     }
 
     final lines = String.fromCharCodes(bytes).trim().split(RegExp(r'\r?\n'));
     if (lines.length < 2) {
-      if (mounted) setState(() => _uploadError = 'CSV 至少需要 header 行與一筆資料');
+      if (mounted) setState(() => _uploadError = s.importErrTooShort);
       return;
     }
 
@@ -178,68 +190,72 @@ class _ImportScreenState extends State<ImportScreen> {
       } else {
         scaffoldMsg.showSnackBar(SnackBar(
           content: Text(failed.isEmpty
-              ? '成功匯入 $succeeded 筆'
-              : '匯入完成：$succeeded 筆成功，${failed.length} 筆失敗'),
+              ? s.importSuccessTitle(succeeded)
+              : s.importDoneMsg(succeeded, failed.length)),
           duration: const Duration(seconds: 5),
         ));
       }
     } on DioException catch (e) {
       final msg = (e.response?.data as Map<String, dynamic>?)?['message']
-          ?? e.message ?? '上傳失敗';
+          ?? e.message ?? s.importErrTitle;
       if (mounted) { setState(() => _uploadError = msg); _showErrorDialog(msg); }
-      else { scaffoldMsg.showSnackBar(SnackBar(content: Text('上傳失敗：$msg'), backgroundColor: Colors.red)); }
+      else { scaffoldMsg.showSnackBar(SnackBar(content: Text('${s.importErrTitle}: $msg'), backgroundColor: Colors.red)); }
     } catch (e) {
       if (mounted) { setState(() => _uploadError = e.toString()); _showErrorDialog(e.toString()); }
-      else { scaffoldMsg.showSnackBar(SnackBar(content: Text('錯誤：$e'), backgroundColor: Colors.red)); }
+      else { scaffoldMsg.showSnackBar(SnackBar(content: Text('${s.importErrTitle}: $e'), backgroundColor: Colors.red)); }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
   }
 
   void _showResultDialog(int succeeded, List<Map<String, dynamic>> failed) {
+    final s = context.read<AppStrings>();
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: Row(children: [
           Icon(Icons.check_circle_outline, color: Colors.green.shade600),
           const SizedBox(width: 8),
-          Text('成功匯入 $succeeded 筆'),
+          Text(s.importSuccessTitle(succeeded)),
         ]),
         content: failed.isEmpty
-            ? const Text('無失敗行')
+            ? Text(s.importNoFailed)
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('另有 ${failed.length} 行失敗：',
+                  Text(s.importFailedSummary(failed.length),
                       style: const TextStyle(fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   ...failed.map((f) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('第 ${f['row']} 行：${f['reason']}',
-                        style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
+                    child: Text(
+                      s.importFailedRow(f['row'] as int, '${f['reason']}'),
+                      style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                    ),
                   )),
                 ],
               ),
         actions: [
-          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('確定')),
+          FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(s.btnOk)),
         ],
       ),
     );
   }
 
   void _showErrorDialog(String msg) {
+    final s = context.read<AppStrings>();
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: Row(children: [
           Icon(Icons.error_outline, color: Colors.red.shade600),
           const SizedBox(width: 8),
-          const Text('上傳失敗'),
+          Text(s.importErrTitle),
         ]),
         content: Text(msg),
         actions: [
-          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('確定')),
+          FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(s.btnOk)),
         ],
       ),
     );
@@ -249,29 +265,31 @@ class _ImportScreenState extends State<ImportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s     = AppStrings.of(context);
     final theme = Theme.of(context);
+    final typeLabel = _typeLabel(s);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('CSV 資料匯入')),
+      appBar: AppBar(title: Text(s.importTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── 類型選擇 ──────────────────────────────────────────────
-            Text('資料類型',
+            Text(s.importTypeLabel,
                 style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey)),
             const SizedBox(height: 8),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'product',   label: Text('產品')),
-                ButtonSegment(value: 'customer',  label: Text('客戶')),
-                ButtonSegment(value: 'inventory', label: Text('庫存')),
+              segments: [
+                ButtonSegment(value: 'product',   label: Text(s.importTypeProduct)),
+                ButtonSegment(value: 'customer',  label: Text(s.importTypeCustomer)),
+                ButtonSegment(value: 'inventory', label: Text(s.importTypeInventory)),
               ],
               selected: {_selectedType},
-              onSelectionChanged: (s) {
+              onSelectionChanged: (sel) {
                 setState(() {
-                  _selectedType      = s.first;
+                  _selectedType      = sel.first;
                   _succeeded         = null;
                   _failed            = [];
                   _uploadError       = null;
@@ -297,12 +315,12 @@ class _ImportScreenState extends State<ImportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CSV 格式（${_typeLabels[_selectedType]}）',
+                    s.importFormatTitle(typeLabel),
                     style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _formats[_selectedType]!,
+                    _formatStr(s),
                     style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                   ),
                 ],
@@ -312,7 +330,7 @@ class _ImportScreenState extends State<ImportScreen> {
             const SizedBox(height: 24),
 
             // ── 資料夾路徑 ────────────────────────────────────────────
-            Text('資料夾',
+            Text(s.importFolderLabel,
                 style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey)),
             const SizedBox(height: 8),
             Row(
@@ -334,7 +352,7 @@ class _ImportScreenState extends State<ImportScreen> {
                 const SizedBox(width: 8),
                 FilledButton.tonal(
                   onPressed: _isScanning ? null : _scanDirectory,
-                  child: const Text('重新掃描'),
+                  child: Text(s.importRescanBtn),
                 ),
               ],
             ),
@@ -343,7 +361,7 @@ class _ImportScreenState extends State<ImportScreen> {
 
             // ── 符合的檔案清單 ────────────────────────────────────────
             Text(
-              '符合「${_typeLabels[_selectedType]}」的 CSV 檔案',
+              s.importFileListTitle(typeLabel),
               style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey),
             ),
             const SizedBox(height: 8),
@@ -396,7 +414,7 @@ class _ImportScreenState extends State<ImportScreen> {
             // ── 內容預覽 ──────────────────────────────────────────────
             if (_previewLines.isNotEmpty) ...[
               const SizedBox(height: 20),
-              Text('內容預覽',
+              Text(s.importPreviewLabel,
                   style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey)),
               const SizedBox(height: 8),
               Container(
@@ -428,7 +446,7 @@ class _ImportScreenState extends State<ImportScreen> {
                     : FilledButton.icon(
                         onPressed: _confirmImport,
                         icon: const Icon(Icons.check_circle_outline),
-                        label: Text('確認匯入${_typeLabels[_selectedType]!}'),
+                        label: Text(s.importConfirmBtn(typeLabel)),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
@@ -444,7 +462,7 @@ class _ImportScreenState extends State<ImportScreen> {
                 borderColor: Colors.red.shade200,
                 icon: Icons.error_outline,
                 iconColor: Colors.red,
-                title: '上傳失敗',
+                title: s.importErrTitle,
                 body: _uploadError!,
               ),
 
@@ -454,12 +472,14 @@ class _ImportScreenState extends State<ImportScreen> {
                 borderColor: Colors.green.shade200,
                 icon: Icons.check_circle_outline,
                 iconColor: Colors.green,
-                title: '成功匯入 $_succeeded 筆',
-                body: _failed.isEmpty ? '無失敗行' : '另有 ${_failed.length} 行失敗（見下方）',
+                title: s.importSuccessTitle(_succeeded!),
+                body: _failed.isEmpty
+                    ? s.importNoFailed
+                    : s.importFailedSummary(_failed.length),
               ),
               if (_failed.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text('失敗明細',
+                Text(s.importFailedDetail,
                     style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey)),
                 const SizedBox(height: 6),
                 ..._failed.map((f) => Padding(
@@ -467,7 +487,7 @@ class _ImportScreenState extends State<ImportScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('第 ${f['row']} 行  ',
+                      Text('${s.isEnglish ? 'Row' : '第'} ${f['row']} ${s.isEnglish ? '' : '行'}  ',
                           style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w500)),
                       Expanded(
@@ -501,6 +521,7 @@ class _EmptyFilesHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s      = AppStrings.of(context);
     final exists = dirPath.isNotEmpty && Directory(dirPath).existsSync();
     return Container(
       width: double.infinity,
@@ -514,12 +535,12 @@ class _EmptyFilesHint extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            exists ? '目錄中無符合的 CSV 檔案' : '找不到資料夾',
+            exists ? s.importNoMatchFiles : s.importDirNotFound,
             style: TextStyle(fontWeight: FontWeight.w600, color: Colors.orange.shade800),
           ),
           const SizedBox(height: 6),
           Text(
-            '請先執行 adb push 將 CSV 推送到手機：',
+            s.importAdbHint,
             style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
           ),
           const SizedBox(height: 4),

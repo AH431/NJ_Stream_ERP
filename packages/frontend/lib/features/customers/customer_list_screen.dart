@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../core/document_actions.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/database.dart';
@@ -55,27 +56,33 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   Future<void> _batchDelete(BuildContext context) async {
+    final s     = context.read<AppStrings>();
     final count = _selectedIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('刪除客戶'),
-        content: Text('確定要刪除 $count 位客戶？此操作無法復原，資料僅能從後台查詢。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-              foregroundColor: Theme.of(ctx).colorScheme.onError,
+      builder: (ctx) {
+        final ds = ctx.read<AppStrings>();
+        return AlertDialog(
+          title: Text(ds.custDelTitle),
+          content: Text(ds.isEnglish
+              ? 'Delete $count customers? This cannot be undone.'
+              : '確定要刪除 $count 位客戶？此操作無法復原。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ds.btnCancel),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ds.btnDelete),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -103,7 +110,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('已刪除 $count 位客戶（等待同步）'),
+          content: Text(s.isEnglish
+              ? '$count customers deleted (pending sync).'
+              : '已刪除 $count 位客戶（等待同步）'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -111,18 +120,21 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   Widget _buildSelectionBar(BuildContext context, bool canEdit) {
+    final s = AppStrings.of(context);
     return ColoredBox(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.close),
-            tooltip: '離開選取',
+            tooltip: s.isEnglish ? 'Exit selection' : '離開選取',
             onPressed: _exitSelectionMode,
           ),
           Expanded(
             child: Text(
-              '已選取 ${_selectedIds.length} 項',
+              s.isEnglish
+                  ? '${_selectedIds.length} selected'
+                  : '已選取 ${_selectedIds.length} 項',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -130,7 +142,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
             TextButton.icon(
               onPressed: _selectedIds.isEmpty ? null : () => _batchDelete(context),
               icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('刪除'),
+              label: Text(s.btnDelete),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
           const SizedBox(width: 8),
@@ -141,10 +153,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   // ─── 軟刪除（單筆，保留供非選取模式使用，目前已移至批次）─────────────────────
 
-  Widget _buildSubtitle(Customer c) {
+  Widget _buildSubtitle(Customer c, AppStrings s) {
     final parts = <String>[];
     if (c.contact != null) parts.add(c.contact!);
-    if (c.taxId != null) parts.add('統編：${c.taxId!}');
+    if (c.taxId != null) parts.add('${s.custTaxId}${c.taxId!}');
     if (parts.isEmpty) return const SizedBox.shrink();
     return Text(parts.join('  ·  '));
   }
@@ -153,6 +165,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s      = AppStrings.of(context);
     final db     = context.read<AppDatabase>();
     final sync   = context.watch<SyncProvider>();
     final role   = sync.role ?? '';
@@ -182,17 +195,17 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       Icon(Icons.people_outline, size: 72,
                           color: Theme.of(context).colorScheme.outline),
                       const SizedBox(height: 16),
-                      Text('尚無客戶資料',
+                      Text(s.custEmptyTitle,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       if (canEdit) ...[
                         const SizedBox(height: 8),
-                        Text('點擊右下角 ＋ 新增第一位客戶',
+                        Text(s.custEmptyAdd,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context).colorScheme.outline)),
                       ],
                       const SizedBox(height: 8),
-                      Text('下拉以同步取得最新資料',
+                      Text(s.custEmptySync,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.outline)),
                     ],
@@ -254,16 +267,16 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           customer.name,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: _buildSubtitle(customer),
+                        subtitle: _buildSubtitle(customer, s),
                         trailing: _selectionMode
                             ? null
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (customer.id < 0)
-                                    const Tooltip(
-                                      message: '等待同步',
-                                      child: Icon(
+                                    Tooltip(
+                                      message: s.custTooltipSync,
+                                      child: const Icon(
                                         Icons.cloud_upload_outlined,
                                         size: 16,
                                         color: Colors.orange,
@@ -272,7 +285,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                   if (canEdit && customer.id > 0)
                                     IconButton(
                                       icon: const Icon(Icons.receipt_long_outlined),
-                                      tooltip: '寄月結對帳單',
+                                      tooltip: s.custTooltipEmail,
                                       color: Colors.teal,
                                       onPressed: () => pickMonthAndSendStatement(
                                         ctx,

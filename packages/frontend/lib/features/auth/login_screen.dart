@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../providers/sync_provider.dart';
 import '../settings/dev_settings_screen.dart';
 
@@ -17,9 +18,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   Future<void> _login() async {
+    final s = context.read<AppStrings>();
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('請輸入帳號與密碼')),
+        SnackBar(content: Text(s.errEmptyCredentials)),
       );
       return;
     }
@@ -34,13 +36,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('登入失敗，請檢查帳號密碼。')),
+          SnackBar(content: Text(s.errLoginFailed)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('發生錯誤: $e')),
+          SnackBar(content: Text(s.errLoginException(e.toString()))),
         );
       }
     } finally {
@@ -50,13 +52,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NJ Stream ERP — 登入'),
+        title: Text(s.loginTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: '開發者設定',
+            tooltip: s.menuDevSettings,
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const DevSettingsScreen()),
@@ -86,19 +89,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 32),
                         TextField(
                           controller: _usernameController,
-                          decoration: const InputDecoration(
-                            labelText: '帳號',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person),
+                          decoration: InputDecoration(
+                            labelText: s.loginFieldUsername,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.person),
                           ),
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: _passwordController,
-                          decoration: const InputDecoration(
-                            labelText: '密碼',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.password),
+                          decoration: InputDecoration(
+                            labelText: s.loginFieldPassword,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.password),
                           ),
                           obscureText: true,
                           onSubmitted: (_) => _login(),
@@ -112,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: FilledButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
-                            child: const Text('登入', style: TextStyle(fontSize: 16)),
+                            child: Text(s.btnLogin, style: const TextStyle(fontSize: 16)),
                           ),
                       ],
                     ),

@@ -13,6 +13,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/database.dart';
 import '../../providers/sync_provider.dart';
@@ -50,9 +51,10 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
     setState(() => _saving = true);
 
     try {
-      final db = context.read<AppDatabase>();
+      final db   = context.read<AppDatabase>();
       final sync = context.read<SyncProvider>();
-      final now = DateTime.now().toUtc();
+      final s    = context.read<AppStrings>();
+      final now  = DateTime.now().toUtc();
 
       // 負數臨時 id（W1–W2：離線新增用，Issue #6 pull 後覆蓋為後端真實 id）
       final localId = SyncProvider.nextLocalId();
@@ -93,7 +95,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('儲存失敗：$e'),
+            content: Text(s.isEnglish ? 'Save failed: $e' : '儲存失敗：$e'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -107,16 +109,17 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s           = AppStrings.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('新增客戶'),
+        title: Text(s.custFormTitle),
         actions: [
           if (!_saving)
             TextButton(
               onPressed: _save,
-              child: const Text('儲存'),
+              child: Text(s.btnSave),
             ),
         ],
       ),
@@ -137,7 +140,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '離線時可直接儲存，連線後自動同步至伺服器。',
+                        s.custOfflineNote,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: colorScheme.onPrimaryContainer,
                             ),
@@ -152,27 +155,27 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             // 客戶名稱（必填）
             TextFormField(
               controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: '客戶名稱 *',
-                hintText: '例：台灣科技股份有限公司',
-                prefixIcon: Icon(Icons.business_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: s.custFieldName,
+                hintText: s.isEnglish ? 'e.g. Acme Corp' : '例：台灣科技股份有限公司',
+                prefixIcon: const Icon(Icons.business_outlined),
+                border: const OutlineInputBorder(),
               ),
               autofocus: true,
               textInputAction: TextInputAction.next,
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? '請輸入客戶名稱' : null,
+                  v == null || v.trim().isEmpty ? s.errNameRequired : null,
             ),
             const SizedBox(height: 16),
 
             // 聯絡人（選填）
             TextFormField(
               controller: _contactCtrl,
-              decoration: const InputDecoration(
-                labelText: '聯絡人',
-                hintText: '例：王大明',
-                prefixIcon: Icon(Icons.person_outline),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: s.custFieldContact,
+                hintText: s.isEnglish ? 'e.g. John Smith' : '例：王大明',
+                prefixIcon: const Icon(Icons.person_outline),
+                border: const OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
             ),
@@ -181,19 +184,19 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             // Email（選填，用於寄送報價單/訂單/對帳單）
             TextFormField(
               controller: _emailCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: '例：contact@company.com',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(),
-                helperText: '用於寄送報價單、訂單、月結對帳單',
+              decoration: InputDecoration(
+                labelText: s.custFieldEmail,
+                hintText: 'e.g. contact@company.com',
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: const OutlineInputBorder(),
+                helperText: s.custEmailHelper,
               ),
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
-                  return '請輸入有效的 Email 格式';
+                  return s.errEmailInvalid;
                 }
                 return null;
               },
@@ -203,11 +206,11 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             // 統一編號（選填，8 位數字）
             TextFormField(
               controller: _taxIdCtrl,
-              decoration: const InputDecoration(
-                labelText: '統一編號',
-                hintText: '8 位數字（選填）',
-                prefixIcon: Icon(Icons.tag_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: s.custFieldTaxId,
+                hintText: s.isEnglish ? '8 digits (optional)' : '8 位數字（選填）',
+                prefixIcon: const Icon(Icons.tag_outlined),
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
               maxLength: 8,
@@ -216,7 +219,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 if (!RegExp(r'^\d{8}$').hasMatch(v.trim())) {
-                  return '統一編號須為 8 位數字';
+                  return s.errTaxIdInvalid;
                 }
                 return null;
               },
@@ -233,7 +236,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(_saving ? '儲存中...' : '儲存客戶'),
+              label: Text(_saving ? s.btnSaving : s.btnSaveCustomer),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),

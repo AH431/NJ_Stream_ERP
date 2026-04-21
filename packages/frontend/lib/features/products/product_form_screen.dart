@@ -10,6 +10,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../database/dao/product_dao.dart';
 import '../../database/database.dart';
 import '../../providers/sync_provider.dart';
@@ -47,8 +48,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     setState(() => _saving = true);
 
     try {
-      final db = context.read<AppDatabase>();
+      final db   = context.read<AppDatabase>();
       final sync = context.read<SyncProvider>();
+      final s    = context.read<AppStrings>();
       final now = DateTime.now().toUtc();
       final localId = SyncProvider.nextLocalId();
 
@@ -93,7 +95,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('儲存失敗：$e'),
+            content: Text(s.isEnglish ? 'Save failed: $e' : '儲存失敗：$e'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -107,16 +109,17 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s           = AppStrings.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('新增產品'),
+        title: Text(s.prodFormTitle),
         actions: [
           if (!_saving)
             TextButton(
               onPressed: _save,
-              child: const Text('儲存'),
+              child: Text(s.btnSave),
             ),
         ],
       ),
@@ -137,7 +140,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '新增產品需 Admin 角色，離線時可儲存，連線後同步。',
+                        s.isEnglish
+                            ? 'Admin role required. Saved offline; syncs when connected.'
+                            : '新增產品需 Admin 角色，離線時可儲存，連線後同步。',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: colorScheme.onTertiaryContainer,
                             ),
@@ -152,54 +157,55 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             // 產品名稱（必填）
             TextFormField(
               controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: '產品名稱 *',
-                hintText: '例：高效能伺服器 Pro',
-                prefixIcon: Icon(Icons.inventory_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: s.prodFieldName,
+                hintText: s.isEnglish ? 'e.g. High-performance Server Pro' : '例：高效能伺服器 Pro',
+                prefixIcon: const Icon(Icons.inventory_outlined),
+                border: const OutlineInputBorder(),
               ),
               autofocus: true,
               textInputAction: TextInputAction.next,
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? '請輸入產品名稱' : null,
+                  v == null || v.trim().isEmpty ? s.isEnglish ? 'Product name is required.' : '請輸入產品名稱' : null,
             ),
             const SizedBox(height: 16),
 
             // SKU（必填）
             TextFormField(
               controller: _skuCtrl,
-              decoration: const InputDecoration(
-                labelText: 'SKU *',
-                hintText: '例：SVR-PRO-001',
-                prefixIcon: Icon(Icons.qr_code_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: s.prodFieldSku,
+                hintText: 'e.g. SVR-PRO-001',
+                prefixIcon: const Icon(Icons.qr_code_outlined),
+                border: const OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.characters,
               textInputAction: TextInputAction.next,
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? '請輸入 SKU' : null,
+                  v == null || v.trim().isEmpty ? s.isEnglish ? 'SKU is required.' : '請輸入 SKU' : null,
             ),
             const SizedBox(height: 16),
 
             // 單價（必填，decimal 驗證，對應 api-contract ^\d+\.\d{2}$ 格式）
             TextFormField(
               controller: _unitPriceCtrl,
-              decoration: const InputDecoration(
-                labelText: '單價 *',
-                hintText: '例：158000.00',
-                prefixIcon: Icon(Icons.attach_money),
+              decoration: InputDecoration(
+                labelText: s.prodFieldPrice,
+                hintText: 'e.g. 158000.00',
+                prefixIcon: const Icon(Icons.attach_money),
                 prefixText: 'NT\$ ',
-                border: OutlineInputBorder(),
-                helperText: '支援小數點後最多兩位',
+                border: const OutlineInputBorder(),
+                helperText: s.isEnglish ? 'Up to 2 decimal places' : '支援小數點後最多兩位',
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               textInputAction: TextInputAction.next,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return '請輸入單價';
-                // 允許整數或最多兩位小數
+                if (v == null || v.trim().isEmpty) {
+                  return s.isEnglish ? 'Unit price is required.' : '請輸入單價';
+                }
                 if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(v.trim())) {
-                  return '請輸入有效金額（最多兩位小數）';
+                  return s.isEnglish ? 'Invalid amount (max 2 decimal places).' : '請輸入有效金額（最多兩位小數）';
                 }
                 return null;
               },
@@ -209,12 +215,12 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             // 最低庫存警示（選填，預設 0）
             TextFormField(
               controller: _minStockCtrl,
-              decoration: const InputDecoration(
-                labelText: '最低庫存警示',
-                hintText: '低於此數量時儀表板顯示警示',
-                prefixIcon: Icon(Icons.warning_amber_outlined),
-                border: OutlineInputBorder(),
-                suffixText: '件',
+              decoration: InputDecoration(
+                labelText: s.prodFieldMinStock,
+                hintText: s.isEnglish ? 'Dashboard alerts below this level' : '低於此數量時儀表板顯示警示',
+                prefixIcon: const Icon(Icons.warning_amber_outlined),
+                border: const OutlineInputBorder(),
+                suffixText: s.isEnglish ? 'units' : '件',
               ),
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
@@ -222,7 +228,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 final n = int.tryParse(v.trim());
-                if (n == null || n < 0) return '請輸入 0 以上的整數';
+                if (n == null || n < 0) {
+                  return s.isEnglish ? 'Enter a non-negative integer.' : '請輸入 0 以上的整數';
+                }
                 return null;
               },
             ),
@@ -238,7 +246,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(_saving ? '儲存中...' : '儲存產品'),
+              label: Text(_saving ? s.btnSavingProduct : s.btnSaveProduct),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),

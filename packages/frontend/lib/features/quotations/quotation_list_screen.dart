@@ -17,6 +17,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../core/document_actions.dart';
 import '../../database/database.dart';
 import '../../database/dao/customer_dao.dart';
@@ -81,23 +82,29 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
   }
 
   Future<void> _batchDelete(BuildContext context) async {
+    final s     = context.read<AppStrings>();
     final count = _selectedIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('確認刪除'),
-        content: Text('確定要刪除 $count 張報價單？此操作無法復原，資料僅能從後台查詢。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('刪除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final ds = ctx.read<AppStrings>();
+        return AlertDialog(
+          title: Text(ds.isEnglish ? 'Confirm Delete' : '確認刪除'),
+          content: Text(ds.isEnglish
+              ? 'Delete $count quotations? This cannot be undone.'
+              : '確定要刪除 $count 張報價單？此操作無法復原。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ds.btnCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ds.btnDelete, style: const TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -128,12 +135,15 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     _exitSelectionMode();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已刪除 $count 張報價單，待同步後從伺服器移除')),
+        SnackBar(content: Text(s.isEnglish
+            ? '$count quotations deleted (pending sync).'
+            : '已刪除 $count 張報價單，待同步後從伺服器移除')),
       );
     }
   }
 
   Widget _buildSelectionBar(BuildContext context, String? role) {
+    final s         = AppStrings.of(context);
     final canDelete = role == 'sales' || role == 'admin';
     return ColoredBox(
       color: Theme.of(context).colorScheme.primaryContainer,
@@ -141,12 +151,12 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
         children: [
           IconButton(
             icon: const Icon(Icons.close),
-            tooltip: '離開選取',
+            tooltip: s.isEnglish ? 'Exit selection' : '離開選取',
             onPressed: _exitSelectionMode,
           ),
           Expanded(
             child: Text(
-              '已選取 ${_selectedIds.length} 項',
+              s.isEnglish ? '${_selectedIds.length} selected' : '已選取 ${_selectedIds.length} 項',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -154,7 +164,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
             TextButton.icon(
               onPressed: _selectedIds.isEmpty ? null : () => _batchDelete(context),
               icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('刪除'),
+              label: Text(s.btnDelete),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
           const SizedBox(width: 8),
@@ -165,12 +175,12 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
 
   // ─── 狀態標籤 ───────────────────────────────────────────────────────────────
 
-  Widget _buildStatusLabel(String status) {
+  Widget _buildStatusLabel(String status, AppStrings s) {
     final (label, icon, color) = switch (status) {
-      'sent'      => ('已發送', Icons.send_outlined,          Colors.blue),
-      'converted' => ('已轉訂', Icons.check_circle_outline,   Colors.green),
-      'expired'   => ('已過期', Icons.timer_off_outlined,     Colors.orange),
-      _           => ('草稿',   Icons.edit_outlined,          Colors.grey),
+      'sent'      => (s.quotStatusSent,      Icons.send_outlined,          Colors.blue),
+      'converted' => (s.quotStatusConverted, Icons.check_circle_outline,   Colors.green),
+      'expired'   => (s.quotStatusExpired,   Icons.timer_off_outlined,     Colors.orange),
+      _           => (s.quotStatusDraft,     Icons.edit_outlined,          Colors.grey),
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -220,8 +230,11 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
     await sync.enqueueCreate('sales_order', payload);
 
     if (context.mounted) {
+      final s = context.read<AppStrings>();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('轉訂單已排入待同步佇列')),
+        SnackBar(content: Text(s.isEnglish
+            ? 'Convert to order queued for sync.'
+            : '轉訂單已排入待同步佇列')),
       );
     }
   }
@@ -229,10 +242,12 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
   // ─── 報價列表項目 ─────────────────────────────────────────────────────────────
 
   Widget _buildQuotationTile(BuildContext context, Quotation q, String? role) {
+    final s    = AppStrings.of(context);
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
 
-    final customerName = _customerMap[q.customerId] ?? '客戶 #${q.customerId}';
+    final customerName = _customerMap[q.customerId] ??
+        (s.isEnglish ? 'Customer #${q.customerId}' : '客戶 #${q.customerId}');
     final isOffline = q.id < 0;
 
     final canConvert = (role == 'sales' || role == 'admin') &&
@@ -291,10 +306,10 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
               // 第二行：狀態標籤 + 合計金額 + 日期
               Row(
                 children: [
-                  _buildStatusLabel(q.status),
+                  _buildStatusLabel(q.status, s),
                   const SizedBox(width: 12),
                   Text(
-                    '合計：${q.totalAmount}',
+                    s.isEnglish ? 'Total: ${q.totalAmount}' : '合計：${q.totalAmount}',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(width: 8),
@@ -322,7 +337,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                           filename: 'quotation-${q.id}.pdf',
                         ),
                         icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                        label: const Text('PDF'),
+                        label: Text(s.btnPdf),
                         style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
                       ),
                       TextButton.icon(
@@ -331,7 +346,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                           apiPath: '/api/v1/quotations/${q.id}/send-email',
                         ),
                         icon: const Icon(Icons.email_outlined, size: 16),
-                        label: const Text('寄信'),
+                        label: Text(s.btnSendEmail),
                         style: TextButton.styleFrom(foregroundColor: Colors.teal),
                       ),
                     ],
@@ -339,14 +354,14 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                       TextButton.icon(
                         onPressed: () => _convertToOrder(context, db, sync, q),
                         icon: const Icon(Icons.swap_horiz, size: 16),
-                        label: const Text('轉訂單'),
+                        label: Text(s.btnConvert),
                         style: TextButton.styleFrom(foregroundColor: Colors.indigo),
                       ),
                     if (pendingConvert)
                       TextButton.icon(
                         onPressed: null,
                         icon: const Icon(Icons.swap_horiz, size: 16),
-                        label: const Text('連線推送後轉訂單'),
+                        label: Text(s.btnConvertOnline),
                       ),
                   ],
                 ),
@@ -366,6 +381,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s    = AppStrings.of(context);
     final db   = context.read<AppDatabase>();
     final sync = context.read<SyncProvider>();
     final role = sync.role;
@@ -390,11 +406,11 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                 child: quotations.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 120),
+                        children: [
+                          const SizedBox(height: 120),
                           Center(
                             child: Text(
-                              '尚無報價單\n下拉以同步取得最新資料',
+                              s.quotEmptyHint,
                               textAlign: TextAlign.center,
                             ),
                           ),
