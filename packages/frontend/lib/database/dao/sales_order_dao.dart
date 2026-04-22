@@ -27,7 +27,7 @@ extension SalesOrderDao on AppDatabase {
   }
 
   /// 監聽所有未軟刪除的銷售訂單（供 SalesOrderListScreen 使用）。
-  /// 排序：流程進度（待處理 → 確認未預留 → 確認已預留 → 出貨 → 取消），同狀態內 createdAt 升序
+  /// 排序：流程進度（待處理 → 確認未預留 → 確認已預留 → 出貨 → 取消），同狀態內 createdAt 降序（最新在上）
   Stream<List<SalesOrder>> watchActiveSalesOrders() {
     return (select(salesOrders)
           ..where((t) => t.deletedAt.isNull()))
@@ -37,7 +37,7 @@ extension SalesOrderDao on AppDatabase {
             final pa = _orderPriority(a);
             final pb = _orderPriority(b);
             if (pa != pb) return pa.compareTo(pb);
-            return a.createdAt.compareTo(b.createdAt);
+            return b.createdAt.compareTo(a.createdAt);
           });
           return list;
         });

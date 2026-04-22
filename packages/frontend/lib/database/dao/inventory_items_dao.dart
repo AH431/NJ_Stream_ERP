@@ -71,11 +71,23 @@ extension InventoryItemsDao on AppDatabase {
   }
 
   /// 監聽所有庫存快照（供庫存列表 UI 使用）
-  /// 依 productId 升序排列，便於搭配產品列表對照
+  /// INNER JOIN Products：自動過濾已軟刪除產品的殘存庫存記錄
+  /// 依 productId 升序排列
   Stream<List<InventoryItem>> watchInventoryItems() {
-    return (select(inventoryItems)
-          ..orderBy([(t) => OrderingTerm.asc(t.productId)]))
-        .watch();
+    final query = select(inventoryItems).join([
+      innerJoin(products, products.id.equalsExp(inventoryItems.productId)),
+    ])
+      ..where(products.deletedAt.isNull())
+      ..orderBy([OrderingTerm.asc(inventoryItems.productId)]);
+    return query.watch().map(
+      (rows) => rows.map((row) => row.readTable(inventoryItems)).toList(),
+    );
+  }
+
+  /// 從本地 DB 實體刪除指定庫存記錄（Admin 手動清理孤立記錄用）
+  /// 注意：不進同步佇列，Pull 後若後端仍存在則會由 upsert 恢復
+  Future<void> deleteInventoryItem(int id) async {
+    await (delete(inventoryItems)..where((t) => t.id.equals(id))).go();
   }
 
   /// 依 productId 查詢單筆庫存（供確認訂單計算 reserve 使用）

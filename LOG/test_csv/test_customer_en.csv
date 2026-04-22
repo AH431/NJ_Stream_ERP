@@ -1,11 +1,11 @@
-name,contact,taxId
-Apex Manufacturing Ltd,David Chen,23456781
-Summit Electronics Co.,Sarah Lin,34567892
-Pacific Industrial Corp,Michael Wang,45678903
-Horizon Tech Solutions,Emily Huang,56789014
-Atlas Precision Parts,Kevin Wu,67890125
-Zenith Hardware Inc.,Jessica Lee,78901236
-Pioneer Components Ltd,Robert Chang,89012347
-Velocity Machinery Co.,Amanda Tsai,90123458
-Nexus Supply Group,Brian Hsu,01234569
-Meridian Engineering,Natalie Chou,12345670
+name,contact,taxId,email
+Apex Manufacturing Ltd,David Chen,23456781,david.chen@example.com
+Summit Electronics Co.,Sarah Lin,34567892,sarah.lin@example.com
+Pacific Industrial Corp,Michael Wang,45678903,michael.wang@example.com
+Horizon Tech Solutions,Emily Huang,56789014,emily.huang@example.com
+Atlas Precision Parts,Kevin Wu,67890125,kevin.wu@example.com
+Zenith Hardware Inc.,Jessica Lee,78901236,jessica.lee@example.com
+Pioneer Components Ltd,Robert Chang,89012347,robert.chang@example.com
+Velocity Machinery Co.,Amanda Tsai,90123458,amanda.tsai@example.com
+Nexus Supply Group,Brian Hsu,01234569,brian.hsu@example.com
+Meridian Engineering,Natalie Chou,12345670,natalie.chou@example.com

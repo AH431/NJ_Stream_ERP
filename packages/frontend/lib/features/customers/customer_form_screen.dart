@@ -50,10 +50,10 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
+    final s = context.read<AppStrings>();
     try {
       final db   = context.read<AppDatabase>();
       final sync = context.read<SyncProvider>();
-      final s    = context.read<AppStrings>();
       final now  = DateTime.now().toUtc();
 
       // 負數臨時 id（W1–W2：離線新增用，Issue #6 pull 後覆蓋為後端真實 id）

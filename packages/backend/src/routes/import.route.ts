@@ -39,6 +39,7 @@ const CustomerRow = z.object({
   name:    z.string().min(1),
   contact: z.string().optional(),
   taxId:   z.string().optional(),
+  email:   z.string().email().optional().or(z.literal('')),
 });
 
 const InventoryRow = z.object({
@@ -139,6 +140,7 @@ export default async function importRoutes(app: FastifyInstance) {
             name:    parsed.name,
             contact: parsed.contact ?? null,
             taxId:   parsed.taxId   ?? null,
+            email:   (parsed.email && parsed.email !== '') ? parsed.email : null,
           });
           succeeded++;
 

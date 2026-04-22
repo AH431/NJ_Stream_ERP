@@ -245,13 +245,22 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
           ),
           _buildAmountSummary(),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _save,
-                child: Text(s.btnSaveQuotation),
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _addRow,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(s.quotBtnAddRow),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _save,
+                    child: Text(s.btnSaveQuotation),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -384,14 +393,17 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('${s.quotLabelSubtotal}$sub'),
-              Text('${s.quotLabelTax(_withTax)}$tax'),
-              Text('${s.quotLabelTotal}$total',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('${s.quotLabelSubtotal}$sub', overflow: TextOverflow.ellipsis),
+                Text('${s.quotLabelTax(_withTax)}$tax', overflow: TextOverflow.ellipsis),
+                Text('${s.quotLabelTotal}$total',
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
         ],
       ),

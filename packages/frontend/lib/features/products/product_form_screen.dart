@@ -47,10 +47,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
+    final s = context.read<AppStrings>();
     try {
       final db   = context.read<AppDatabase>();
       final sync = context.read<SyncProvider>();
-      final s    = context.read<AppStrings>();
       final now = DateTime.now().toUtc();
       final localId = SyncProvider.nextLocalId();
 
