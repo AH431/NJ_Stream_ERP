@@ -136,12 +136,32 @@ export default async function importRoutes(app: FastifyInstance) {
 
         } else if (importType === 'customer') {
           const parsed = CustomerRow.parse(raw);
-          await db.insert(customers).values({
-            name:    parsed.name,
-            contact: parsed.contact ?? null,
-            taxId:   parsed.taxId   ?? null,
-            email:   (parsed.email && parsed.email !== '') ? parsed.email : null,
-          });
+          
+          // 檢查同名客戶是否存在
+          const [existing] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.name, parsed.name))
+            .limit(1);
+
+          if (existing) {
+            // 更新舊客戶資料，同時確保恢復為非刪除狀態
+            await db.update(customers).set({
+              contact:   parsed.contact ?? existing.contact,
+              taxId:     parsed.taxId   ?? existing.taxId,
+              email:     (parsed.email && parsed.email !== '') ? parsed.email : existing.email,
+              deletedAt: null,
+              updatedAt: new Date(),
+            }).where(eq(customers.id, existing.id));
+          } else {
+            // 新增客戶
+            await db.insert(customers).values({
+              name:    parsed.name,
+              contact: parsed.contact ?? null,
+              taxId:   parsed.taxId   ?? null,
+              email:   (parsed.email && parsed.email !== '') ? parsed.email : null,
+            });
+          }
           succeeded++;
 
         } else {

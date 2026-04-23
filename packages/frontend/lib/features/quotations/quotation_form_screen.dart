@@ -43,6 +43,7 @@ class _ItemRow {
   }
 
   Decimal get qty => Decimal.parse(qtyCtrl.text.isEmpty ? '0' : qtyCtrl.text);
+
   Decimal get price {
     final raw = priceCtrl.text.trim();
     return Decimal.tryParse(raw) ?? Decimal.zero;
@@ -73,6 +74,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   List<Product> _products = [];
   bool _masterDataLoaded = false;
 
+  final _scrollController = ScrollController();
+
   // --------------------------------------------------------------------------
   // 初始化
   // --------------------------------------------------------------------------
@@ -86,17 +89,19 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   Future<void> _loadMasterData() async {
     final db = Provider.of<AppDatabase>(context, listen: false);
     final customers = await db.getActiveCustomers();
-    final products  = await db.getActiveProducts();
+    final products = await db.getActiveProducts();
+
     if (!mounted) return;
     setState(() {
       _customers = customers;
-      _products  = products;
+      _products = products;
       _masterDataLoaded = true;
     });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     for (final row in _rows) {
       row.dispose();
     }
@@ -121,6 +126,13 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
 
   void _addRow() {
     setState(() => _rows.add(_ItemRow()));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void _removeRow(int index) {
@@ -135,7 +147,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     if (productId == null) return;
     final product = _products.firstWhere((p) => p.id == productId);
     setState(() {
-      _rows[index].productId   = productId;
+      _rows[index].productId = productId;
       _rows[index].productName = product.name;
       _rows[index].priceCtrl.text = product.unitPrice.toStringAsFixed(2);
     });
@@ -145,56 +157,68 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // 儲存
   // --------------------------------------------------------------------------
 
+  // 高風險註記：
+  // - 不要在 onPressed/_save 事件流程中呼叫 AppStrings.of(context)。
+  //   AppStrings.of 內部使用 context.watch，會觸發 Provider assertion：
+  //   "Tried to listen to a value exposed with provider, from outside of the widget tree."
+  //   若事件流程需要文案，請使用 AppStrings.read(context) 或 context.read<AppStrings>()。
+  // - Save Quotation 保持舊版語意：只做本地 insert + enqueueCreate + pop。
+  //   不要在這裡 await pushPendingOperations；token refresh / tunnel / sync 失敗
+  //   會卡住 Navigator.pop，讓使用者感覺按鈕沒反應。
+  // - 不要用整頁 GestureDetector 包 Scaffold 來收鍵盤；它可能和底部按鈕 tap
+  //   競爭。若要完成輸入，優先用欄位層級處理。
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final db   = Provider.of<AppDatabase>(context, listen: false);
+    final db = Provider.of<AppDatabase>(context, listen: false);
     final sync = Provider.of<SyncProvider>(context, listen: false);
 
-    final now      = DateTime.now().toUtc();
-    final localId  = SyncProvider.nextLocalId();
-    final userId   = sync.userId!;
+    final now = DateTime.now().toUtc();
+    final localId = SyncProvider.nextLocalId();
+    final userId = sync.userId!;
 
     final subtotalSum = _subtotalSum;
-    final taxAmount   = _taxAmount;
+    final taxAmount = _taxAmount;
     final totalAmount = _totalAmount;
 
-    final items = _rows.map((r) => QuotationItemModel(
-      productId: r.productId!,
-      quantity:  int.parse(r.qtyCtrl.text),
-      unitPrice: r.price.toStringAsFixed(2),
-      subtotal:  r.subtotal.toStringAsFixed(2),
-    )).toList();
+    final items = _rows
+        .map((r) => QuotationItemModel(
+              productId: r.productId!,
+              quantity: int.parse(r.qtyCtrl.text),
+              unitPrice: r.price.toStringAsFixed(2),
+              subtotal: r.subtotal.toStringAsFixed(2),
+            ))
+        .toList();
 
     final itemsJson = QuotationItemModel.toJsonString(items);
 
     await db.insertQuotation(QuotationsCompanion(
-      id:           Value(localId),
-      customerId:   Value(_selectedCustomerId!),
-      createdBy:    Value(userId),
-      items:        Value(itemsJson),
-      totalAmount:  Value(totalAmount),
-      taxAmount:    Value(taxAmount),
-      status:       const Value('draft'),
-      createdAt:    Value(now),
-      updatedAt:    Value(now),
+      id: Value(localId),
+      customerId: Value(_selectedCustomerId!),
+      createdBy: Value(userId),
+      items: Value(itemsJson),
+      totalAmount: Value(totalAmount),
+      taxAmount: Value(taxAmount),
+      status: const Value('draft'),
+      createdAt: Value(now),
+      updatedAt: Value(now),
     ));
 
     // Payload 的 items 為 List<Map>（後端格式）
     await sync.enqueueCreate('quotation', {
-      'id':                localId,
-      'customerId':        _selectedCustomerId,
-      'createdBy':         userId,
-      'items':             items.map((i) => i.toJson()).toList(),
-      'totalAmount':       totalAmount.toStringAsFixed(2),
-      'taxAmount':         taxAmount.toStringAsFixed(2),
-      'subtotalSum':       subtotalSum.toStringAsFixed(2),
-      'withTax':           _withTax,
-      'status':            'draft',
+      'id': localId,
+      'customerId': _selectedCustomerId,
+      'createdBy': userId,
+      'items': items.map((i) => i.toJson()).toList(),
+      'totalAmount': totalAmount.toStringAsFixed(2),
+      'taxAmount': taxAmount.toStringAsFixed(2),
+      'subtotalSum': subtotalSum.toStringAsFixed(2),
+      'withTax': _withTax,
+      'status': 'draft',
       'convertedToOrderId': null,
-      'createdAt':         now.toIso8601String(),
-      'updatedAt':         now.toIso8601String(),
-      'deletedAt':         null,
+      'createdAt': now.toIso8601String(),
+      'updatedAt': now.toIso8601String(),
+      'deletedAt': null,
     });
 
     if (!mounted) return;
@@ -210,7 +234,9 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     final s = AppStrings.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(s.quotFormTitle)),
-      body: _masterDataLoaded ? _buildForm() : const Center(child: CircularProgressIndicator()),
+      body: _masterDataLoaded
+          ? _buildForm()
+          : const Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -222,41 +248,60 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
       child: Column(
         children: [
           Expanded(
-            child: ListView(
+            child: SingleChildScrollView(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              children: [
-                _buildCustomerDropdown(),
-                const SizedBox(height: 16),
-                ..._buildItemRows(),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _addRow,
-                  icon: const Icon(Icons.add),
-                  label: Text(s.quotBtnAddRow),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  title: Text(s.quotWithTax),
-                  value: _withTax,
-                  onChanged: (v) => setState(() => _withTax = v),
-                ),
-              ],
+              child: Column(
+                children: [
+                  _buildCustomerDropdown(),
+                  const SizedBox(height: 16),
+                  ..._buildItemRows(),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    title: Text(s.quotWithTax),
+                    value: _withTax,
+                    onChanged: (v) => setState(() => _withTax = v),
+                  ),
+                  const SizedBox(height: 80), // 留白防止被底部操作列擋住最後一筆
+                ],
+              ),
             ),
           ),
           _buildAmountSummary(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          // 增加 Padding 解決手機系統列遮擋問題
+          Container(
+            padding: EdgeInsets.fromLTRB(
+                16, 4, 16, MediaQuery.of(context).padding.bottom + 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, -2))
+              ],
+            ),
             child: Row(
               children: [
                 OutlinedButton.icon(
                   onPressed: _addRow,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(s.quotBtnAddRow),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: Text(s.quotBtnAddRow,
+                      style: const TextStyle(fontSize: 14)),
+                  style: OutlinedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: const Size(0, 44),
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      minimumSize: const Size(0, 44),
+                    ),
                     child: Text(s.btnSaveQuotation),
                   ),
                 ),
@@ -275,9 +320,12 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   Widget _buildCustomerDropdown() {
     final s = AppStrings.of(context);
     return DropdownButtonFormField<int>(
-      decoration: InputDecoration(labelText: s.quotFieldCustomer, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+          labelText: s.quotFieldCustomer, border: const OutlineInputBorder()),
       value: _selectedCustomerId,
-      items: _customers.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+      items: _customers
+          .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+          .toList(),
       onChanged: (v) => setState(() => _selectedCustomerId = v),
       validator: (v) => v == null ? s.quotErrCustomer : null,
     );
@@ -302,23 +350,28 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
+                      isExpanded: true, // 確保長名稱會自動縮略而不溢出
                       decoration: InputDecoration(
                         labelText: s.quotFieldProduct,
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                       value: row.productId,
-                      items: _products.map((p) => DropdownMenuItem(
-                        value: p.id,
-                        child: Text('${p.name} (${p.sku})', overflow: TextOverflow.ellipsis),
-                      )).toList(),
+                      items: _products
+                          .map((p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text('${p.name} (${p.sku})',
+                                    overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
                       onChanged: (v) => _onProductSelected(i, v),
                       validator: (v) => v == null ? s.quotErrProduct : null,
                     ),
                   ),
                   if (_rows.length > 1)
                     IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                      icon: const Icon(Icons.remove_circle_outline,
+                          color: Colors.red),
                       onPressed: () => _removeRow(i),
                     ),
                 ],
@@ -328,10 +381,16 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                 children: [
                   // 數量
                   SizedBox(
-                    width: 80,
+                    width: 65,
                     child: TextFormField(
                       controller: row.qtyCtrl,
-                      decoration: InputDecoration(labelText: s.quotFieldQty, border: const OutlineInputBorder(), isDense: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Qty',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                      style: const TextStyle(fontSize: 13),
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setState(() {}),
                       validator: (v) {
@@ -341,30 +400,46 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   // 單價
                   Expanded(
                     child: TextFormField(
                       controller: row.priceCtrl,
-                      decoration: InputDecoration(labelText: s.quotFieldPrice, border: const OutlineInputBorder(), isDense: true),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Price',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                      style: const TextStyle(fontSize: 13),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
                       onChanged: (_) => setState(() {}),
                       validator: (v) {
                         if (v == null || v.isEmpty) return s.quotErrPriceEmpty;
-                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(v)) return s.quotErrPriceFmt;
+                        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(v)) {
+                          return s.quotErrPriceFmt;
+                        }
                         return null;
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   // 唯讀小計
                   SizedBox(
-                    width: 90,
+                    width: 85,
                     child: InputDecorator(
-                      decoration: InputDecoration(labelText: s.quotFieldSubtotal, border: const OutlineInputBorder(), isDense: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Total',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
                       child: Text(
                         row.subtotal.toStringAsFixed(2),
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -382,28 +457,31 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // --------------------------------------------------------------------------
 
   Widget _buildAmountSummary() {
-    final s     = AppStrings.of(context);
-    final sub   = _subtotalSum.toStringAsFixed(2);
-    final tax   = _taxAmount.toStringAsFixed(2);
+    final s = AppStrings.of(context);
+    final sub = _subtotalSum.toStringAsFixed(2);
+    final tax = _taxAmount.toStringAsFixed(2);
     final total = _totalAmount.toStringAsFixed(2);
 
+    final style = TextStyle(
+        fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant);
+
     return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      width: double.infinity,
+      color: Theme.of(context)
+          .colorScheme
+          .surfaceContainerHighest
+          .withValues(alpha: 0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
         children: [
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('${s.quotLabelSubtotal}$sub', overflow: TextOverflow.ellipsis),
-                Text('${s.quotLabelTax(_withTax)}$tax', overflow: TextOverflow.ellipsis),
-                Text('${s.quotLabelTotal}$total',
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-              ],
-            ),
+          Text('${s.quotLabelSubtotal}$sub', style: style),
+          Text('${s.quotLabelTax(_withTax)}$tax', style: style),
+          Text(
+            '${s.quotLabelTotal}$total',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ],
       ),

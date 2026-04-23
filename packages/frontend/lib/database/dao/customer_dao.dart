@@ -24,13 +24,16 @@ extension CustomerDao on AppDatabase {
   Stream<List<Customer>> watchActiveCustomers() {
     return (select(customers)
           ..where((t) => t.deletedAt.isNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.name)]))
         .watch();
   }
 
   /// 一次性查詢（用於非 UI 場景）
   Future<List<Customer>> getActiveCustomers() {
-    return (select(customers)..where((t) => t.deletedAt.isNull())).get();
+    return (select(customers)
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+        .get();
   }
 
   // --------------------------------------------------------------------------
@@ -84,5 +87,10 @@ extension CustomerDao on AppDatabase {
                 pendingRelatedIds.map((idStr) => idStr.split(':').last)
               ).not()))
         .go();
+  }
+
+  /// 硬刪除本地所有客戶記錄（開發偵錯用，不影響後端）
+  Future<void> hardDeleteAllLocalCustomers() async {
+    await delete(customers).go();
   }
 }

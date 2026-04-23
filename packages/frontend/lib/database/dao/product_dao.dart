@@ -27,7 +27,10 @@ extension ProductDao on AppDatabase {
 
   /// 一次性查詢
   Future<List<Product>> getActiveProducts() {
-    return (select(products)..where((t) => t.deletedAt.isNull())).get();
+    return (select(products)
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+        .get();
   }
 
   // --------------------------------------------------------------------------

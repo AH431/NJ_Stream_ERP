@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,20 @@ const _typeKeywords = {
   'customer':  'customer',
   'inventory': 'inventory',
 };
+
+/// CSV 候選資料夾清單（依優先序，第一個存在的目錄優先使用）
+///
+/// 路徑說明：
+///   1. App 私有外部目錄/test_csv  — adb push 的預設目標（最優先）
+///   2. App 私有外部目錄/csv       — 替代命名
+///   3. App 私有外部目錄（根目錄）  — 直接放在外部目錄根
+///   4. /sdcard/NJ_Stream_ERP/csv  — 用戶手動放置於公開目錄
+///
+/// 標準 adb push 指令（從 PC 傳至手機）：
+///   adb push LOG/test_csv/ \
+///     /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/
+const _csvFolderCandidateNames = ['test_csv', 'csv', ''];  // '' = 外部目錄根
+const _csvPublicFallback = '/sdcard/NJ_Stream_ERP/csv';    // 公開目錄備援
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +55,8 @@ class _ImportScreenState extends State<ImportScreen> {
   List<String> _matchingFiles = [];   // 符合關鍵字的 CSV 完整路徑清單
   String? _selectedFilePath;          // 已選取的檔案完整路徑
   List<String> _previewLines = [];    // 已選取檔案的前幾行
+  List<String>? _candidatePaths;      // 所有候選路徑（供提示用）
+  bool _noFolderFound = false;        // 所有候選路徑皆不存在
 
   // --------------------------------------------------------------------------
 
@@ -70,16 +87,47 @@ class _ImportScreenState extends State<ImportScreen> {
   }
 
   Future<void> _initDirAndScan() async {
-    final dir = await getExternalStorageDirectory();
-    if (dir != null && mounted) {
-      _dirController.text = '${dir.path}/test_csv';
+    final extDir = await getExternalStorageDirectory();
+
+    // 建立所有候選路徑（外部私有目錄的子目錄 + 公開備援）
+    final candidates = <String>[];
+    if (extDir != null) {
+      for (final name in _csvFolderCandidateNames) {
+        final path = name.isEmpty ? extDir.path : '${extDir.path}/$name';
+        candidates.add(path);
+      }
+    }
+    candidates.add(_csvPublicFallback);
+
+    if (!mounted) return;
+    setState(() => _candidatePaths = candidates);
+
+    // 依優先序找第一個存在的資料夾
+    String? foundPath;
+    for (final path in candidates) {
+      if (Directory(path).existsSync()) {
+        foundPath = path;
+        break;
+      }
+    }
+
+    if (foundPath != null) {
+      _dirController.text = foundPath;
       _scanDirectory();
+    } else {
+      // 所有候選路徑都不存在：顯示傳輸失敗通知
+      if (mounted) {
+        setState(() => _noFolderFound = true);
+      }
     }
   }
 
   Future<void> _scanDirectory() async {
     final dirPath = _dirController.text.trim();
     if (dirPath.isEmpty) return;
+
+    // 清除「找不到資料夾」狀態，讓用戶可手動重掃
+    if (mounted) setState(() => _noFolderFound = false);
 
     final s = context.read<AppStrings>();
 
@@ -128,7 +176,7 @@ class _ImportScreenState extends State<ImportScreen> {
     final s = context.read<AppStrings>();
     try {
       final bytes = await File(fullPath).readAsBytes();
-      final content = String.fromCharCodes(bytes);
+      final content = utf8.decode(bytes, allowMalformed: true);
       final lines = content.trim().split(RegExp(r'\r?\n'));
       if (mounted) {
         setState(() {
@@ -166,7 +214,7 @@ class _ImportScreenState extends State<ImportScreen> {
       return;
     }
 
-    final lines = String.fromCharCodes(bytes).trim().split(RegExp(r'\r?\n'));
+    final lines = utf8.decode(bytes, allowMalformed: true).trim().split(RegExp(r'\r?\n'));
     if (lines.length < 2) {
       if (mounted) setState(() => _uploadError = s.importErrTooShort);
       return;
@@ -216,7 +264,7 @@ class _ImportScreenState extends State<ImportScreen> {
         title: Row(children: [
           Icon(Icons.check_circle_outline, color: Colors.green.shade600),
           const SizedBox(width: 8),
-          Text(s.importSuccessTitle(succeeded)),
+          Expanded(child: Text(s.importSuccessTitle(succeeded))),
         ]),
         content: failed.isEmpty
             ? Text(s.importNoFailed)
@@ -251,7 +299,7 @@ class _ImportScreenState extends State<ImportScreen> {
         title: Row(children: [
           Icon(Icons.error_outline, color: Colors.red.shade600),
           const SizedBox(width: 8),
-          Text(s.importErrTitle),
+          Expanded(child: Text(s.importErrTitle)),
         ]),
         content: Text(msg),
         actions: [
@@ -359,6 +407,12 @@ class _ImportScreenState extends State<ImportScreen> {
 
             const SizedBox(height: 20),
 
+            // ── 找不到任何候選資料夾的錯誤通知 ─────────────────────
+            if (_noFolderFound) ...[
+              _NoFolderCard(candidatePaths: _candidatePaths ?? []),
+              const SizedBox(height: 20),
+            ],
+
             // ── 符合的檔案清單 ────────────────────────────────────────
             Text(
               s.importFileListTitle(typeLabel),
@@ -368,8 +422,8 @@ class _ImportScreenState extends State<ImportScreen> {
 
             if (_isScanning)
               const Center(child: CircularProgressIndicator())
-            else if (_matchingFiles.isEmpty)
-              _EmptyFilesHint(dirPath: _dirController.text)
+            else if (_matchingFiles.isEmpty && !_noFolderFound)
+              _EmptyFilesHint(dirPath: _dirController.text, candidatePaths: _candidatePaths ?? [])
             else
               Card(
                 margin: EdgeInsets.zero,
@@ -513,11 +567,115 @@ class _ImportScreenState extends State<ImportScreen> {
   }
 }
 
-// ── 資料夾無符合檔案提示 ──────────────────────────────────────────────────────
+// ── 所有候選資料夾皆不存在：傳輸失敗通知 ─────────────────────────────────────
+
+class _NoFolderCard extends StatelessWidget {
+  const _NoFolderCard({required this.candidatePaths});
+  final List<String> candidatePaths;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.cloud_off_outlined, size: 18, color: Colors.red.shade700),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                s.isEnglish ? 'CSV folder not found. Please push files first.' : '找不到 CSV 資料夾，請先將檔案傳至手機',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: Colors.red.shade800,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Text(
+            s.isEnglish ? 'The following paths were searched but do not exist:' : '系統已依序搜尋下列路徑，全部不存在：',
+            style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+          ),
+          const SizedBox(height: 6),
+          // 列出所有候選路徑
+          ...candidatePaths.asMap().entries.map((e) => Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${e.key + 1}. ',
+                  style: TextStyle(fontSize: 11, color: Colors.red.shade600),
+                ),
+                Expanded(
+                  child: Text(
+                    e.value.isEmpty ? (s.isEnglish ? '(External Root)' : '(外部目錄根)') : e.value,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.isEnglish ? '# Push CSV from PC to phone (run this adb command):' : '# 從電腦傳送 CSV 至手機（執行以下 adb 指令）',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const SelectableText(
+                  'adb push LOG/test_csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    color: Colors.greenAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            s.isEnglish ? 'After pushing, tap "Re-scan" to load files.' : '傳送完成後，點「重新掃描」按鈕即可載入檔案。',
+            style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 資料夾存在但無符合檔案提示 ───────────────────────────────────────────────
 
 class _EmptyFilesHint extends StatelessWidget {
-  const _EmptyFilesHint({required this.dirPath});
+  const _EmptyFilesHint({required this.dirPath, required this.candidatePaths});
   final String dirPath;
+  final List<String> candidatePaths;
 
   @override
   Widget build(BuildContext context) {
@@ -535,19 +693,33 @@ class _EmptyFilesHint extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            exists ? s.importNoMatchFiles : s.importDirNotFound,
+            exists
+                ? (s.isEnglish ? 'No matching CSV files found in folder' : '此資料夾內找不到符合的 CSV 檔案')
+                : (s.isEnglish ? 'Specified folder does not exist' : '指定的資料夾不存在'),
             style: TextStyle(fontWeight: FontWeight.w600, color: Colors.orange.shade800),
           ),
           const SizedBox(height: 6),
-          Text(
-            s.importAdbHint,
-            style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'adb push LOG/test_csv/\n    /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/',
-            style: TextStyle(fontFamily: 'monospace', fontSize: 11),
-          ),
+          if (exists) ...[
+            Text(
+              s.isEnglish ? 'Ensure filenames contain keywords (product / customer / inventory)' : '請確認檔案命名包含關鍵字（product / customer / inventory）',
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${s.isEnglish ? 'Current path' : '目前掃描路徑'}：$dirPath',
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+            ),
+          ] else ...[
+            Text(
+              s.importAdbHint,
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+            ),
+            const SizedBox(height: 4),
+            const SelectableText(
+              'adb push LOG/test_csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/',
+              style: TextStyle(fontFamily: 'monospace', fontSize: 11),
+            ),
+          ],
         ],
       ),
     );

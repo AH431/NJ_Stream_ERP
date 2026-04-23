@@ -48,7 +48,8 @@ extension InventoryItemsDao on AppDatabase {
     final query = select(inventoryItems).join([
       innerJoin(products, products.id.equalsExp(inventoryItems.productId)),
     ])
-      ..where(inventoryItems.minStockLevel.isBiggerThanValue(0))
+      ..where(products.minStockLevel.isBiggerThanValue(0)) // 改用產品主檔的設定
+      ..where(products.deletedAt.isNull())
       ..orderBy([OrderingTerm.asc(inventoryItems.productId)]);
 
     return query.watch().map((rows) {
@@ -62,7 +63,7 @@ extension InventoryItemsDao on AppDatabase {
               sku: prd.sku,
               onHand: inv.quantityOnHand,
               reserved: inv.quantityReserved,
-              minStockLevel: inv.minStockLevel,
+              minStockLevel: prd.minStockLevel, // 改用產品主檔的設定
             );
           })
           .where((item) => item.available <= item.minStockLevel)

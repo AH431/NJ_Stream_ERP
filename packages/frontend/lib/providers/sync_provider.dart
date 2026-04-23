@@ -77,10 +77,8 @@ class SyncProvider extends ChangeNotifier {
   // 離線新增臨時 id 計數器（負數，以區別後端配發的正整數 id）
   // Dart 單執行緒模型保證操作原子性，無需加鎖
   // W1–W2：離線新增後 id 為負數，Issue #6 pull 後以 server_state 覆蓋真實 id
-  static int _localIdSeq = 0;
-
-  /// 取得下一個離線臨時 id（負數遞減，保證唯一性）
-  static int nextLocalId() => --_localIdSeq;
+  /// 取得下一個離線臨時 id（使用微秒時間戳負值，確保 App 重啟後不與舊記錄衝突）
+  static int nextLocalId() => -DateTime.now().microsecondsSinceEpoch;
 
   // UUID 產生器（用於 operation.id）
   static const _uuid = Uuid();
@@ -399,7 +397,7 @@ class SyncProvider extends ChangeNotifier {
     final token = await _getValidToken();
     if (token == null) throw Exception('尚未登入');
     final response = await _dio.post<Map<String, dynamic>>(apiPath, data: body ?? {});
-    return (response.data?['message'] as String?) ?? '已寄送';
+    return (response.data?['message'] as String?) ?? 'SENT';
   }
 
   /// 後端：processed_operations > 30 天、各 entity 軟刪除記錄 > 30 天

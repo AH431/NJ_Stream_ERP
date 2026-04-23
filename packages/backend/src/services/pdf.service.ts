@@ -75,16 +75,18 @@ function fmtMoney(value: string | number): string {
   return 'NT$ ' + n.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-// ── 報價單：Section 1 — 文件抬頭區 ───────────────────────
+// ── 通用組件：Section 1 — 文件抬頭區 ───────────────────────
 
-function quotDrawHeader(
+function drawDocHeader(
   doc: PDFKit.PDFDocument,
+  titleZh: string,
+  titleEn: string,
   docNum: string,
   date: Date,
-  expiry: Date,
+  extraLines: [string, string][] = [], // 例如 [['有效至 Valid', '2024/05/20']]
 ): number {
   const L = 40, R = 555;
-  const COL_R = 355; // right column start x
+  const COL_R = 330; // right column start x
   const COL_W = R - COL_R;
 
   let leftY = 40;
@@ -105,34 +107,40 @@ function quotDrawHeader(
 
   // Right: document title block
   doc.font(FONT_NAME).fontSize(22).fillColor(G.black)
-    .text('報價單', COL_R, 40, { width: COL_W, align: 'right', lineBreak: false });
+    .text(titleZh, COL_R, 40, { width: COL_W, align: 'right', lineBreak: false });
   doc.fontSize(10).fillColor(G.mid)
-    .text('Quotation', COL_R, 66, { width: COL_W, align: 'right', lineBreak: false });
+    .text(titleEn, COL_R, 66, { width: COL_W, align: 'right', lineBreak: false });
+  
+  let ry = 82;
   doc.fontSize(8).fillColor(G.mid)
-    .text(`單號 No.：${docNum}`, COL_R, 82, { width: COL_W, align: 'right', lineBreak: false })
-    .text(`日期 Date：${date.toLocaleDateString('zh-TW')}`, COL_R, 94, { width: COL_W, align: 'right', lineBreak: false })
-    .text(`有效至 Valid：${expiry.toLocaleDateString('zh-TW')}`, COL_R, 106, { width: COL_W, align: 'right', lineBreak: false });
+    .text(`單號 No.：${docNum}`, COL_R, ry, { width: COL_W, align: 'right', lineBreak: false });
+  ry += 12;
+  doc.text(`日期 Date：${date.toLocaleDateString('zh-TW')}`, COL_R, ry, { width: COL_W, align: 'right', lineBreak: false });
+  ry += 12;
 
-  const y = Math.max(leftY, 120) + 10;
+  for (const [label, val] of extraLines) {
+    doc.text(`${label}：${val}`, COL_R, ry, { width: COL_W, align: 'right', lineBreak: false });
+    ry += 12;
+  }
+
+  const y = Math.max(leftY, ry) + 10;
   doc.moveTo(L, y).lineTo(R, y).lineWidth(0.5).stroke(G.border);
   return y + 12;
 }
 
-// ── 報價單：Section 2 — 核心資訊區 ───────────────────────
+// ── 通用組件：Section 2 — 核心資訊區 ───────────────────────
 
-interface QuotCustomer {
+interface DocCustomer {
   name: string;
   contact: string | null;
   email: string | null;
   taxId: string | null;
 }
 
-function quotDrawInfoBox(
+function drawDocInfoBox(
   doc: PDFKit.PDFDocument,
-  customer: QuotCustomer,
-  docNum: string,
-  date: Date,
-  expiry: Date,
+  customer: DocCustomer,
+  rightRows: [string, string][],
   startY: number,
 ): number {
   const L = 40, W = 515;
@@ -146,12 +154,6 @@ function quotDrawInfoBox(
     ...(customer.contact ? [['聯絡人 / Contact', customer.contact] as [string, string]] : []),
     ...(customer.email   ? [['Email',             customer.email]   as [string, string]] : []),
     ...(customer.taxId   ? [['統編 / Tax ID',      customer.taxId]   as [string, string]] : []),
-  ];
-
-  const rightRows: [string, string][] = [
-    ['報價單號 / No.',    docNum],
-    ['報價日期 / Date',  date.toLocaleDateString('zh-TW')],
-    ['有效期限 / Expiry', expiry.toLocaleDateString('zh-TW')],
   ];
 
   const boxRows = Math.max(leftRows.length, rightRows.length);
@@ -186,21 +188,15 @@ function quotDrawInfoBox(
   return startY + boxH + 16;
 }
 
-// ── 報價單：Section 3 — 報價明細區 ───────────────────────
+// ── 通用組件：Section 3 — 明細表格 ─────────────────────────
 
-interface LineItem {
-  productName: string;
-  sku: string;
-  quantity: number;
-  unitPrice: string;
-  subtotal: string;
-}
-
-function quotDrawItemsTable(
+function drawDocItemsTable(
   doc: PDFKit.PDFDocument,
   items: LineItem[],
   startY: number,
+  options: { showHeader?: boolean, stripeOffset?: number } = {},
 ): number {
+  const { showHeader = true, stripeOffset = 0 } = options;
   const L = 40, R = 555, W = 515;
   const C = {
     no:    L,
@@ -213,20 +209,38 @@ function quotDrawItemsTable(
   const HEADER_H = 20;
   const ROW_H    = 22;
 
-  // Header bar
-  doc.rect(L, startY, W, HEADER_H).fill(G.dark);
-  const hy = startY + 6;
-  doc.font(FONT_NAME).fontSize(8).fillColor(G.white);
-  doc.text('No.',          C.no,    hy, { width: 20,  lineBreak: false });
-  doc.text('品名 / Item',  C.name,  hy, { width: 187, lineBreak: false });
-  doc.text('SKU',          C.sku,   hy, { width: 96,  lineBreak: false });
-  doc.text('數量 / Qty',   C.qty,   hy, { width: 46,  align: 'right', lineBreak: false });
-  doc.text('單價 / Price', C.price, hy, { width: 82,  align: 'right', lineBreak: false });
-  doc.text('小計 / Sub',   C.sub,   hy, { width: 65,  align: 'right', lineBreak: false });
+  let y = startY;
 
-  let y = startY + HEADER_H;
+  // Header bar
+  if (showHeader) {
+    doc.rect(L, y, W, HEADER_H).fill(G.dark);
+    const hy = y + 6;
+    doc.font(FONT_NAME).fontSize(8).fillColor(G.white);
+    doc.text('No.',          C.no,    hy, { width: 20,  lineBreak: false });
+    doc.text('品名 / Item',  C.name,  hy, { width: 187, lineBreak: false });
+    doc.text('SKU',          C.sku,   hy, { width: 96,  lineBreak: false });
+    doc.text('數量 / Qty',   C.qty,   hy, { width: 46,  align: 'right', lineBreak: false });
+    doc.text('單價 / Price', C.price, hy, { width: 82,  align: 'right', lineBreak: false });
+    doc.text('小計 / Sub',   C.sub,   hy, { width: 65,  align: 'right', lineBreak: false });
+    y += HEADER_H;
+  }
+
   items.forEach((item, idx) => {
-    const bg = idx % 2 === 1 ? G.stripe : G.white;
+    // 檢查分頁
+    if (y > 750) {
+      doc.addPage();
+      y = 40;
+      // 分頁後重繪表頭（可選）
+      if (showHeader) {
+         doc.rect(L, y, W, HEADER_H).fill(G.dark);
+         doc.font(FONT_NAME).fontSize(8).fillColor(G.white);
+         doc.text('No.', C.no, y + 6);
+         doc.text('品名 / Item', C.name, y + 6);
+         y += HEADER_H;
+      }
+    }
+
+    const bg = (idx + stripeOffset) % 2 === 1 ? G.stripe : G.white;
     doc.rect(L, y, W, ROW_H).fill(bg);
     const ry = y + 6;
     doc.font(FONT_NAME).fontSize(8.5).fillColor(G.black);
@@ -243,12 +257,16 @@ function quotDrawItemsTable(
   return y + 12;
 }
 
-function quotDrawTotals(
+// ── 通用組件：Section 4 — 金額合計 ─────────────────────────
+
+function drawDocTotals(
   doc: PDFKit.PDFDocument,
   totalAmount: string,
   taxAmount: string,
   startY: number,
+  options: { labelPrefix?: string } = {},
 ): number {
+  const { labelPrefix = '' } = options;
   const R = 555;
   const pretax   = parseFloat(totalAmount) - parseFloat(taxAmount);
   const BLOCK_W  = 235;
@@ -259,10 +277,17 @@ function quotDrawTotals(
   const LINE_H   = 17;
 
   let y = startY;
+  const isTaxed = parseFloat(taxAmount) > 0;
 
   const rows: [string, string][] = [
-    ['未稅小計 / Subtotal', fmtMoney(pretax.toFixed(2))],
-    ['稅額 5% / Tax',       fmtMoney(taxAmount)],
+    [
+      isTaxed ? `${labelPrefix}未稅小計 / Subtotal` : `${labelPrefix}小計 (未稅) / Subtotal (excl. tax)`,
+      fmtMoney(pretax.toFixed(2)),
+    ],
+    [
+      isTaxed ? `${labelPrefix}稅額 5% / Tax` : `${labelPrefix}稅額 Tax`,
+      isTaxed ? fmtMoney(taxAmount) : '—',
+    ],
   ];
   for (const [label, val] of rows) {
     doc.font(FONT_NAME).fontSize(9).fillColor(G.mid)
@@ -275,8 +300,9 @@ function quotDrawTotals(
   // Total highlight
   y += 4;
   doc.rect(BLOCK_X - 8, y, BLOCK_W + 8, 24).fill(G.stripe);
+  const totalLabel = isTaxed ? `${labelPrefix}含稅合計 / Total` : `${labelPrefix}合計 (未稅) / Total (excl. tax)`;
   doc.font(FONT_NAME).fontSize(9).fillColor(G.mid)
-    .text('含稅合計 / Total', BLOCK_X - 8, y + 7,
+    .text(totalLabel, BLOCK_X - 8, y + 7,
       { width: LABEL_W, align: 'right', lineBreak: false });
   doc.fontSize(11).fillColor(G.black)
     .text(fmtMoney(totalAmount), VAL_X, y + 5,
@@ -285,9 +311,13 @@ function quotDrawTotals(
   return y + 32;
 }
 
-// ── 報價單：Section 4 — 備註與簽核區 ─────────────────────
+// ── 通用組件：Section 5 — 備註與簽核 ───────────────────────
 
-function quotDrawNotesSig(doc: PDFKit.PDFDocument, startY: number): void {
+function drawDocNotesSig(
+  doc: PDFKit.PDFDocument, 
+  startY: number,
+  options: { showSig?: boolean } = { showSig: true },
+): void {
   const L = 40, R = 555, W = 515;
   const HEADER_H = 18;
   let y = startY + 10;
@@ -304,92 +334,24 @@ function quotDrawNotesSig(doc: PDFKit.PDFDocument, startY: number): void {
   }
   y += HEADER_H + NOTES_BODY_H + 14;
 
-  // Signature boxes (two columns)
-  const SIG_H  = 70;
-  const HALF   = Math.floor((W - 8) / 2);
+  if (options.showSig) {
+    // Signature boxes (two columns)
+    const SIG_H  = 70;
+    const HALF   = Math.floor((W - 8) / 2);
 
-  doc.rect(L, y, HALF, SIG_H).lineWidth(0.5).stroke(G.border);
-  doc.rect(L, y, HALF, HEADER_H).fill(G.dark);
-  doc.font(FONT_NAME).fontSize(8).fillColor(G.white)
-    .text('公司簽名蓋章 / Company Signature', L + 8, y + 5,
-      { width: HALF - 12, lineBreak: false });
+    doc.rect(L, y, HALF, SIG_H).lineWidth(0.5).stroke(G.border);
+    doc.rect(L, y, HALF, HEADER_H).fill(G.dark);
+    doc.font(FONT_NAME).fontSize(8).fillColor(G.white)
+      .text('公司簽名蓋章 / Company Signature', L + 8, y + 5,
+        { width: HALF - 12, lineBreak: false });
 
-  const SIG_RX = L + HALF + 8;
-  doc.rect(SIG_RX, y, HALF, SIG_H).lineWidth(0.5).stroke(G.border);
-  doc.rect(SIG_RX, y, HALF, HEADER_H).fill(G.dark);
-  doc.font(FONT_NAME).fontSize(8).fillColor(G.white)
-    .text('客戶簽名蓋章 / Customer Signature', SIG_RX + 8, y + 5,
-      { width: HALF - 12, lineBreak: false });
-}
-
-// ── 銷售訂單 / 對帳單：舊版共用元件 ──────────────────────
-
-function drawPageHeader(
-  doc: PDFKit.PDFDocument,
-  titleZh: string,
-  titleEn: string,
-  docNumber: string,
-  date: Date,
-) {
-  doc.font(FONT_NAME).fontSize(18).text('NJ Stream ERP', 50, 50);
-  doc.fontSize(14).text(`${titleZh} / ${titleEn}`, { align: 'right' });
-  doc.moveDown(0.3);
-  doc.fontSize(10)
-    .text(`單號 No.：${docNumber}`, { align: 'right' })
-    .text(`日期 Date：${date.toLocaleDateString('zh-TW')}`, { align: 'right' });
-  doc.moveTo(50, doc.y + 8).lineTo(545, doc.y + 8).stroke();
-  doc.moveDown(1);
-}
-
-function drawCustomerSection(
-  doc: PDFKit.PDFDocument,
-  customer: { name: string; contact: string | null; taxId: string | null },
-) {
-  doc.font(FONT_NAME).fontSize(10);
-  doc.text(`客戶 / Customer：${customer.name}`);
-  if (customer.contact) doc.text(`聯絡人 / Contact：${customer.contact}`);
-  if (customer.taxId)   doc.text(`統編 / Tax ID：${customer.taxId}`);
-  doc.moveDown(1);
-}
-
-function drawItemsTableLegacy(doc: PDFKit.PDFDocument, items: LineItem[]) {
-  const cols = { no: 50, name: 80, sku: 240, qty: 330, price: 380, sub: 465 };
-
-  doc.font(FONT_NAME).fontSize(8).fillColor('#444444');
-  doc.text('No.',              cols.no,    doc.y, { width: 25 });
-  doc.text('品名 / Item',      cols.name,  doc.y - 9, { width: 155 });
-  doc.text('SKU',              cols.sku,   doc.y - 9, { width: 85 });
-  doc.text('數量 / Qty',       cols.qty,   doc.y - 9, { width: 45, align: 'right' });
-  doc.text('單價 / Price',     cols.price, doc.y - 9, { width: 80, align: 'right' });
-  doc.text('小計 / Sub',       cols.sub,   doc.y - 9, { width: 80, align: 'right' });
-  const headerBottom = doc.y + 4;
-  doc.moveTo(50, headerBottom).lineTo(545, headerBottom).stroke('#aaaaaa');
-  doc.moveDown(0.4);
-
-  doc.fontSize(9).fillColor('#000000');
-  items.forEach((item, idx) => {
-    const y = doc.y;
-    doc.text(String(idx + 1),         cols.no,    y, { width: 25 });
-    doc.text(item.productName,         cols.name,  y, { width: 155 });
-    doc.text(item.sku,                 cols.sku,   y, { width: 85 });
-    doc.text(String(item.quantity),    cols.qty,   y, { width: 45, align: 'right' });
-    doc.text(fmtMoney(item.unitPrice), cols.price, y, { width: 80, align: 'right' });
-    doc.text(fmtMoney(item.subtotal),  cols.sub,   y, { width: 80, align: 'right' });
-    doc.moveDown(0.6);
-  });
-
-  const tableBottom = doc.y + 2;
-  doc.moveTo(50, tableBottom).lineTo(545, tableBottom).stroke('#aaaaaa');
-  doc.moveDown(0.8);
-}
-
-function drawTotalsLegacy(doc: PDFKit.PDFDocument, totalAmount: string, taxAmount: string) {
-  const subtotal = parseFloat(totalAmount) - parseFloat(taxAmount);
-  doc.font(FONT_NAME).fontSize(10);
-  doc.text(`小計 / Subtotal：${fmtMoney(String(subtotal.toFixed(2)))}`, { align: 'right' });
-  doc.text(`稅額 Tax (5%)：${fmtMoney(taxAmount)}`,                     { align: 'right' });
-  doc.fontSize(11).font(FONT_NAME)
-    .text(`含稅合計 / Total：${fmtMoney(totalAmount)}`, { align: 'right' });
+    const SIG_RX = L + HALF + 8;
+    doc.rect(SIG_RX, y, HALF, SIG_H).lineWidth(0.5).stroke(G.border);
+    doc.rect(SIG_RX, y, HALF, HEADER_H).fill(G.dark);
+    doc.font(FONT_NAME).fontSize(8).fillColor(G.white)
+      .text('客戶簽名蓋章 / Customer Signature', SIG_RX + 8, y + 5,
+        { width: HALF - 12, lineBreak: false });
+  }
 }
 
 // ── 公開 API ──────────────────────────────────────────────
@@ -409,24 +371,33 @@ export async function generateQuotationPdf(db: DrizzleDb, quotationId: number): 
   const expiry = new Date(row.createdAt);
   expiry.setDate(expiry.getDate() + 30);
 
-  const customer: QuotCustomer = {
+  const customer: DocCustomer = {
     name:    row.customer.name,
     contact: row.customer.contact ?? null,
-    email:   (row.customer as { email?: string | null }).email ?? null,
+    email:   (row.customer as any).email ?? null,
     taxId:   row.customer.taxId ?? null,
   };
 
-  let y = quotDrawHeader(doc, docNum, row.createdAt, expiry);
-  y = quotDrawInfoBox(doc, customer, docNum, row.createdAt, expiry, y);
-  y = quotDrawItemsTable(doc, row.orderItems.map(i => ({
+  let y = drawDocHeader(doc, '報價單', 'Quotation', docNum, row.createdAt, [
+    ['有效至 Valid', expiry.toLocaleDateString('zh-TW')],
+  ]);
+  
+  y = drawDocInfoBox(doc, customer, [
+    ['報價單號 / No.', docNum],
+    ['報價日期 / Date', row.createdAt.toLocaleDateString('zh-TW')],
+    ['有效期限 / Expiry', expiry.toLocaleDateString('zh-TW')],
+  ], y);
+
+  y = drawDocItemsTable(doc, row.orderItems.map(i => ({
     productName: i.product.name,
     sku:         i.product.sku,
     quantity:    i.quantity,
     unitPrice:   i.unitPrice,
     subtotal:    i.subtotal,
   })), y);
-  y = quotDrawTotals(doc, row.totalAmount, row.taxAmount, y);
-  quotDrawNotesSig(doc, y);
+
+  y = drawDocTotals(doc, row.totalAmount, row.taxAmount, y);
+  drawDocNotesSig(doc, y);
 
   return docToBuffer(doc);
 }
@@ -452,19 +423,34 @@ export async function generateSalesOrderPdf(db: DrizzleDb, orderId: number): Pro
   };
 
   const doc = makeDoc();
-  drawPageHeader(doc, '銷售訂單', 'Sales Order', `SO-${String(row.id).padStart(6, '0')}`, row.createdAt);
-  drawCustomerSection(doc, row.customer);
-  doc.fontSize(10)
-    .text(`狀態 Status：${statusLabel[row.status] ?? row.status}`)
-    .moveDown(0.5);
-  drawItemsTableLegacy(doc, row.orderItems.map(i => ({
+  const docNum = `SO-${String(row.id).padStart(6, '0')}`;
+  
+  const customer: DocCustomer = {
+    name:    row.customer.name,
+    contact: row.customer.contact ?? null,
+    email:   (row.customer as any).email ?? null,
+    taxId:   row.customer.taxId ?? null,
+  };
+
+  let y = drawDocHeader(doc, '銷售訂單', 'Sales Order', docNum, row.createdAt);
+  
+  y = drawDocInfoBox(doc, customer, [
+    ['訂單單號 / No.', docNum],
+    ['下單日期 / Date', row.createdAt.toLocaleDateString('zh-TW')],
+    ['訂單狀態 / Status', statusLabel[row.status] ?? row.status],
+  ], y);
+
+  y = drawDocItemsTable(doc, row.orderItems.map(i => ({
     productName: i.product.name,
     sku:         i.product.sku,
     quantity:    i.quantity,
     unitPrice:   i.unitPrice,
     subtotal:    i.subtotal,
-  })));
-  drawTotalsLegacy(doc, totalAmount.toFixed(2), taxAmount.toFixed(2));
+  })), y);
+
+  y = drawDocTotals(doc, totalAmount.toFixed(2), taxAmount.toFixed(2), y);
+  drawDocNotesSig(doc, y, { showSig: true });
+
   return docToBuffer(doc);
 }
 
@@ -474,10 +460,10 @@ export async function generateStatementPdf(
   year: number,
   month: number,
 ): Promise<Buffer> {
-  const customer = await db.query.customers.findFirst({
+  const customerRecord = await db.query.customers.findFirst({
     where: and(eq(customers.id, customerId), isNull(customers.deletedAt)),
   });
-  if (!customer) throw Object.assign(new Error('NOT_FOUND'), { statusCode: 404 });
+  if (!customerRecord) throw Object.assign(new Error('NOT_FOUND'), { statusCode: 404 });
 
   const from = new Date(year, month - 1, 1);
   const to   = new Date(year, month, 1);
@@ -494,55 +480,61 @@ export async function generateStatementPdf(
   });
 
   const doc = makeDoc();
-  const monthLabel = `${year}/${String(month).padStart(2, '0')}`;
-  drawPageHeader(
-    doc,
-    '對帳單',
-    'Statement',
-    `ST-${customerId}-${year}${String(month).padStart(2, '0')}`,
-    new Date(),
-  );
-  doc.font(FONT_NAME).fontSize(10).text(`期間 Period：${monthLabel}`).moveDown(0.5);
-  drawCustomerSection(doc, customer);
+  const docNum = `ST-${customerId}-${year}${String(month).padStart(2, '0')}`;
+  const periodLabel = `${year}/${String(month).padStart(2, '0')}`;
+
+  const customer: DocCustomer = {
+    name:    customerRecord.name,
+    contact: customerRecord.contact ?? null,
+    email:   (customerRecord as any).email ?? null,
+    taxId:   customerRecord.taxId ?? null,
+  };
+
+  let y = drawDocHeader(doc, '月結對帳單', 'Monthly Statement', docNum, new Date());
+
+  y = drawDocInfoBox(doc, customer, [
+    ['對帳單號 / No.', docNum],
+    ['對帳期間 / Period', periodLabel],
+    ['訂單數量 / Count', String(orders.length)],
+  ], y);
 
   if (orders.length === 0) {
-    doc.fontSize(10).text(`${monthLabel} 無訂單記錄 / No orders.`);
+    doc.font(FONT_NAME).fontSize(10).fillColor(G.mid)
+      .text(`${periodLabel} 無訂單記錄 / No orders found in this period.`, 40, y);
   } else {
     let grandTotal = 0;
+    let grandTax   = 0;
 
-    orders.forEach(order => {
+    orders.forEach((order, idx) => {
       const orderTotal = order.orderItems.reduce((s, i) => s + parseFloat(i.subtotal), 0);
+      const orderTax   = orderTotal * 0.05;
       grandTotal += orderTotal;
-      const orderTax = orderTotal * 0.05;
+      grandTax   += orderTax;
 
-      doc.font(FONT_NAME).fontSize(10)
-        .text(
-          `訂單 Order SO-${String(order.id).padStart(6, '0')}  ${order.createdAt.toLocaleDateString('zh-TW')}` +
-          `  (${orderTotal > 0 ? fmtMoney(orderTotal.toFixed(2)) : '--'})`,
-        )
-        .moveDown(0.3);
+      // 每個訂單的小標題
+      doc.font(FONT_NAME).fontSize(9).fillColor(G.dark)
+        .text(`訂單 Order SO-${String(order.id).padStart(6, '0')} (${order.createdAt.toLocaleDateString('zh-TW')})`, 40, y);
+      y += 14;
 
-      drawItemsTableLegacy(doc, order.orderItems.map(i => ({
+      y = drawDocItemsTable(doc, order.orderItems.map(i => ({
         productName: i.product.name,
         sku:         i.product.sku,
         quantity:    i.quantity,
         unitPrice:   i.unitPrice,
         subtotal:    i.subtotal,
-      })));
-      drawTotalsLegacy(doc, orderTotal.toFixed(2), orderTax.toFixed(2));
-      doc.moveDown(1);
+      })), y, { showHeader: idx === 0 }); // 僅第一筆顯示表頭以節省空間
+
+      y = drawDocTotals(doc, (orderTotal + orderTax).toFixed(2), orderTax.toFixed(2), y, { labelPrefix: '訂單' });
+      y += 10;
     });
 
-    // 月結總計
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown(0.5);
-    const grandTax = grandTotal * 0.05;
-    doc.font(FONT_NAME).fontSize(12)
-      .text(
-        `${monthLabel} 月結合計 / Monthly Total：${fmtMoney((grandTotal + grandTax).toFixed(2))}`,
-        { align: 'right' },
-      );
+    // 最後的月結總計
+    doc.moveTo(40, y).lineTo(555, y).lineWidth(1).stroke(G.black);
+    y += 10;
+    y = drawDocTotals(doc, (grandTotal + grandTax).toFixed(2), grandTax.toFixed(2), y, { labelPrefix: '月結' });
   }
+
+  drawDocNotesSig(doc, y, { showSig: false });
 
   return docToBuffer(doc);
 }

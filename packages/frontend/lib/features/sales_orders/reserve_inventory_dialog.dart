@@ -42,40 +42,42 @@ class ReserveInventoryDialog extends StatelessWidget {
 
     return AlertDialog(
       title: Text(s.reserveTitle),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              s.reserveWarning,
-              style: const TextStyle(fontSize: 13, color: Colors.black87),
-            ),
-            if (hasInsufficient) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.block, size: 16, color: Colors.red.shade700),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      s.reserveInsuffMsg,
-                      style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s.reserveWarning,
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              if (hasInsufficient) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.block, size: 16, color: Colors.red.shade700),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        s.reserveInsuffMsg,
+                        style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (_, i) => _buildItemRow(items[i], s),
               ),
             ],
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              itemBuilder: (_, i) => _buildItemRow(items[i], s),
-            ),
-          ],
+          ),
         ),
       ),
       actions: hasInsufficient

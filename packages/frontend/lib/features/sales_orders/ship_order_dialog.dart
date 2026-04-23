@@ -43,41 +43,43 @@ class ShipOrderDialog extends StatelessWidget {
 
     return AlertDialog(
       title: Text(s.shipTitle),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              s.shipWarningBody,
-              style: const TextStyle(fontSize: 13, color: Colors.black87),
-            ),
-            if (hasNotReserved) ...[
-              const SizedBox(height: 8),
-              _buildBanner(
-                icon: Icons.warning_amber_outlined,
-                color: Colors.orange,
-                text: s.shipBannerNoReserve,
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s.shipWarningBody,
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              if (hasNotReserved) ...[
+                const SizedBox(height: 8),
+                _buildBanner(
+                  icon: Icons.warning_amber_outlined,
+                  color: Colors.orange,
+                  text: s.shipBannerNoReserve,
+                ),
+              ],
+              if (hasInsufficient) ...[
+                const SizedBox(height: 6),
+                _buildBanner(
+                  icon: Icons.error_outline,
+                  color: Colors.red,
+                  text: s.shipBannerInsufficient,
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (_, i) => _buildItemRow(items[i], s),
               ),
             ],
-            if (hasInsufficient) ...[
-              const SizedBox(height: 6),
-              _buildBanner(
-                icon: Icons.error_outline,
-                color: Colors.red,
-                text: s.shipBannerInsufficient,
-              ),
-            ],
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              itemBuilder: (_, i) => _buildItemRow(items[i], s),
-            ),
-          ],
+          ),
         ),
       ),
       actions: [

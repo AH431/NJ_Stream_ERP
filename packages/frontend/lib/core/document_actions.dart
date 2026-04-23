@@ -41,10 +41,10 @@ Future<void> sendEmail(
   final sync = context.read<SyncProvider>();
   final s    = context.read<AppStrings>();
   try {
-    final msg = await sync.sendDocumentEmail(apiPath, body);
+    await sync.sendDocumentEmail(apiPath, body);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.green),
+        SnackBar(content: Text(s.msgEmailSent), backgroundColor: Colors.green),
       );
     }
   } catch (e) {
@@ -65,7 +65,7 @@ Future<void> sendEmail(
               : '寄送失敗：${serverMsg ?? e.message ?? e.toString()}';
         }
       } else {
-        errMsg = s.isEnglish ? 'Send failed: $e' : '寄送失敗：$e';
+        errMsg = s.msgEmailFailed(e.toString());
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errMsg), backgroundColor: Colors.red),

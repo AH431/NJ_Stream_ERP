@@ -88,46 +88,47 @@ class _StockInDialogState extends State<StockInDialog> {
               height: 80,
               child: Center(child: CircularProgressIndicator()),
             )
-          : _eligibleProducts.isEmpty
-              ? Text(s.stockInNoProducts)
-              : Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 產品選擇
-                      DropdownButtonFormField<int>(
-                        value: _selectedProductId,
-                        decoration: InputDecoration(labelText: s.stockInFieldProd),
-                        items: _eligibleProducts
-                            .map((p) => DropdownMenuItem(
-                                  value: p.id,
-                                  child: Text('${p.name}（${p.sku}）',
-                                      overflow: TextOverflow.ellipsis),
-                                ))
-                            .toList(),
-                        onChanged: (v) => setState(() => _selectedProductId = v),
-                        validator: (v) => v == null ? s.isEnglish ? 'Please select a product.' : '請選擇產品' : null,
+                : Form(
+                    key: _formKey,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 產品選擇
+                          DropdownButtonFormField<int>(
+                            isExpanded: true, // 修復長名稱導致的水平溢出
+                            value: _selectedProductId,
+                            decoration: InputDecoration(labelText: s.stockInFieldProd),
+                            items: _eligibleProducts
+                                .map((p) => DropdownMenuItem(
+                                      value: p.id,
+                                      child: Text('${p.name}（${p.sku}）',
+                                          overflow: TextOverflow.ellipsis),
+                                    ))
+                                .toList(),
+                            onChanged: (v) => setState(() => _selectedProductId = v),
+                            validator: (v) => v == null ? s.isEnglish ? 'Please select a product.' : '請選擇產品' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          // 入庫數量
+                          TextFormField(
+                            controller: _amountController,
+                            decoration: InputDecoration(
+                              labelText: s.stockInFieldQty,
+                              hintText: s.isEnglish ? 'Enter a positive integer' : '請輸入正整數',
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return s.stockInErrQty;
+                              final n = int.tryParse(v.trim());
+                              if (n == null || n <= 0) return s.stockInErrQty;
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      // 入庫數量
-                      TextFormField(
-                        controller: _amountController,
-                        decoration: InputDecoration(
-                          labelText: s.stockInFieldQty,
-                          hintText: s.isEnglish ? 'Enter a positive integer' : '請輸入正整數',
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return s.stockInErrQty;
-                          final n = int.tryParse(v.trim());
-                          if (n == null || n <= 0) return s.stockInErrQty;
-                          return null;
-                        },
-                      ),
-                    ],
+                    ),
                   ),
-                ),
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.pop(context, false),

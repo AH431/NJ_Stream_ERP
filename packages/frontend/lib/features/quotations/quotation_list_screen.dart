@@ -307,15 +307,16 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
               Row(
                 children: [
                   _buildStatusLabel(q.status, s),
-                  const SizedBox(width: 12),
-                  Text(
-                    s.isEnglish ? 'Total: ${q.totalAmount}' : '合計：${q.totalAmount}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
                   const SizedBox(width: 8),
-                  Text(
-                    _formatDate(q.createdAt),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  Expanded(
+                    child: Text(
+                      s.isEnglish
+                          ? 'Total: ${q.totalAmount}  ${_formatDate(q.createdAt)}'
+                          : '合計：${q.totalAmount}  ${_formatDate(q.createdAt)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                    ),
                   ),
                 ],
               ),

@@ -625,9 +625,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                 children: [
                   _buildStatusLabel(order.status, s),
                   const SizedBox(width: 8),
-                  Text(
-                    s.orderCreatedAt(_formatDate(order.createdAt)),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  Expanded(
+                    child: Text(
+                      s.orderCreatedAt(_formatDate(order.createdAt)),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
