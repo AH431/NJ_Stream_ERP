@@ -75,6 +75,19 @@ scratch_*.dart
 # 暫存分析輸出（不應進版控）
 packages/frontend/*.txt
 
+# 產出物（PDF / 說明書，binary 輸出不進版控）
+*.pdf
+NJ_Stream_ERP_Brochure.pdf
+
+# 二進位架構文件（docx / xlsx，無法 diff，改用 markdown 維護）
+*.docx
+*.xlsx
+*.pptx
+
+# 敏感架構文件（API contract、ERD，若 repo 轉公開需先評估）
+docs/api-contract-*.yaml
+docs/nj_stream_erp_erd.html
+
 # Editor
 .idea/
 .vscode/
