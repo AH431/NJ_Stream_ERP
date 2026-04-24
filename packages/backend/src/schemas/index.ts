@@ -8,9 +8,10 @@
  *   3. products
  *   4. quotations
  *   5. sales_orders
- *   6. order_items      ← 正規化明細表（取代 JSONB items）
- *   7. inventory_items  ← 含 DB CHECK 約束
+ *   6. order_items          ← 正規化明細表（取代 JSONB items）
+ *   7. inventory_items      ← 含 DB CHECK 約束
  *   8. processed_operations ← 含冪等 UNIQUE + 兩個索引
+ *   9. anomalies            ← P2-DB-01：異常事件記錄（Phase 2）
  *
  * Relations 集中定義於此檔案，避免各 schema 檔案之間的循環引用。
  */
@@ -24,6 +25,7 @@ export * from './sales_orders.schema.ts';
 export * from './order_items.schema.ts';
 export * from './inventory_items.schema.ts';
 export * from './processed_operations.schema.ts';
+export * from './anomalies.schema.ts';
 
 // ── Relations ─────────────────────────────────────────────
 import { relations } from 'drizzle-orm';

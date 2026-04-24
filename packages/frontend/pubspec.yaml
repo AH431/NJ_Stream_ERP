@@ -30,6 +30,9 @@ dependencies:
   csv: ^6.0.0
   open_filex: ^4.4.0
 
+  # 圖表（Phase 2 P2-VIS）
+  fl_chart: ^0.69.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

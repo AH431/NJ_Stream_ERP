@@ -18,6 +18,9 @@ import 'features/dashboard/dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/settings/dev_settings_screen.dart';
 import 'providers/sync_provider.dart';
+import 'providers/analytics_provider.dart';
+import 'providers/anomaly_provider.dart';
+import 'features/notifications/notification_screen.dart';
 
 // ==============================================================================
 // 程式入口
@@ -58,6 +61,27 @@ Future<void> main() async {
             dio: dio,
             storage: storage,
           ),
+        ),
+
+        // ── AnalyticsProvider ────────────────────────────────────────────────
+        // Phase 2 P2-VIS：聚合圖表資料（15 分鐘記憶體快取）
+        // 複用 SyncProvider.authenticatedDio，需在 SyncProvider 之後建立
+        ChangeNotifierProxyProvider<SyncProvider, AnalyticsProvider>(
+          create: (ctx) => AnalyticsProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? AnalyticsProvider(dio: sync.authenticatedDio),
+        ),
+
+        // ── AnomalyProvider ─────────────────────────────────────────────────
+        // Phase 2 P2-ALT：異常通知（5 分鐘記憶體快取）
+        ChangeNotifierProxyProvider<SyncProvider, AnomalyProvider>(
+          create: (ctx) => AnomalyProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? AnomalyProvider(dio: sync.authenticatedDio),
         ),
 
         // ── AppStrings ───────────────────────────────────────────────────────
@@ -119,6 +143,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // 登入後觸發異常通知首次拉取（背景，不阻塞 UI）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AnomalyProvider>().fetchAnomalies();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final sync = context.watch<SyncProvider>();
     final s    = AppStrings.of(context);
@@ -143,6 +176,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(titles[_selectedIndex]),
         actions: [
+          // 異常通知鈴鐺（Phase 2 P2-ALT）
+          _AnomalyBell(onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationScreen()),
+            );
+          }),
           // 同步狀態 badge + 推送按鈕
           Badge(
             isLabelVisible: pending > 0,
@@ -332,5 +372,33 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirmed == true && context.mounted) {
       await sync.logout();
     }
+  }
+}
+
+// ==============================================================================
+// _AnomalyBell — AppBar 異常通知鈴鐺
+//
+// urgentCount (critical + high) > 0 時顯示紅色 Badge。
+// onTap 由 HomeScreen 傳入，導向 NotificationScreen。
+// ==============================================================================
+
+class _AnomalyBell extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AnomalyBell({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final urgentCount = context.watch<AnomalyProvider>().urgentCount;
+
+    return Badge(
+      isLabelVisible: urgentCount > 0,
+      label: Text('$urgentCount'),
+      child: IconButton(
+        icon: const Icon(Icons.notifications_outlined),
+        tooltip: urgentCount > 0 ? '有 $urgentCount 筆未解決異常' : '異常通知',
+        onPressed: onTap,
+      ),
+    );
   }
 }

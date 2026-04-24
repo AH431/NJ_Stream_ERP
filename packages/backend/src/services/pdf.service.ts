@@ -42,6 +42,16 @@ const CO = {
   taxId:   process.env.COMPANY_TAX_ID  ?? '',
 };
 
+// ── 內部型別 ──────────────────────────────────────────────
+
+type LineItem = {
+  productName: string;
+  sku:         string;
+  quantity:    number;
+  unitPrice:   string | number;
+  subtotal:    string | number;
+};
+
 // ── 灰階色盤 ─────────────────────────────────────────────
 const G = {
   black:  '#111111',

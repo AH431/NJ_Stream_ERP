@@ -12,6 +12,9 @@ import syncRoutes  from '@/routes/sync.route.js';
 import adminRoutes from '@/routes/admin.route.js';
 import importRoutes from '@/routes/import.route.js';
 import documentsRoutes from '@/routes/documents.route.js';
+import analyticsRoutes from '@/routes/analytics.route.js';
+import anomaliesRoutes from '@/routes/anomalies.route.js';
+import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -66,6 +69,19 @@ export function buildApp() {
   app.register(adminRoutes,     { prefix: '/api/v1/admin' });
   app.register(importRoutes,     { prefix: '/api/v1/admin' });
   app.register(documentsRoutes,  { prefix: '/api/v1' });
+  app.register(analyticsRoutes,  { prefix: '/api/v1/analytics' });
+  app.register(anomaliesRoutes,  { prefix: '/api/v1/anomalies' });
+
+  // ── AnomalyScanner 排程（每小時執行一次）─────────────────
+  // onReady：確保 DB plugin 已完成初始化後才啟動排程
+  app.addHook('onReady', async () => {
+    const SCAN_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+    // 啟動後 10 秒延遲首次掃描（等 DB 連線穩定）
+    setTimeout(async () => {
+      await runAnomalyScanner(app.db);
+      setInterval(() => runAnomalyScanner(app.db), SCAN_INTERVAL_MS);
+    }, 10_000);
+  });
 
   return app;
 }

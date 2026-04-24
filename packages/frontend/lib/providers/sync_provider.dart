@@ -147,6 +147,9 @@ class SyncProvider extends ChangeNotifier {
   /// 目前生效的 API Base URL（執行時覆寫優先，否則回落編譯期常數）
   String get currentApiBaseUrl => _dio.options.baseUrl;
 
+  /// 供 AnalyticsProvider 使用：回傳已注入 token interceptor 的 Dio 實例
+  Dio get authenticatedDio => _dio;
+
   // ====================== 其他成員變數（如果還有） ======================
  
   // 建構子（使用依賴注入，方便之後測試與 mock）
