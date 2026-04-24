@@ -153,9 +153,83 @@ npm run build (backend)
 
 ---
 
-## 下一階段
+## 下一階段規劃（2026-04-25 確認）
 
-| Sprint | 模組 | 主要功能 |
+### 推進順序決策
+
+經評估，採以下順序推進：
+
+1. **P2-ALT 第二波規則**（最小改動，不需新 schema）
+2. **Sprint C P2-CRM**（需新增 `customer_interactions` 表）
+3. **Sprint D P2-ACC**（需多個 ALTER TABLE，與 CRM migration 合批執行）
+
+理由：ALT 第二波只加 scanner 函式，不動資料庫，改動風險最小；
+C 與 D 的 schema migration 可等手機實測後一起跑。
+
+---
+
+### P2-ALT 第二波：待實作規則
+
+> 後端新增 scanner 函式即可，前端 NotificationScreen 已支援任意 alertType，無需修改。
+
+| Alert Type | 嚴重度 | 觸發條件 |
 |---|---|---|
-| Sprint C | P2-CRM | 客戶分級（RFM 評分）、跟進記錄、聯絡人管理 |
-| Sprint D | P2-ACC | 應收帳款追蹤、付款記錄、逾期提醒 |
+| `DUPLICATE_ORDER` | high | 同一客戶 24 小時內出現 2 張以上 pending 訂單 |
+| `ORDER_QUANTITY_SPIKE` | medium | 單張訂單某商品數量超過該商品近 90 天平均單次訂購量的 3 倍 |
+| `CUSTOMER_INACTIVE` | medium | 曾下單客戶超過 90 天無任何訂單 |
+
+---
+
+### Sprint C（P2-CRM）任務清單
+
+**C1 後端 — RFM API**
+- `GET /api/v1/customers/rfm`：回傳所有客戶的 R/F/M 分數與分級
+- 計算來源：`sales_orders`（completed/shipped 狀態）
+- server-side 計算，不寫回 customers 表
+
+**C2 前端 — 客戶列表強化**
+- 列表加 RFM 分級標籤（VIP / 活躍 / 觀察 / 流失風險）
+- 新增排序選項（RFM 分數 / 最後下單日）
+- 新增篩選：僅顯示「流失風險」客戶
+
+**C3 後端 + 前端 — 互動記錄**
+- 新增 `customer_interactions` 表（P2-DB-02）
+- CRUD API + 離線同步（納入 sync contract）
+- 前端互動記錄新增 / 刪除
+
+**C4 前端 — 客戶詳情頁強化**
+- 補建獨立客戶詳情頁（目前無此 UI flow）
+- 顯示：R/F/M 數值、LTV、近 5 筆訂單、互動記錄、相關 anomaly
+
+---
+
+### Sprint D（P2-ACC）任務清單
+
+**D1 Schema**（與 C3 的 migration 合批）
+- `sales_orders`：新增 `payment_status`、`paid_at`、`due_date`
+- `customers`：新增 `payment_terms_days`（預設 30 天）
+- `products`：新增 `cost_price`（Stage 2 用）
+
+**D2 前端 — AR 頁面**（Admin 專用）
+- 未收金額總覽、逾期金額
+- Aging buckets：0–30 / 31–60 / 61–90 / 90+ 天
+
+**D3 — OVERDUE_PAYMENT 異常規則**
+- 納入 AnomalyScanner，連結 P2-ALT 引擎
+
+**D4 — 損益摘要**
+- 毛利 = 出貨金額 − (qty × cost_price)
+- 整合至 Dashboard 或獨立報表頁
+
+---
+
+### Sprint C / D 的 Migration 批次計畫
+
+待手機實測 Sprint A / B 完成後，一次執行：
+
+```
+P2-DB-02  customer_interactions
+P2-DB-03  sales_orders.payment_status / paid_at / due_date
+P2-DB-04  products.cost_price
+P2-DB-05  customers.payment_terms_days
+```
