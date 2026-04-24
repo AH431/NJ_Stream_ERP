@@ -116,6 +116,7 @@ class AppStrings extends ChangeNotifier {
   String get custEmptySync => _s('下拉以同步取得最新資料', 'Pull down to sync.');
   String get custTooltipSync => _s('等待同步', 'Pending sync');
   String get custTooltipEmail => _s('寄月結對帳單', 'Send monthly statement');
+  String get custTooltipEdit => _s('修改客戶資料', 'Edit Customer');
   String get custTooltipDel => _s('刪除客戶', 'Delete customer');
   String get custDelTitle => _s('刪除客戶', 'Delete Customer');
   String custDelBody(String name) => _isEnglish
@@ -129,6 +130,7 @@ class AppStrings extends ChangeNotifier {
 
   // ── Customer Form ─────────────────────────────────────────────────────────
   String get custFormTitle => _s('新增客戶', 'New Customer');
+  String get custEditTitle => _s('修改客戶資料', 'Edit Customer');
   String get btnSave => _s('儲存', 'Save');
   String get custOfflineNote =>
       _s('離線時可直接儲存，連線後自動同步至伺服器。', 'Saved offline. Will sync when connected.');
@@ -140,6 +142,7 @@ class AppStrings extends ChangeNotifier {
   String get custFieldTaxId => _s('統一編號', 'Tax ID');
   String get btnSaving => _s('儲存中...', 'Saving...');
   String get btnSaveCustomer => _s('儲存客戶', 'Save Customer');
+  String get btnEditCustomer => _s('更新客戶資料', 'Update Customer');
   String get errNameRequired => _s('請輸入客戶名稱', 'Customer name is required.');
   String get errEmailInvalid => _s('Email 格式不正確', 'Invalid email format.');
   String get errTaxIdInvalid => _s('統一編號須為 8 位數字', 'Tax ID must be 8 digits.');

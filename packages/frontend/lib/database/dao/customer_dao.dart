@@ -45,6 +45,11 @@ extension CustomerDao on AppDatabase {
     await into(customers).insert(companion);
   }
 
+  /// 更新客戶資料
+  Future<void> updateCustomer(int id, CustomersCompanion companion) async {
+    await (update(customers)..where((t) => t.id.equals(id))).write(companion);
+  }
+
   /// 軟刪除：寫入 deleted_at + 更新 updatedAt，不做 Hard Delete
   Future<void> softDeleteCustomer(int id, DateTime deletedAt) async {
     await (update(customers)..where((t) => t.id.equals(id))).write(

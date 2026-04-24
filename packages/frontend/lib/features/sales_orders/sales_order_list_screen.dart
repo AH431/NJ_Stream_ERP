@@ -686,7 +686,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                         label: Text(s.btnInsufficientStock),
                         style: TextButton.styleFrom(foregroundColor: Colors.orange),
                       ),
-                    if (canShip)
+                     if (canShip)
                       TextButton.icon(
                         onPressed: () => _shipOrder(context, order),
                         icon: const Icon(Icons.local_shipping_outlined, size: 16),

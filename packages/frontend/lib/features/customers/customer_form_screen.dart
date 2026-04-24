@@ -19,7 +19,8 @@ import '../../database/database.dart';
 import '../../providers/sync_provider.dart';
 
 class CustomerFormScreen extends StatefulWidget {
-  const CustomerFormScreen({super.key});
+  final Customer? customer;
+  const CustomerFormScreen({super.key, this.customer});
 
   @override
   State<CustomerFormScreen> createState() => _CustomerFormScreenState();
@@ -32,6 +33,18 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   final _emailCtrl   = TextEditingController();
   final _taxIdCtrl   = TextEditingController();
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.customer != null) {
+      final c = widget.customer!;
+      _nameCtrl.text = c.name;
+      _contactCtrl.text = c.contact ?? '';
+      _emailCtrl.text = c.email ?? '';
+      _taxIdCtrl.text = c.taxId ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -64,30 +77,58 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       final email   = _emailCtrl.text.trim().isEmpty   ? null : _emailCtrl.text.trim();
       final taxId   = _taxIdCtrl.text.trim().isEmpty   ? null : _taxIdCtrl.text.trim();
 
-      // Step 1：寫入本地 Drift
-      await db.insertCustomer(
-        CustomersCompanion(
-          id:        Value(localId),
-          name:      Value(name),
-          contact:   Value(contact),
-          email:     Value(email),
-          taxId:     Value(taxId),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
+      if (widget.customer == null) {
+        // Step 1：寫入本地 Drift
+        final localId = SyncProvider.nextLocalId();
+        await db.insertCustomer(
+          CustomersCompanion(
+            id:        Value(localId),
+            name:      Value(name),
+            contact:   Value(contact),
+            email:     Value(email),
+            taxId:     Value(taxId),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
 
       // Step 2：排入同步佇列（payload 為完整 entity 快照）
-      await sync.enqueueCreate('customer', {
-        'id':        localId,
-        'name':      name,
-        'contact':   contact,
-        'email':     email,
-        'taxId':     taxId,
-        'createdAt': now.toIso8601String(),
-        'updatedAt': now.toIso8601String(),
-        'deletedAt': null,
-      });
+        await sync.enqueueCreate('customer', {
+          'id':        localId,
+          'name':      name,
+          'contact':   contact,
+          'email':     email,
+          'taxId':     taxId,
+          'createdAt': now.toIso8601String(),
+          'updatedAt': now.toIso8601String(),
+          'deletedAt': null,
+        });
+      } else {
+        // Step 1：更新本地 Drift
+        final c = widget.customer!;
+        await db.updateCustomer(
+          c.id,
+          CustomersCompanion(
+            name:      Value(name),
+            contact:   Value(contact),
+            email:     Value(email),
+            taxId:     Value(taxId),
+            updatedAt: Value(now),
+          ),
+        );
+
+        // Step 2：排入同步佇列
+        await sync.enqueueUpdate('customer', c.id, {
+          'id':        c.id,
+          'name':      name,
+          'contact':   contact,
+          'email':     email,
+          'taxId':     taxId,
+          'createdAt': c.createdAt.toUtc().toIso8601String(),
+          'updatedAt': now.toIso8601String(),
+          'deletedAt': c.deletedAt?.toUtc().toIso8601String(),
+        });
+      }
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -114,7 +155,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(s.custFormTitle),
+        title: Text(widget.customer == null ? s.custFormTitle : s.custEditTitle),
         actions: [
           if (!_saving)
             TextButton(
@@ -236,7 +277,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(_saving ? s.btnSaving : s.btnSaveCustomer),
+              label: Text(_saving
+                  ? s.btnSaving
+                  : (widget.customer == null ? s.btnSaveCustomer : s.btnEditCustomer)),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),

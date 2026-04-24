@@ -753,8 +753,10 @@ class SyncProvider extends ChangeNotifier {
     switch (entityType) {
       case 'customer':
         await _updatePendingPayloads('customerId', localId, serverId, null);
+        await _updatePendingPayloads('id', localId, serverId, 'customer');
       case 'quotation':
         await _updatePendingPayloads('quotationId', localId, serverId, null);
+        await _updatePendingPayloads('id', localId, serverId, 'quotation');
       case 'sales_order':
         await _updatePendingPayloads('id', localId, serverId, 'sales_order');
     }

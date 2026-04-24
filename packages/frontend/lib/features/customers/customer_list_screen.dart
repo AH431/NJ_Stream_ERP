@@ -16,6 +16,7 @@ import '../../core/document_actions.dart';
 import '../../database/dao/customer_dao.dart';
 import '../../database/database.dart';
 import '../../providers/sync_provider.dart';
+import 'customer_form_screen.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -273,13 +274,30 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (canEdit)
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined),
+                                      tooltip: s.custTooltipEdit,
+                                      color: Theme.of(ctx).colorScheme.primary,
+                                      onPressed: () => Navigator.push(
+                                        ctx,
+                                        MaterialPageRoute(
+                                          builder: (_) => CustomerFormScreen(
+                                            customer: customer,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   if (customer.id < 0)
                                     Tooltip(
                                       message: s.custTooltipSync,
-                                      child: const Icon(
-                                        Icons.cloud_upload_outlined,
-                                        size: 16,
-                                        color: Colors.orange,
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 8),
+                                        child: Icon(
+                                          Icons.cloud_upload_outlined,
+                                          size: 16,
+                                          color: Colors.orange,
+                                        ),
                                       ),
                                     ),
                                   if (canEdit && customer.id > 0)

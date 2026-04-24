@@ -50,7 +50,7 @@ extension InventoryItemsDao on AppDatabase {
     ])
       ..where(products.minStockLevel.isBiggerThanValue(0)) // 改用產品主檔的設定
       ..where(products.deletedAt.isNull())
-      ..orderBy([OrderingTerm.asc(inventoryItems.productId)]);
+      ..orderBy([OrderingTerm.asc(products.name)]);
 
     return query.watch().map((rows) {
       return rows
@@ -79,7 +79,7 @@ extension InventoryItemsDao on AppDatabase {
       innerJoin(products, products.id.equalsExp(inventoryItems.productId)),
     ])
       ..where(products.deletedAt.isNull())
-      ..orderBy([OrderingTerm.asc(inventoryItems.productId)]);
+      ..orderBy([OrderingTerm.asc(products.name)]);
     return query.watch().map(
       (rows) => rows.map((row) => row.readTable(inventoryItems)).toList(),
     );

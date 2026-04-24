@@ -115,13 +115,21 @@ extension SalesOrderDao on AppDatabase {
     );
   }
 
-  /// 軟刪除本地臨時訂單（push 被伺服器拒絕時回滾用）
+  /// 軟刪除銷售訂單
   /// 設定 deletedAt，讓 watchActiveSalesOrders 自動過濾掉殘留記錄
+  Future<void> softDeleteSalesOrder(int id, DateTime deletedAt) async {
+    await (update(salesOrders)..where((t) => t.id.equals(id))).write(
+      SalesOrdersCompanion(
+        deletedAt: Value(deletedAt),
+        updatedAt: Value(deletedAt),
+      ),
+    );
+  }
+
+  /// 軟刪除本地臨時訂單（push 被伺服器拒絕時回滾用）
   Future<void> softDeleteLocalSalesOrder(int localId) async {
     final now = DateTime.now().toUtc();
-    await (update(salesOrders)..where((t) => t.id.equals(localId))).write(
-      SalesOrdersCompanion(deletedAt: Value(now)),
-    );
+    await softDeleteSalesOrder(localId, now);
   }
 
   /// 從伺服器 upsert（pull / Force Overwrite 使用）
