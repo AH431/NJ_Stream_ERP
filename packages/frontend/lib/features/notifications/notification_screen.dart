@@ -304,9 +304,12 @@ class _AnomalyCard extends StatelessWidget {
   String _alertTypeLabel(String type, AppStrings s) {
     if (s.isEnglish) return type;
     const map = {
-      'LONG_PENDING_ORDER':  '訂單停滯',
-      'NEGATIVE_AVAILABLE':  '庫存異常',
-      'STOCKOUT_PROLONGED':  '長期缺貨',
+      'LONG_PENDING_ORDER':    '訂單停滯',
+      'NEGATIVE_AVAILABLE':    '庫存異常',
+      'STOCKOUT_PROLONGED':    '長期缺貨',
+      'DUPLICATE_ORDER':       '重複訂單',
+      'ORDER_QUANTITY_SPIKE':  '數量異常',
+      'CUSTOMER_INACTIVE':     '客戶沉默',
     };
     return map[type] ?? type;
   }
@@ -319,6 +322,7 @@ class _AnomalyCard extends StatelessWidget {
       'sales_order':    '訂單',
       'inventory_item': '庫存',
       'customer':       '客戶',
+      'order_item':     '訂單品項',
     };
     return '${map[type] ?? type} #$id';
   }

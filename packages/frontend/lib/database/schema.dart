@@ -267,3 +267,23 @@ class PendingOperations extends Table {
         {operationId},
       ];
 }
+
+// ==============================================================================
+// 6. CRM（Phase 2 P2-DB-02）
+// ==============================================================================
+
+/// 客戶互動記錄（append-only 備忘）
+/// 不支援 update；刪除以 deletedAt 軟刪除
+@DataClassName('CustomerInteraction')
+class CustomerInteractions extends Table {
+  IntColumn  get id         => integer()();
+  IntColumn  get customerId => integer()();
+  TextColumn get note       => text()();
+  IntColumn  get createdBy  => integer().nullable()();
+  TextColumn get createdAt  => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get updatedAt  => text().map(const Iso8601DateTimeConverter())();
+  TextColumn get deletedAt  => text().map(const Iso8601DateTimeConverter()).nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

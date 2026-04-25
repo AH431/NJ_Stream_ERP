@@ -20,15 +20,16 @@ import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import { customers }  from '@/schemas/customers.schema.js';
 import { products }   from '@/schemas/products.schema.js';
 import { quotations } from '@/schemas/quotations.schema.js';
-import { salesOrders }     from '@/schemas/sales_orders.schema.js';
-import { orderItems }      from '@/schemas/order_items.schema.js';
-import { inventoryItems }  from '@/schemas/inventory_items.schema.js';
+import { salesOrders }          from '@/schemas/sales_orders.schema.js';
+import { orderItems }           from '@/schemas/order_items.schema.js';
+import { inventoryItems }       from '@/schemas/inventory_items.schema.js';
+import { customerInteractions } from '@/schemas/customer_interactions.schema.js';
 import { USER_ROLES, DELTA_TYPES } from '@/constants/index.js';
 import type * as schema from '@/schemas/index.js';
 import type { SyncOperation, FailedOperation, ServerState } from '@/types/index.js';
 import type {
   CustomerPayload, ProductPayload, QuotationPayload,
-  SalesOrderPayload, InventoryItemPayload,
+  SalesOrderPayload, InventoryItemPayload, CustomerInteractionPayload,
 } from '@/types/payloads.js';
 
 /**
@@ -84,6 +85,8 @@ const PERMISSIONS: Record<string, string[]> = {
   'inventory_delta:delta_update:cancel':  [USER_ROLES.SALES, USER_ROLES.ADMIN],
   'inventory_delta:delta_update:out':     [USER_ROLES.WAREHOUSE, USER_ROLES.ADMIN],
   'inventory_delta:delta_update:in':      [USER_ROLES.WAREHOUSE, USER_ROLES.ADMIN],
+  'customer_interaction:create':          [USER_ROLES.SALES, USER_ROLES.ADMIN],
+  'customer_interaction:delete':          [USER_ROLES.SALES, USER_ROLES.ADMIN],
 };
 
 // ==============================================================================
@@ -167,6 +170,21 @@ function inventoryToState(row: typeof inventoryItems.$inferSelect): InventoryIte
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     deletedAt: null,
+  };
+}
+
+function customerInteractionToState(
+  row: typeof customerInteractions.$inferSelect,
+): CustomerInteractionPayload {
+  return {
+    entityType: 'customer_interaction',
+    id:         row.id,
+    customerId: row.customerId,
+    note:       row.note,
+    createdBy:  row.createdBy ?? null,
+    createdAt:  row.createdAt.toISOString(),
+    updatedAt:  row.updatedAt.toISOString(),
+    deletedAt:  toIso(row.deletedAt),
   };
 }
 
@@ -260,6 +278,20 @@ const InventoryDeltaSchema = z.object({
   productId:       z.number().int().positive(),
   inventoryItemId: z.number().int().positive().optional(),
   amount:          z.number().int().positive(),
+});
+
+const CustomerInteractionCreateSchema = z.object({
+  customerId: z.number().int().positive(),
+  note:       z.string().min(1),
+  createdBy:  z.number().int().positive(),
+  createdAt:  z.string().datetime(),
+  updatedAt:  z.string().datetime(),
+});
+
+const CustomerInteractionDeleteSchema = z.object({
+  id:        z.number().int().positive(),
+  deletedAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 // ==============================================================================
@@ -774,8 +806,75 @@ export async function processOperation(
       return processSalesOrder(tx, op, userId, role);
     case 'inventory_delta':
       return processInventoryDelta(tx, op, userId, role);
+    case 'customer_interaction':
+      return processCustomerInteraction(tx, op, userId, role);
     default:
       return makeFailure(op.id, 'VALIDATION_ERROR',
         `不支援的 entityType: ${op.entityType}。`);
   }
+}
+
+// ── Customer Interaction ──────────────────────────────────
+
+async function processCustomerInteraction(
+  tx: SyncTx,
+  op: SyncOperation,
+  userId: number,
+  role: string,
+): Promise<ProcessResult> {
+  if (!hasPermission(role, 'customer_interaction', op.operationType)) {
+    return makeFailure(op.id, 'PERMISSION_DENIED', '您沒有操作互動記錄的權限。');
+  }
+
+  if (op.operationType === 'create') {
+    const parsed = CustomerInteractionCreateSchema.safeParse(op.payload);
+    if (!parsed.success) {
+      return makeFailure(op.id, 'VALIDATION_ERROR',
+        parsed.error.issues[0]?.message ?? '互動記錄建立資料格式錯誤。');
+    }
+
+    const [created] = await tx
+      .insert(customerInteractions)
+      .values({
+        customerId: parsed.data.customerId,
+        note:       parsed.data.note,
+        createdBy:  userId,
+        createdAt:  new Date(parsed.data.createdAt),
+      })
+      .returning();
+
+    return { ok: true, serverId: created.id };
+  }
+
+  if (op.operationType === 'delete') {
+    const parsed = CustomerInteractionDeleteSchema.safeParse(op.payload);
+    if (!parsed.success) {
+      return makeFailure(op.id, 'VALIDATION_ERROR',
+        parsed.error.issues[0]?.message ?? '互動記錄刪除資料格式錯誤。');
+    }
+
+    const [existing] = await tx
+      .select()
+      .from(customerInteractions)
+      .where(eq(customerInteractions.id, parsed.data.id));
+
+    if (!existing) {
+      return makeFailure(op.id, 'DATA_CONFLICT', `找不到互動記錄 #${parsed.data.id}。`);
+    }
+
+    if (existing.deletedAt) {
+      // 已軟刪除：視為成功（冪等）
+      return { ok: true };
+    }
+
+    await tx
+      .update(customerInteractions)
+      .set({ deletedAt: new Date(parsed.data.deletedAt) })
+      .where(eq(customerInteractions.id, parsed.data.id));
+
+    return { ok: true };
+  }
+
+  return makeFailure(op.id, 'VALIDATION_ERROR',
+    `customer_interaction 不支援操作：${op.operationType}。`);
 }

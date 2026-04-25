@@ -26,6 +26,18 @@ extension SalesOrderDao on AppDatabase {
         .map((row) => row.read(countExp) ?? 0);
   }
 
+  /// 取得客戶最近 N 筆未軟刪除訂單（供 CustomerDetailScreen 使用）
+  Future<List<SalesOrder>> getRecentOrdersForCustomer(
+    int customerId, {
+    int limit = 5,
+  }) =>
+      (select(salesOrders)
+            ..where((t) =>
+                t.customerId.equals(customerId) & t.deletedAt.isNull())
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+            ..limit(limit))
+          .get();
+
   /// 監聽所有未軟刪除的銷售訂單（供 SalesOrderListScreen 使用）。
   /// 排序：流程進度（待處理 → 確認未預留 → 確認已預留 → 出貨 → 取消），同狀態內 createdAt 降序（最新在上）
   Stream<List<SalesOrder>> watchActiveSalesOrders() {

@@ -28,6 +28,8 @@ extension RemapDao on AppDatabase {
         await _remapQuotation(localId, serverId);
       case 'sales_order':
         await _remapSalesOrder(localId, serverId);
+      case 'customer_interaction':
+        await _remapCustomerInteraction(localId, serverId);
     }
   }
 
@@ -100,6 +102,25 @@ extension RemapDao on AppDatabase {
         .write(OrderItemsCompanion(orderId: Value(serverId)));
 
     await (delete(salesOrders)..where((t) => t.id.equals(localId))).go();
+  }
+
+  // --------------------------------------------------------------------------
+  // CustomerInteraction：localId → serverId
+  //   影響表：customerInteractions（主鍵）；無外鍵被其他表引用
+  // --------------------------------------------------------------------------
+
+  Future<void> _remapCustomerInteraction(int localId, int serverId) async {
+    final existing = await (select(customerInteractions)
+          ..where((t) => t.id.equals(localId)))
+        .getSingleOrNull();
+    if (existing == null) return;
+
+    await into(customerInteractions)
+        .insertOnConflictUpdate(existing.toCompanion(false).copyWith(
+          id: Value(serverId),
+        ));
+
+    await (delete(customerInteractions)..where((t) => t.id.equals(localId))).go();
   }
 
   // --------------------------------------------------------------------------

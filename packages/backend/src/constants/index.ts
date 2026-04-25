@@ -38,11 +38,12 @@ export type OperationType = typeof OPERATION_TYPES[keyof typeof OPERATION_TYPES]
 
 // ── Entity 類型 ───────────────────────────────────────────
 export const ENTITY_TYPES = {
-  CUSTOMER: 'customer',
-  PRODUCT: 'product',
-  QUOTATION: 'quotation',
-  SALES_ORDER: 'sales_order',
-  INVENTORY_DELTA: 'inventory_delta',
+  CUSTOMER:             'customer',
+  PRODUCT:              'product',
+  QUOTATION:            'quotation',
+  SALES_ORDER:          'sales_order',
+  INVENTORY_DELTA:      'inventory_delta',
+  CUSTOMER_INTERACTION: 'customer_interaction',
 } as const;
 
 export type EntityType = typeof ENTITY_TYPES[keyof typeof ENTITY_TYPES];

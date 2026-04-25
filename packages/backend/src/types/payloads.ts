@@ -63,6 +63,17 @@ export interface SalesOrderPayload {
   deletedAt: string | null;
 }
 
+export interface CustomerInteractionPayload {
+  entityType: 'customer_interaction';
+  id: number;
+  customerId: number;
+  note: string;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export interface InventoryItemPayload {
   entityType: 'inventory_item';
   id: number;

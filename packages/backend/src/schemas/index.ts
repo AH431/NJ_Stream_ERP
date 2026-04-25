@@ -26,6 +26,7 @@ export * from './order_items.schema.ts';
 export * from './inventory_items.schema.ts';
 export * from './processed_operations.schema.ts';
 export * from './anomalies.schema.ts';
+export * from './customer_interactions.schema.ts';
 
 // ── Relations ─────────────────────────────────────────────
 import { relations } from 'drizzle-orm';

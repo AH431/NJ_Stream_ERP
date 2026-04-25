@@ -20,6 +20,7 @@ import 'features/settings/dev_settings_screen.dart';
 import 'providers/sync_provider.dart';
 import 'providers/analytics_provider.dart';
 import 'providers/anomaly_provider.dart';
+import 'providers/rfm_provider.dart';
 import 'features/notifications/notification_screen.dart';
 
 // ==============================================================================
@@ -82,6 +83,16 @@ Future<void> main() async {
           ),
           update: (_, sync, prev) =>
               prev ?? AnomalyProvider(dio: sync.authenticatedDio),
+        ),
+
+        // ── RfmProvider ──────────────────────────────────────────────────────
+        // Phase 2 P2-CRM：RFM 分數與分級（15 分鐘記憶體快取）
+        ChangeNotifierProxyProvider<SyncProvider, RfmProvider>(
+          create: (ctx) => RfmProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? RfmProvider(dio: sync.authenticatedDio),
         ),
 
         // ── AppStrings ───────────────────────────────────────────────────────

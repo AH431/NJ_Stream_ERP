@@ -4408,6 +4408,392 @@ class PendingOperationsCompanion extends UpdateCompanion<PendingOperation> {
   }
 }
 
+class $CustomerInteractionsTable extends CustomerInteractions
+    with TableInfo<$CustomerInteractionsTable, CustomerInteraction> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomerInteractionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _customerIdMeta =
+      const VerificationMeta('customerId');
+  @override
+  late final GeneratedColumn<int> customerId = GeneratedColumn<int>(
+      'customer_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdByMeta =
+      const VerificationMeta('createdBy');
+  @override
+  late final GeneratedColumn<int> createdBy = GeneratedColumn<int>(
+      'created_by', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, String> createdAt =
+      GeneratedColumn<String>('created_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>(
+              $CustomerInteractionsTable.$convertercreatedAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, String> updatedAt =
+      GeneratedColumn<String>('updated_at', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<DateTime>(
+              $CustomerInteractionsTable.$converterupdatedAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, String> deletedAt =
+      GeneratedColumn<String>('deleted_at', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<DateTime?>(
+              $CustomerInteractionsTable.$converterdeletedAtn);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, customerId, note, createdBy, createdAt, updatedAt, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'customer_interactions';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CustomerInteraction> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('customer_id')) {
+      context.handle(
+          _customerIdMeta,
+          customerId.isAcceptableOrUnknown(
+              data['customer_id']!, _customerIdMeta));
+    } else if (isInserting) {
+      context.missing(_customerIdMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    } else if (isInserting) {
+      context.missing(_noteMeta);
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(_createdByMeta,
+          createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CustomerInteraction map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomerInteraction(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      customerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}customer_id'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note'])!,
+      createdBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_by']),
+      createdAt: $CustomerInteractionsTable.$convertercreatedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}created_at'])!),
+      updatedAt: $CustomerInteractionsTable.$converterupdatedAt.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}updated_at'])!),
+      deletedAt: $CustomerInteractionsTable.$converterdeletedAtn.fromSql(
+          attachedDatabase.typeMapping
+              .read(DriftSqlType.string, data['${effectivePrefix}deleted_at'])),
+    );
+  }
+
+  @override
+  $CustomerInteractionsTable createAlias(String alias) {
+    return $CustomerInteractionsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, String> $convertercreatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterupdatedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime, String> $converterdeletedAt =
+      const Iso8601DateTimeConverter();
+  static TypeConverter<DateTime?, String?> $converterdeletedAtn =
+      NullAwareTypeConverter.wrap($converterdeletedAt);
+}
+
+class CustomerInteraction extends DataClass
+    implements Insertable<CustomerInteraction> {
+  final int id;
+  final int customerId;
+  final String note;
+  final int? createdBy;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const CustomerInteraction(
+      {required this.id,
+      required this.customerId,
+      required this.note,
+      this.createdBy,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['customer_id'] = Variable<int>(customerId);
+    map['note'] = Variable<String>(note);
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<int>(createdBy);
+    }
+    {
+      map['created_at'] = Variable<String>(
+          $CustomerInteractionsTable.$convertercreatedAt.toSql(createdAt));
+    }
+    {
+      map['updated_at'] = Variable<String>(
+          $CustomerInteractionsTable.$converterupdatedAt.toSql(updatedAt));
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(
+          $CustomerInteractionsTable.$converterdeletedAtn.toSql(deletedAt));
+    }
+    return map;
+  }
+
+  CustomerInteractionsCompanion toCompanion(bool nullToAbsent) {
+    return CustomerInteractionsCompanion(
+      id: Value(id),
+      customerId: Value(customerId),
+      note: Value(note),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory CustomerInteraction.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomerInteraction(
+      id: serializer.fromJson<int>(json['id']),
+      customerId: serializer.fromJson<int>(json['customerId']),
+      note: serializer.fromJson<String>(json['note']),
+      createdBy: serializer.fromJson<int?>(json['createdBy']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'customerId': serializer.toJson<int>(customerId),
+      'note': serializer.toJson<String>(note),
+      'createdBy': serializer.toJson<int?>(createdBy),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  CustomerInteraction copyWith(
+          {int? id,
+          int? customerId,
+          String? note,
+          Value<int?> createdBy = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          Value<DateTime?> deletedAt = const Value.absent()}) =>
+      CustomerInteraction(
+        id: id ?? this.id,
+        customerId: customerId ?? this.customerId,
+        note: note ?? this.note,
+        createdBy: createdBy.present ? createdBy.value : this.createdBy,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+      );
+  CustomerInteraction copyWithCompanion(CustomerInteractionsCompanion data) {
+    return CustomerInteraction(
+      id: data.id.present ? data.id.value : this.id,
+      customerId:
+          data.customerId.present ? data.customerId.value : this.customerId,
+      note: data.note.present ? data.note.value : this.note,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerInteraction(')
+          ..write('id: $id, ')
+          ..write('customerId: $customerId, ')
+          ..write('note: $note, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, customerId, note, createdBy, createdAt, updatedAt, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomerInteraction &&
+          other.id == this.id &&
+          other.customerId == this.customerId &&
+          other.note == this.note &&
+          other.createdBy == this.createdBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class CustomerInteractionsCompanion
+    extends UpdateCompanion<CustomerInteraction> {
+  final Value<int> id;
+  final Value<int> customerId;
+  final Value<String> note;
+  final Value<int?> createdBy;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  const CustomerInteractionsCompanion({
+    this.id = const Value.absent(),
+    this.customerId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  CustomerInteractionsCompanion.insert({
+    this.id = const Value.absent(),
+    required int customerId,
+    required String note,
+    this.createdBy = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+  })  : customerId = Value(customerId),
+        note = Value(note),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<CustomerInteraction> custom({
+    Expression<int>? id,
+    Expression<int>? customerId,
+    Expression<String>? note,
+    Expression<int>? createdBy,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (customerId != null) 'customer_id': customerId,
+      if (note != null) 'note': note,
+      if (createdBy != null) 'created_by': createdBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  CustomerInteractionsCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? customerId,
+      Value<String>? note,
+      Value<int?>? createdBy,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<DateTime?>? deletedAt}) {
+    return CustomerInteractionsCompanion(
+      id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
+      note: note ?? this.note,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (customerId.present) {
+      map['customer_id'] = Variable<int>(customerId.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<int>(createdBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>($CustomerInteractionsTable
+          .$convertercreatedAt
+          .toSql(createdAt.value));
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>($CustomerInteractionsTable
+          .$converterupdatedAt
+          .toSql(updatedAt.value));
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>($CustomerInteractionsTable
+          .$converterdeletedAtn
+          .toSql(deletedAt.value));
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerInteractionsCompanion(')
+          ..write('id: $id, ')
+          ..write('customerId: $customerId, ')
+          ..write('note: $note, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4424,6 +4810,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ProcessedOperationsTable(this);
   late final $PendingOperationsTable pendingOperations =
       $PendingOperationsTable(this);
+  late final $CustomerInteractionsTable customerInteractions =
+      $CustomerInteractionsTable(this);
   late final Index idxOrderItemsOrderId = Index('idx_order_items_order_id',
       'CREATE INDEX idx_order_items_order_id ON order_items (order_id)');
   late final Index idxPendingEntityType = Index('idx_pending_entity_type',
@@ -4449,6 +4837,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         inventoryDeltas,
         processedOperations,
         pendingOperations,
+        customerInteractions,
         idxOrderItemsOrderId,
         idxPendingEntityType,
         idxPendingRelatedEntity,
@@ -6660,6 +7049,215 @@ typedef $$PendingOperationsTableProcessedTableManager = ProcessedTableManager<
     ),
     PendingOperation,
     PrefetchHooks Function()>;
+typedef $$CustomerInteractionsTableCreateCompanionBuilder
+    = CustomerInteractionsCompanion Function({
+  Value<int> id,
+  required int customerId,
+  required String note,
+  Value<int?> createdBy,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<DateTime?> deletedAt,
+});
+typedef $$CustomerInteractionsTableUpdateCompanionBuilder
+    = CustomerInteractionsCompanion Function({
+  Value<int> id,
+  Value<int> customerId,
+  Value<String> note,
+  Value<int?> createdBy,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> deletedAt,
+});
+
+class $$CustomerInteractionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CustomerInteractionsTable> {
+  $$CustomerInteractionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get createdAt =>
+      $composableBuilder(
+          column: $table.createdAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get updatedAt =>
+      $composableBuilder(
+          column: $table.updatedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, String> get deletedAt =>
+      $composableBuilder(
+          column: $table.deletedAt,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+}
+
+class $$CustomerInteractionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CustomerInteractionsTable> {
+  $$CustomerInteractionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CustomerInteractionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CustomerInteractionsTable> {
+  $$CustomerInteractionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime?, String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$CustomerInteractionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CustomerInteractionsTable,
+    CustomerInteraction,
+    $$CustomerInteractionsTableFilterComposer,
+    $$CustomerInteractionsTableOrderingComposer,
+    $$CustomerInteractionsTableAnnotationComposer,
+    $$CustomerInteractionsTableCreateCompanionBuilder,
+    $$CustomerInteractionsTableUpdateCompanionBuilder,
+    (
+      CustomerInteraction,
+      BaseReferences<_$AppDatabase, $CustomerInteractionsTable,
+          CustomerInteraction>
+    ),
+    CustomerInteraction,
+    PrefetchHooks Function()> {
+  $$CustomerInteractionsTableTableManager(
+      _$AppDatabase db, $CustomerInteractionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomerInteractionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CustomerInteractionsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CustomerInteractionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> customerId = const Value.absent(),
+            Value<String> note = const Value.absent(),
+            Value<int?> createdBy = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> deletedAt = const Value.absent(),
+          }) =>
+              CustomerInteractionsCompanion(
+            id: id,
+            customerId: customerId,
+            note: note,
+            createdBy: createdBy,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int customerId,
+            required String note,
+            Value<int?> createdBy = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<DateTime?> deletedAt = const Value.absent(),
+          }) =>
+              CustomerInteractionsCompanion.insert(
+            id: id,
+            customerId: customerId,
+            note: note,
+            createdBy: createdBy,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CustomerInteractionsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $CustomerInteractionsTable,
+        CustomerInteraction,
+        $$CustomerInteractionsTableFilterComposer,
+        $$CustomerInteractionsTableOrderingComposer,
+        $$CustomerInteractionsTableAnnotationComposer,
+        $$CustomerInteractionsTableCreateCompanionBuilder,
+        $$CustomerInteractionsTableUpdateCompanionBuilder,
+        (
+          CustomerInteraction,
+          BaseReferences<_$AppDatabase, $CustomerInteractionsTable,
+              CustomerInteraction>
+        ),
+        CustomerInteraction,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6684,4 +7282,6 @@ class $AppDatabaseManager {
       $$ProcessedOperationsTableTableManager(_db, _db.processedOperations);
   $$PendingOperationsTableTableManager get pendingOperations =>
       $$PendingOperationsTableTableManager(_db, _db.pendingOperations);
+  $$CustomerInteractionsTableTableManager get customerInteractions =>
+      $$CustomerInteractionsTableTableManager(_db, _db.customerInteractions);
 }

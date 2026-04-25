@@ -24,6 +24,7 @@ import { salesOrders } from '@/schemas/sales_orders.schema.js';
 import { inventoryItems } from '@/schemas/inventory_items.schema.js';
 import { processedOperations } from '@/schemas/processed_operations.schema.js';
 import { orderItems } from '@/schemas/order_items.schema.js';
+import { customerInteractions } from '@/schemas/customer_interactions.schema.js';
 import { processOperation } from '@/services/sync.service.js';
 import type { ProcessResult } from '@/services/sync.service.js';
 import { SYNC } from '@/constants/index.js';
@@ -38,7 +39,7 @@ import type { FailedOperation } from '@/types/index.js';
 const SyncOperationSchema = z.object({
   /** 前端產生的 UUID v4，用於冪等去重 */
   id:            z.string().uuid('operationId 必須是 UUID v4 格式'),
-  entityType:    z.enum(['customer', 'product', 'quotation', 'sales_order', 'inventory_delta']),
+  entityType:    z.enum(['customer', 'product', 'quotation', 'sales_order', 'inventory_delta', 'customer_interaction']),
   operationType: z.enum(['create', 'update', 'delete', 'delta_update']),
   /** 僅 inventory_delta 使用 */
   deltaType:     z.enum(['reserve', 'cancel', 'out', 'in']).nullable().optional(),
@@ -202,7 +203,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
     const { since, entityTypes } = parsed.data;
     const sinceDate = since ? new Date(since) : new Date(0);
-    const types = entityTypes ? entityTypes.split(',') : ['customer', 'product', 'quotation', 'sales_order', 'inventory_delta'];
+    const types = entityTypes ? entityTypes.split(',') : ['customer', 'product', 'quotation', 'sales_order', 'inventory_delta', 'customer_interaction'];
 
     const result: Record<string, unknown[]> = {
       customers: [],
@@ -210,6 +211,7 @@ export default async function syncRoutes(app: FastifyInstance) {
       quotations: [],
       salesOrders: [],
       inventoryItems: [],
+      customerInteractions: [],
     };
 
     if (types.includes('customer')) {
@@ -326,6 +328,21 @@ export default async function syncRoutes(app: FastifyInstance) {
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
         deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+      }));
+    }
+
+    if (types.includes('customer_interaction')) {
+      const rows = await db.select().from(customerInteractions)
+        .where(gt(customerInteractions.updatedAt, sinceDate));
+      result.customerInteractions = rows.map(r => ({
+        entityType: 'customer_interaction',
+        id:         r.id,
+        customerId: r.customerId,
+        note:       r.note,
+        createdBy:  r.createdBy ?? null,
+        createdAt:  r.createdAt.toISOString(),
+        updatedAt:  r.updatedAt.toISOString(),
+        deletedAt:  r.deletedAt ? r.deletedAt.toISOString() : null,
       }));
     }
 

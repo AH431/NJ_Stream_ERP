@@ -1,7 +1,7 @@
 import type { EntityType, SyncErrorCode } from '@/constants/index.js';
 import type {
   CustomerPayload, ProductPayload, QuotationPayload,
-  SalesOrderPayload, InventoryItemPayload,
+  SalesOrderPayload, InventoryItemPayload, CustomerInteractionPayload,
 } from './payloads.js';
 
 // ── Re-export constants types ────────────────────────────
@@ -37,4 +37,5 @@ export type ServerState =
   | ProductPayload
   | QuotationPayload
   | SalesOrderPayload
-  | InventoryItemPayload;
+  | InventoryItemPayload
+  | CustomerInteractionPayload;

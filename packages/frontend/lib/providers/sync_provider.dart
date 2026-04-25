@@ -16,6 +16,7 @@ import '../database/dao/quotation_dao.dart';
 import '../database/dao/sales_order_dao.dart';
 import '../database/dao/inventory_items_dao.dart';
 import '../database/dao/remap_dao.dart';
+import '../database/dao/interaction_dao.dart';
 import 'package:uuid/uuid.dart';
 
 // ================================================
@@ -940,6 +941,16 @@ class SyncProvider extends ChangeNotifier {
         createdAt: Value(DateTime.parse(data['createdAt'] as String)),
         updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
       ));
+    } else if (entityType == 'customer_interaction') {
+      await _db.upsertInteractionFromServer(CustomerInteractionsCompanion(
+        id:         Value((data['id'] as num).toInt()),
+        customerId: Value((data['customerId'] as num).toInt()),
+        note:       Value(data['note'] as String),
+        createdBy:  Value(data['createdBy'] != null ? (data['createdBy'] as num).toInt() : null),
+        createdAt:  Value(DateTime.parse(data['createdAt'] as String)),
+        updatedAt:  Value(DateTime.parse(data['updatedAt'] as String)),
+        deletedAt:  Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
+      ));
     }
     debugPrint('[SyncProvider] Force Overwrite: $entityType id=${data['id']}');
   }
@@ -967,16 +978,17 @@ class SyncProvider extends ChangeNotifier {
         '/api/v1/sync/pull',
         queryParameters: {
           if (lastSyncStr != null) 'since': lastSyncStr,
-          'entityTypes': 'customer,product,quotation,sales_order,inventory_delta',
+          'entityTypes': 'customer,product,quotation,sales_order,inventory_delta,customer_interaction',
         },
       );
 
       final data = response.data ?? {};
-      final rawCustomers      = (data['customers']      as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawProducts       = (data['products']       as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawQuotations     = (data['quotations']     as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawSalesOrders    = (data['salesOrders']    as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final rawInventoryItems = (data['inventoryItems'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawCustomers           = (data['customers']            as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawProducts            = (data['products']             as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawQuotations          = (data['quotations']           as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawSalesOrders         = (data['salesOrders']          as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawInventoryItems      = (data['inventoryItems']       as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rawInteractions        = (data['customerInteractions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
       // 使用 transaction 包裹整批 Pull 寫入，提升效能並保證原子性
       await _db.transaction(() async {
@@ -1001,6 +1013,9 @@ class SyncProvider extends ChangeNotifier {
         }
         for (var inv in rawInventoryItems) {
           await _applyForceOverwrite('inventory_item', inv);
+        }
+        for (var ci in rawInteractions) {
+          await _applyForceOverwrite('customer_interaction', ci);
         }
       });
 

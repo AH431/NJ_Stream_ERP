@@ -14,6 +14,7 @@ import importRoutes from '@/routes/import.route.js';
 import documentsRoutes from '@/routes/documents.route.js';
 import analyticsRoutes from '@/routes/analytics.route.js';
 import anomaliesRoutes from '@/routes/anomalies.route.js';
+import customerInteractionsRoutes from '@/routes/customer_interactions.route.js';
 import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
 
 export function buildApp() {
@@ -70,7 +71,8 @@ export function buildApp() {
   app.register(importRoutes,     { prefix: '/api/v1/admin' });
   app.register(documentsRoutes,  { prefix: '/api/v1' });
   app.register(analyticsRoutes,  { prefix: '/api/v1/analytics' });
-  app.register(anomaliesRoutes,  { prefix: '/api/v1/anomalies' });
+  app.register(anomaliesRoutes,              { prefix: '/api/v1/anomalies' });
+  app.register(customerInteractionsRoutes,  { prefix: '/api/v1/customer-interactions' });
 
   // ── AnomalyScanner 排程（每小時執行一次）─────────────────
   // onReady：確保 DB plugin 已完成初始化後才啟動排程
