@@ -10,6 +10,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 
 import '../core/constants.dart';
 import '../database/database.dart';
+import '../services/fcm_service.dart';
 import '../database/dao/customer_dao.dart';
 import '../database/dao/product_dao.dart';
 import '../database/dao/quotation_dao.dart';
@@ -335,6 +336,8 @@ class SyncProvider extends ChangeNotifier {
       await _storage.write(key: _refreshTokenKey, value: refresh);
       _scheduleProactiveRefresh();
       notifyListeners();
+      // 登入後向後端註冊 FCM token（背景，不阻塞登入流程）
+      FcmService.onUserLoggedIn(_dio).ignore();
       return true;
     } on DioException {
       return false;
@@ -346,6 +349,8 @@ class SyncProvider extends ChangeNotifier {
   // ----------------------------------------------------------------------------
 
   Future<void> logout() async {
+    // 登出前先移除 FCM token（token 還有效時才能發出 DELETE 請求）
+    await FcmService.onUserLoggedOut(_dio).catchError((_) {});
     _proactiveRefreshTimer?.cancel();
     _currentAccessToken = null;
     _jwtPayload = null; // 清除快取，確保 userId / role getter 回傳 null
@@ -924,8 +929,11 @@ class SyncProvider extends ChangeNotifier {
         customerId: Value(data['customerId'] as int),
         createdBy: Value(data['createdBy'] as int),
         status: Value(data['status'] as String),
+        paymentStatus: Value(data['paymentStatus'] as String? ?? 'unpaid'),
         confirmedAt: Value(data['confirmedAt'] != null ? DateTime.parse(data['confirmedAt'] as String) : null),
         shippedAt: Value(data['shippedAt'] != null ? DateTime.parse(data['shippedAt'] as String) : null),
+        paidAt: Value(data['paidAt'] != null ? DateTime.parse(data['paidAt'] as String) : null),
+        dueDate: Value(data['dueDate'] != null ? DateTime.parse(data['dueDate'] as String) : null),
         createdAt: Value(DateTime.parse(data['createdAt'] as String)),
         updatedAt: Value(DateTime.parse(data['updatedAt'] as String)),
         deletedAt: Value(data['deletedAt'] != null ? DateTime.parse(data['deletedAt'] as String) : null),
@@ -998,6 +1006,7 @@ class SyncProvider extends ChangeNotifier {
         await _db.clearOrphanedOfflineCustomers(relatedIds);
         await _db.clearOrphanedOfflineProducts(relatedIds);
         await _db.clearOrphanedOfflineQuotations(relatedIds);
+        await _db.clearOrphanedOfflineSalesOrders(relatedIds);
 
         for (var c in rawCustomers) {
           await _applyForceOverwrite('customer', c);

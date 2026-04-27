@@ -9,6 +9,7 @@
 //   5. 取消訂單：長按進入選取模式 → 頂部工具列批次取消（sales / admin）
 // ==============================================================================
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -35,6 +36,7 @@ class SalesOrderListScreen extends StatefulWidget {
 
 class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   Map<int, String> _customerMap = {};
+  StreamSubscription<List<Customer>>? _customerSub;
 
   // 選取模式
   bool _selectionMode = false;
@@ -44,17 +46,20 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCustomerMap();
+    final db = context.read<AppDatabase>();
+    _customerSub = db.watchActiveCustomers().listen((customers) {
+      if (mounted) {
+        setState(() {
+          _customerMap = {for (final c in customers) c.id: c.name};
+        });
+      }
+    });
   }
 
-  Future<void> _loadCustomerMap() async {
-    final db = context.read<AppDatabase>();
-    final customers = await db.getActiveCustomers();
-    if (mounted) {
-      setState(() {
-        _customerMap = {for (final c in customers) c.id: c.name};
-      });
-    }
+  @override
+  void dispose() {
+    _customerSub?.cancel();
+    super.dispose();
   }
 
   // ─── 選取模式 ────────────────────────────────────────────────────────────────

@@ -42,8 +42,9 @@ class Customers extends Table {
   TextColumn get contact => text().nullable().withLength(max: 255)();
   TextColumn get email   => text().nullable().withLength(max: 255)();
   TextColumn get taxId   => text().nullable().withLength(max: 20)();
+  IntColumn  get paymentTermsDays => integer().withDefault(const Constant(30))();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
-  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())(); 
+  TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
 
   @override
@@ -53,13 +54,15 @@ class Customers extends Table {
 /// 產品主檔
 /// unitPrice 用 DecimalConverter：後端傳 "158000.00" 字串，前端同格式儲存
 /// minStockLevel：庫存低於此值時 Dashboard 顯示警示
+/// costPrice：成本價，用於損益摘要計算（nullable，未設定時不計入毛利）
 @DataClassName('Product')
 class Products extends Table {
   IntColumn get id => integer()();
   TextColumn get name => text().withLength(max: 255)();
   TextColumn get sku => text().withLength(max: 100)();
-  TextColumn get unitPrice => text().map(const DecimalConverter())(); // 對齊後端 decimal 字串
-  IntColumn get minStockLevel => integer().withDefault(const Constant(0))();
+  TextColumn get unitPrice  => text().map(const DecimalConverter())();
+  TextColumn get costPrice  => text().map(const DecimalConverter()).nullable()();
+  IntColumn  get minStockLevel => integer().withDefault(const Constant(0))();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();
@@ -99,18 +102,21 @@ class Quotations extends Table {
 /// First-to-Sync wins：兩台裝置同時把同一份報價轉訂單時，
 ///   先到後端的那筆成立，後到的後端會回傳 DATA_CONFLICT
 /// status 流轉：pending → confirmed（觸發 reserve）→ shipped（觸發 out）/ cancelled
+/// paymentStatus 流轉：unpaid → paid / written_off（shipped 後才有意義）
 @DataClassName('SalesOrder')
 class SalesOrders extends Table {
   IntColumn get id => integer()();
-  IntColumn get quotationId => integer().nullable()(); // First-to-Sync wins 關鍵
+  IntColumn get quotationId => integer().nullable()();
   IntColumn get customerId => integer()();
   IntColumn get createdBy => integer()();
-  TextColumn get status => text()(); // pending, confirmed, shipped, cancelled
-  TextColumn get confirmedAt  => text().map(const Iso8601DateTimeConverter()).nullable()();
-  TextColumn get reservedAt   => text().map(const Iso8601DateTimeConverter()).nullable()();
-  /// 本地端標記庫存不足警示時間（不同步至伺服器）
-  TextColumn get stockAlertAt => text().map(const Iso8601DateTimeConverter()).nullable()();
-  TextColumn get shippedAt    => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get status         => text()(); // pending, confirmed, shipped, cancelled
+  TextColumn get paymentStatus  => text().withDefault(const Constant('unpaid'))();
+  TextColumn get confirmedAt    => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get reservedAt     => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get stockAlertAt   => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get shippedAt      => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get paidAt         => text().map(const Iso8601DateTimeConverter()).nullable()();
+  TextColumn get dueDate        => text().map(const Iso8601DateTimeConverter()).nullable()();
   TextColumn get createdAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get updatedAt => text().map(const Iso8601DateTimeConverter())();
   TextColumn get deletedAt => text().map(const Iso8601DateTimeConverter()).nullable()();

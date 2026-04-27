@@ -33,6 +33,11 @@ dependencies:
   # 圖表（Phase 2 P2-VIS）
   fl_chart: ^0.69.0
 
+  # FCM push 通知（Phase 2 Post-Sprint #6）
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
+  flutter_local_notifications: ^18.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

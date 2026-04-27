@@ -142,6 +142,33 @@ class _AnalyticsSection extends StatelessWidget {
             ],
           ),
 
+        // 3. 損益摘要（Admin 專用）
+        if (analytics.profitData != null && analytics.profitData!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _ProfitSummaryCard(data: analytics.profitData!),
+        ],
+
+        // 4. 報價漏斗（admin + sales）
+        if (analytics.funnelData != null && analytics.funnelData!.totalQuotations > 0) ...[
+          const SizedBox(height: 16),
+          _FunnelCard(data: analytics.funnelData!),
+        ],
+
+        // 5. 庫存出貨趨勢（admin + warehouse）
+        if (analytics.inventoryTrendData != null && analytics.inventoryTrendData!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _InventoryTrendChart(data: analytics.inventoryTrendData!),
+        ],
+
+        // 6. 客戶熱力圖（admin + sales）
+        if (analytics.heatmapData != null && analytics.heatmapData!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _CustomerHeatmapCard(
+            rows: analytics.heatmapData!,
+            months: analytics.heatmapMonths ?? [],
+          ),
+        ],
+
         // 最後更新時間
         if (analytics.lastFetchedAt != null) ...[
           const SizedBox(height: 6),
@@ -166,6 +193,110 @@ class _ChartSkeleton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+    );
+  }
+}
+
+// ── 損益摘要（Admin 專用）────────────────────────────────
+
+class _ProfitSummaryCard extends StatelessWidget {
+  final List<ProfitPoint> data;
+  const _ProfitSummaryCard({required this.data});
+
+  String _fmt(double v) {
+    final s = v.abs().toStringAsFixed(0);
+    final buf = StringBuffer(v < 0 ? '-' : '');
+    final len = s.length;
+    for (var i = 0; i < len; i++) {
+      if (i > 0 && (len - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 只取最新一個月的資料展示摘要
+    final latest = data.last;
+    final hasMargin = latest.grossMarginPct != null;
+    final s = AppStrings.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.trending_up, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  s.dashProfitTitle(latest.month),
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _ProfitKpi(
+                  label: s.dashProfitRevenue,
+                  value: 'NT\$ ${_fmt(latest.revenue)}',
+                )),
+                Expanded(child: _ProfitKpi(
+                  label: s.dashProfitCogs,
+                  value: 'NT\$ ${_fmt(latest.cogs)}',
+                )),
+                Expanded(child: _ProfitKpi(
+                  label: s.dashProfitGross,
+                  value: 'NT\$ ${_fmt(latest.grossProfit)}',
+                  valueColor: latest.grossProfit >= 0 ? Colors.green.shade700 : Colors.red,
+                )),
+                if (hasMargin)
+                  Expanded(child: _ProfitKpi(
+                    label: s.dashProfitMargin,
+                    value: '${latest.grossMarginPct!.toStringAsFixed(1)}%',
+                    valueColor: latest.grossMarginPct! >= 0 ? Colors.green.shade700 : Colors.red,
+                  )),
+              ],
+            ),
+            if (!hasMargin) ...[
+              const SizedBox(height: 6),
+              Text(
+                '尚未設定商品成本，無法計算毛利率。',
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfitKpi extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  const _ProfitKpi({required this.label, required this.value, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: valueColor,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -495,6 +626,303 @@ class _TopProductsBar extends StatelessWidget {
     );
   }
 }
+
+// ==============================================================================
+// 圖表 4：報價轉換漏斗
+// ==============================================================================
+
+class _FunnelCard extends StatelessWidget {
+  final FunnelData data;
+  const _FunnelCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    final s = AppStrings.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.filter_alt_outlined, size: 18),
+              const SizedBox(width: 6),
+              Text(s.dashQuotFunnelTitle,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: _FunnelKpi(label: s.dashQuotCreated, value: '${d.totalQuotations}')),
+              Expanded(child: _FunnelKpi(
+                label: s.dashQuotConverted,
+                value: '${d.converted}',
+                valueColor: Colors.green.shade700,
+              )),
+              Expanded(child: _FunnelKpi(
+                label: s.dashQuotRate,
+                value: '${d.conversionRate.toStringAsFixed(1)}%',
+                valueColor: d.conversionRate >= 50 ? Colors.green.shade700 : Colors.orange,
+              )),
+              Expanded(child: _FunnelKpi(
+                label: s.dashQuotAvgDays,
+                value: d.avgDaysToConvert != null
+                    ? s.dashQuotDays(d.avgDaysToConvert!.toStringAsFixed(1))
+                    : '—',
+              )),
+            ]),
+            const SizedBox(height: 8),
+            // 進度條
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: d.totalQuotations > 0 ? d.converted / d.totalQuotations : 0,
+                minHeight: 8,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade600),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(children: [
+              Text('${s.dashQuotExpired} ${d.expiredCount}',
+                  style: TextStyle(fontSize: 10, color: Colors.red.shade400)),
+              const SizedBox(width: 10),
+              Text('${s.dashQuotPending} ${d.pendingCount}',
+                  style: TextStyle(fontSize: 10,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FunnelKpi extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  const _FunnelKpi({required this.label, required this.value, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 2),
+        Text(value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: valueColor,
+            )),
+      ],
+    );
+  }
+}
+
+// ==============================================================================
+// 圖表 5：庫存月度出貨趨勢
+// ==============================================================================
+
+class _InventoryTrendChart extends StatelessWidget {
+  final List<InventoryTrendPoint> data;
+  const _InventoryTrendChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final maxY  = data.map((p) => p.totalOutbound.toDouble()).fold(0.0, (a, b) => a > b ? a : b);
+    final spots = data.asMap().entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value.totalOutbound.toDouble()))
+        .toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.inventory_2_outlined, size: 18),
+              const SizedBox(width: 6),
+              Text(strings.dashShipmentTrendTitle,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 130,
+              child: LineChart(
+                LineChartData(
+                  minY: 0,
+                  maxY: maxY * 1.2 == 0 ? 10 : maxY * 1.2,
+                  gridData: FlGridData(
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      strokeWidth: 0.5,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 36,
+                        getTitlesWidget: (val, _) =>
+                            Text(val.toInt().toString(), style: const TextStyle(fontSize: 9)),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        getTitlesWidget: (val, _) {
+                          final idx = val.toInt();
+                          if (idx < 0 || idx >= data.length) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(strings.monthLabel(data[idx].month), style: const TextStyle(fontSize: 9)),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles:   const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      color: Colors.teal,
+                      barWidth: 2.5,
+                      dotData: FlDotData(
+                        getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                          radius: 3, color: Colors.teal, strokeWidth: 0),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.teal.withAlpha(30),
+                      ),
+                    ),
+                  ],
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (spots) => spots.map((s) {
+                        final idx = s.x.toInt();
+                        final pt  = idx < data.length ? data[idx] : null;
+                        return LineTooltipItem(
+                          pt != null ? strings.dashShipmentTooltip(pt.month, pt.totalOutbound, pt.activeProducts) : '',
+                          const TextStyle(fontSize: 10, color: Colors.white),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==============================================================================
+// 圖表 6：客戶下單熱力圖
+// ==============================================================================
+
+class _CustomerHeatmapCard extends StatelessWidget {
+  final List<CustomerHeatmapRow> rows;
+  final List<String>             months;
+  const _CustomerHeatmapCard({required this.rows, required this.months});
+
+  Color _cellColor(BuildContext context, int count) {
+    if (count == 0) return Theme.of(context).colorScheme.surfaceContainerHighest;
+    if (count == 1) return Colors.blue.shade100;
+    if (count <= 3) return Colors.blue.shade300;
+    return Colors.blue.shade600;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+    final shortMonths = months.map((m) => s.monthLabel(m)).toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.grid_on_outlined, size: 18),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(s.dashHeatmapTitle,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            // 月份標題列 — LayoutBuilder 讓格子填滿卡片寬度
+            LayoutBuilder(builder: (context, constraints) {
+              const nameW = 80.0;
+              final n = months.isEmpty ? 1 : months.length;
+              final cellW = ((constraints.maxWidth - nameW) / n).floorToDouble();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 標題行
+                  Row(children: [
+                    const SizedBox(width: nameW),
+                    ...shortMonths.map((m) => SizedBox(
+                      width: cellW,
+                      child: Text(m,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500)),
+                    )),
+                  ]),
+                  const SizedBox(height: 4),
+                  // 資料行
+                  ...rows.map((row) => Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Row(children: [
+                      SizedBox(
+                        width: nameW,
+                        child: Text(row.name,
+                            style: const TextStyle(fontSize: 10),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      ...row.counts.map((count) => Container(
+                        width: cellW,
+                        height: 22,
+                        padding: const EdgeInsets.symmetric(horizontal: 1),
+                        decoration: BoxDecoration(
+                          color: _cellColor(context, count),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        alignment: Alignment.center,
+                        child: count > 0
+                            ? Text('$count',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: count >= 4 ? Colors.white : Colors.blue.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ))
+                            : null,
+                      )),
+                    ]),
+                  )),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 // ==============================================================================
 // 以下：現有 Widgets 完全不動

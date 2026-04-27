@@ -144,6 +144,18 @@ extension SalesOrderDao on AppDatabase {
     await softDeleteSalesOrder(localId, now);
   }
 
+  /// 清除無對應 PendingOperation 的本地臨時訂單（id < 0）
+  /// Pull 時呼叫，移除 remap 殘留或 pull-before-push 產生的孤兒離線訂單
+  Future<void> clearOrphanedOfflineSalesOrders(
+      List<String> pendingRelatedIds) async {
+    await (delete(salesOrders)
+          ..where((t) => t.id.isBiggerOrEqualValue(0).not())
+          ..where((t) => t.id.cast<String>().isIn(
+                pendingRelatedIds.map((s) => s.split(':').last),
+              ).not()))
+        .go();
+  }
+
   /// 從伺服器 upsert（pull / Force Overwrite 使用）
   /// LWW：若本地 updatedAt 較新或相同，不覆蓋
   Future<void> upsertSalesOrderFromServer(

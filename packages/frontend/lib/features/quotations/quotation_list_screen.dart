@@ -13,6 +13,8 @@
 //   - 佈局：Card + Column（與 SalesOrderListScreen 一致）
 // ==============================================================================
 
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -34,6 +36,7 @@ class QuotationListScreen extends StatefulWidget {
 
 class _QuotationListScreenState extends State<QuotationListScreen> {
   Map<int, String> _customerMap = {};
+  StreamSubscription<List<Customer>>? _customerSub;
 
   // 選取模式
   bool _selectionMode = false;
@@ -43,16 +46,20 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCustomerMap();
+    final db = context.read<AppDatabase>();
+    _customerSub = db.watchActiveCustomers().listen((customers) {
+      if (mounted) {
+        setState(() {
+          _customerMap = {for (final c in customers) c.id: c.name};
+        });
+      }
+    });
   }
 
-  Future<void> _loadCustomerMap() async {
-    final db = context.read<AppDatabase>();
-    final customers = await db.getActiveCustomers();
-    if (!mounted) return;
-    setState(() {
-      _customerMap = {for (final c in customers) c.id: c.name};
-    });
+  @override
+  void dispose() {
+    _customerSub?.cancel();
+    super.dispose();
   }
 
   // ─── 選取模式 ────────────────────────────────────────────────────────────────

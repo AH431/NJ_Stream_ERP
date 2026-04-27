@@ -303,9 +303,12 @@ export default async function syncRoutes(app: FastifyInstance) {
             customerId: r.customerId,
             createdBy: r.createdBy,
             status: r.status,
-            items, // Added items field for sales_order
+            paymentStatus: r.paymentStatus,
+            items,
             confirmedAt: r.confirmedAt ? r.confirmedAt.toISOString() : null,
             shippedAt: r.shippedAt ? r.shippedAt.toISOString() : null,
+            paidAt: r.paidAt ? r.paidAt.toISOString() : null,
+            dueDate: r.dueDate ? r.dueDate.toISOString() : null,
             createdAt: r.createdAt.toISOString(),
             updatedAt: r.updatedAt.toISOString(),
             deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,

@@ -89,6 +89,15 @@ export const SALES_ORDER_STATUSES = {
   CANCELLED: 'cancelled',
 } as const;
 
+// ── 付款狀態 ──────────────────────────────────────────────
+export const PAYMENT_STATUSES = {
+  UNPAID:       'unpaid',
+  PAID:         'paid',
+  WRITTEN_OFF:  'written_off',
+} as const;
+
+export type PaymentStatus = typeof PAYMENT_STATUSES[keyof typeof PAYMENT_STATUSES];
+
 // ── processed_operations 狀態 ─────────────────────────────
 export const PROCESSED_OP_STATUSES = {
   SUCCESS: 'success',

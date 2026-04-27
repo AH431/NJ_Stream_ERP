@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775834729576,
+      "tag": "0000_vengeful_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775883164031,
+      "tag": "0001_cooing_stark_industries",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776484292573,
+      "tag": "0002_old_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777046655622,
+      "tag": "0003_sloppy_silvermane",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777089368774,
+      "tag": "0004_goofy_gressill",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777115038437,
+      "tag": "0005_exotic_amphibian",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777119710892,
+      "tag": "0006_aberrant_blob",
+      "breakpoints": true
+    }
+  ]
+}

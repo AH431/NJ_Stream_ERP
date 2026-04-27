@@ -1,7 +1,8 @@
 /**
  * Anomalies REST API — Phase 2 P2-ALT
  *
- * GET  /anomalies          → 拉取未解決異常清單（依嚴重度排序）
+ * GET   /anomalies            → 拉取未解決異常清單（依嚴重度排序）
+ * POST  /anomalies/scan       → 手動觸發掃描（測試用）
  * PATCH /anomalies/:id/resolve → 標記已解決（任何有權限的角色）
  *
  * 不走 sync 協定：anomalies 由後端 scanner 產生，
@@ -12,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { sql, eq, and } from 'drizzle-orm';
 import { anomalies } from '@/schemas/anomalies.schema.js';
-import { USER_ROLES } from '@/constants/index.js';
+import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
 
 const IdParam = z.object({
   id: z.coerce.number().int().positive(),
@@ -52,6 +53,16 @@ export default async function anomaliesRoutes(app: FastifyInstance) {
     `);
 
     return reply.send({ data: rows });
+  });
+
+  // ── POST /anomalies/scan ───────────────────────────────
+  // 手動立即觸發一次完整掃描，回傳 { ok: true }。
+  // 僅供開發 / 測試使用；生產環境由排程自動執行。
+  app.post('/scan', {
+    preHandler: [app.verifyJwt],
+  }, async (_request, reply) => {
+    await runAnomalyScanner(db);
+    return reply.send({ ok: true });
   });
 
   // ── PATCH /anomalies/:id/resolve ───────────────────────

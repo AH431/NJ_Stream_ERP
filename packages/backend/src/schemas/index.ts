@@ -12,6 +12,7 @@
  *   7. inventory_items      ← 含 DB CHECK 約束
  *   8. processed_operations ← 含冪等 UNIQUE + 兩個索引
  *   9. anomalies            ← P2-DB-01：異常事件記錄（Phase 2）
+ *  10. device_tokens        ← FCM push 通知裝置 token
  *
  * Relations 集中定義於此檔案，避免各 schema 檔案之間的循環引用。
  */
@@ -27,6 +28,7 @@ export * from './inventory_items.schema.ts';
 export * from './processed_operations.schema.ts';
 export * from './anomalies.schema.ts';
 export * from './customer_interactions.schema.ts';
+export * from './device_tokens.schema.ts';
 
 // ── Relations ─────────────────────────────────────────────
 import { relations } from 'drizzle-orm';

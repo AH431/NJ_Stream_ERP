@@ -43,7 +43,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(s.isEnglish ? 'Notifications' : '異常通知'),
+        title: Text(s.notifTitle),
         actions: [
           if (provider.isLoading)
             const Padding(
@@ -86,9 +86,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
 
     if (provider.error == 'auth_error') {
-      return Center(child: Text(s.isEnglish
-          ? 'Please log in to view notifications.'
-          : '請先登入以查看異常通知。'));
+      return Center(child: Text(s.notifAuthError));
     }
 
     if (filtered.isEmpty) {
@@ -98,10 +96,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
           children: [
             const Icon(Icons.check_circle_outline, size: 48, color: Colors.green),
             const SizedBox(height: 12),
-            Text(
-              s.isEnglish ? 'No anomalies found.' : '目前沒有異常通知。',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(s.notifEmpty, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       );
@@ -120,7 +115,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             final ok = await provider.resolve(filtered[i].id);
             if (mounted && !ok) {
               messenger.showSnackBar(SnackBar(
-                content: Text(s.isEnglish ? 'Failed to resolve.' : '標記失敗，請重試。'),
+                content: Text(s.notifResolveFailed),
               ));
             }
           },
@@ -153,9 +148,12 @@ class _FilterBar extends StatelessWidget {
       'medium':   items.where((a) => a.severity == 'medium').length,
     };
 
-    final labels = s.isEnglish
-        ? {'all': 'All', 'critical': 'Critical', 'high': 'High', 'medium': 'Medium'}
-        : {'all': '全部',  'critical': '緊急',    'high': '高',    'medium': '中'};
+    final labels = {
+      'all':      s.notifFilterAll,
+      'critical': s.notifFilterCritical,
+      'high':     s.notifFilterHigh,
+      'medium':   s.notifFilterMedium,
+    };
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -260,11 +258,14 @@ class _AnomalyCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _entityLabel(item.entityType, item.entityId, s),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                      Flexible(
+                        child: Text(
+                          _entityLabel(item.entityType, item.entityId, s),
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
                       ),
                     ],
                   ),
@@ -290,10 +291,7 @@ class _AnomalyCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 32),
               ),
-              child: Text(
-                s.isEnglish ? 'Resolve' : '已解決',
-                style: const TextStyle(fontSize: 12),
-              ),
+              child: Text(s.notifBtnResolve, style: const TextStyle(fontSize: 12)),
             ),
           ],
         ),
@@ -301,43 +299,7 @@ class _AnomalyCard extends StatelessWidget {
     );
   }
 
-  String _alertTypeLabel(String type, AppStrings s) {
-    if (s.isEnglish) return type;
-    const map = {
-      'LONG_PENDING_ORDER':    '訂單停滯',
-      'NEGATIVE_AVAILABLE':    '庫存異常',
-      'STOCKOUT_PROLONGED':    '長期缺貨',
-      'DUPLICATE_ORDER':       '重複訂單',
-      'ORDER_QUANTITY_SPIKE':  '數量異常',
-      'CUSTOMER_INACTIVE':     '客戶沉默',
-    };
-    return map[type] ?? type;
-  }
-
-  String _entityLabel(String type, int id, AppStrings s) {
-    if (s.isEnglish) {
-      return '$type #$id';
-    }
-    const map = {
-      'sales_order':    '訂單',
-      'inventory_item': '庫存',
-      'customer':       '客戶',
-      'order_item':     '訂單品項',
-    };
-    return '${map[type] ?? type} #$id';
-  }
-
-  String _formatDate(DateTime dt, AppStrings s) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 60) {
-      return s.isEnglish ? '${diff.inMinutes}m ago' : '${diff.inMinutes} 分鐘前';
-    }
-    if (diff.inHours < 24) {
-      return s.isEnglish ? '${diff.inHours}h ago' : '${diff.inHours} 小時前';
-    }
-    return s.isEnglish
-        ? '${diff.inDays}d ago'
-        : '${diff.inDays} 天前';
-  }
+  String _alertTypeLabel(String type, AppStrings s) => s.notifAlertTypeLabel(type);
+  String _entityLabel(String type, int id, AppStrings s) => s.notifEntityLabel(type, id);
+  String _formatDate(DateTime dt, AppStrings s) => s.notifTimeAgo(dt);
 }

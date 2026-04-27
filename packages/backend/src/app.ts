@@ -15,7 +15,10 @@ import documentsRoutes from '@/routes/documents.route.js';
 import analyticsRoutes from '@/routes/analytics.route.js';
 import anomaliesRoutes from '@/routes/anomalies.route.js';
 import customerInteractionsRoutes from '@/routes/customer_interactions.route.js';
+import arRoutes from '@/routes/ar.route.js';
 import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
+import notificationsRoutes from '@/routes/notifications.route.js';
+import { initFcm } from '@/services/fcm.service.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -73,6 +76,11 @@ export function buildApp() {
   app.register(analyticsRoutes,  { prefix: '/api/v1/analytics' });
   app.register(anomaliesRoutes,              { prefix: '/api/v1/anomalies' });
   app.register(customerInteractionsRoutes,  { prefix: '/api/v1/customer-interactions' });
+  app.register(arRoutes,                    { prefix: '/api/v1/ar' });
+  app.register(notificationsRoutes,         { prefix: '/api/v1/notifications' });
+
+  // ── Firebase Admin SDK 初始化（FIREBASE_SERVICE_ACCOUNT 不存在時靜默跳過）──
+  initFcm();
 
   // ── AnomalyScanner 排程（每小時執行一次）─────────────────
   // onReady：確保 DB plugin 已完成初始化後才啟動排程

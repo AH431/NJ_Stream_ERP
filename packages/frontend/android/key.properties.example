@@ -1,0 +1,16 @@
+# NJ Stream ERP — Android Release Signing
+# cp key.properties.example key.properties 並填入實際值
+# key.properties 已加入 .gitignore，請勿 commit 實際值
+
+# Keystore 路徑（相對於 android/app/ 目錄，Gradle 解析基準）
+# 建議將 .jks 放在 project root 的 keystores/ 目錄（同樣 gitignored）
+storeFile=../../../../keystores/nj-stream-erp.jks
+
+# Keystore 密碼
+storePassword=CHANGE_ME
+
+# Key alias（建立 keystore 時設定的 alias）
+keyAlias=nj-stream-erp
+
+# Key 密碼
+keyPassword=CHANGE_ME

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
@@ -21,15 +22,26 @@ import 'providers/sync_provider.dart';
 import 'providers/analytics_provider.dart';
 import 'providers/anomaly_provider.dart';
 import 'providers/rfm_provider.dart';
+import 'providers/ar_provider.dart';
 import 'features/notifications/notification_screen.dart';
+import 'features/ar/ar_screen.dart';
+import 'services/fcm_service.dart';
 
 // ==============================================================================
 // 程式入口
 // ==============================================================================
 
+// 全域 NavigatorKey — 供 FcmService 在通知點擊時導向 NotificationScreen
+final _navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   // Flutter binding 必須在任何 Flutter API 呼叫之前初始化
   WidgetsFlutterBinding.ensureInitialized();
+
+  // FCM background handler 必須在 Firebase.initializeApp() 之前註冊
+  FcmService.initialize();
+  await Firebase.initializeApp();
+  await FcmService.setup(_navigatorKey);
 
   // 建立全域唯一的核心物件（AppDatabase 與 Dio 的生命週期 = App 生命週期）
   final db = AppDatabase();
@@ -95,6 +107,16 @@ Future<void> main() async {
               prev ?? RfmProvider(dio: sync.authenticatedDio),
         ),
 
+        // ── ArProvider ───────────────────────────────────────────────────────
+        // Phase 2 P2-ACC：應收帳款摘要（Admin 專用，5 分鐘記憶體快取）
+        ChangeNotifierProxyProvider<SyncProvider, ArProvider>(
+          create: (ctx) => ArProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? ArProvider(dio: sync.authenticatedDio),
+        ),
+
         // ── AppStrings ───────────────────────────────────────────────────────
         // 語言切換（zh / en），setEnglish(bool) 觸發全 App rebuild
         // 已在 main() await init()，Activity recreation 後語言設定仍還原
@@ -117,6 +139,7 @@ class NjStreamErpApp extends StatelessWidget {
     return MaterialApp(
       title: 'NJ Stream ERP',
       debugShowCheckedModeBanner: false,
+      navigatorKey: _navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
@@ -126,6 +149,9 @@ class NjStreamErpApp extends StatelessWidget {
       home: context.watch<SyncProvider>().isLoggedIn
           ? const HomeScreen()
           : const LoginScreen(),
+      routes: {
+        '/notifications': (_) => const NotificationScreen(),
+      },
     );
   }
 }
@@ -216,13 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   : () => sync.pushPendingOperations(),
             ),
           ),
-          // 登出
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: s.tooltipLogout,
-            onPressed: () => _confirmLogout(context, sync, s),
-          ),
-          // 溢出選單（開發者設定等低頻操作）
+          // 溢出選單（應收帳款、開發者設定、登出等低頻操作）
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'dev_settings') {
@@ -230,9 +250,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const DevSettingsScreen()),
                 );
+              } else if (value == 'ar') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ArScreen()),
+                );
+              } else if (value == 'logout') {
+                _confirmLogout(context, sync, s);
               }
             },
             itemBuilder: (_) => [
+              if (role == 'admin')
+                PopupMenuItem(
+                  value: 'ar',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.account_balance_wallet_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(s.menuAr),
+                    ],
+                  ),
+                ),
               PopupMenuItem(
                 value: 'dev_settings',
                 child: Row(
@@ -240,6 +278,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Icon(Icons.settings_outlined, size: 18),
                     const SizedBox(width: 8),
                     Text(s.menuDevSettings),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, size: 18, color: Colors.red.shade700),
+                    const SizedBox(width: 8),
+                    Text(s.tooltipLogout,
+                        style: TextStyle(color: Colors.red.shade700)),
                   ],
                 ),
               ),
@@ -401,13 +451,14 @@ class _AnomalyBell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final urgentCount = context.watch<AnomalyProvider>().urgentCount;
+    final s = AppStrings.of(context);
 
     return Badge(
       isLabelVisible: urgentCount > 0,
       label: Text('$urgentCount'),
       child: IconButton(
         icon: const Icon(Icons.notifications_outlined),
-        tooltip: urgentCount > 0 ? '有 $urgentCount 筆未解決異常' : '異常通知',
+        tooltip: urgentCount > 0 ? s.tooltipUrgentAnomalies(urgentCount) : s.tooltipNotifications,
         onPressed: onTap,
       ),
     );

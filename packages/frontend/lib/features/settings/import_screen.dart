@@ -20,15 +20,14 @@ const _typeKeywords = {
 /// CSV 候選資料夾清單（依優先序，第一個存在的目錄優先使用）
 ///
 /// 路徑說明：
-///   1. App 私有外部目錄/test_csv  — adb push 的預設目標（最優先）
-///   2. App 私有外部目錄/csv       — 替代命名
-///   3. App 私有外部目錄（根目錄）  — 直接放在外部目錄根
-///   4. /sdcard/NJ_Stream_ERP/csv  — 用戶手動放置於公開目錄
+///   1. App 私有外部目錄/csv       — adb push 的預設目標（最優先）
+///   2. App 私有外部目錄（根目錄）  — 直接放在外部目錄根
+///   3. /sdcard/NJ_Stream_ERP/csv  — 用戶手動放置於公開目錄
 ///
 /// 標準 adb push 指令（從 PC 傳至手機）：
-///   adb push LOG/test_csv/ \
-///     /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/
-const _csvFolderCandidateNames = ['test_csv', 'csv', ''];  // '' = 外部目錄根
+///   adb push LOG/csv/ \
+///     /sdcard/Android/data/com.example.nj_stream_erp/files/csv/
+const _csvFolderCandidateNames = ['csv', ''];  // '' = 外部目錄根
 const _csvPublicFallback = '/sdcard/NJ_Stream_ERP/csv';    // 公開目錄備援
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -649,7 +648,7 @@ class _NoFolderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 const SelectableText(
-                  'adb push LOG/test_csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/',
+                  'adb push LOG/csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/csv/',
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 11,
@@ -716,7 +715,7 @@ class _EmptyFilesHint extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const SelectableText(
-              'adb push LOG/test_csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/test_csv/',
+              'adb push LOG/csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/csv/',
               style: TextStyle(fontFamily: 'monospace', fontSize: 11),
             ),
           ],

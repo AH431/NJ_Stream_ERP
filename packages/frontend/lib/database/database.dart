@@ -46,6 +46,7 @@ class AppDatabase extends _$AppDatabase {
   ///   v5: SalesOrders 補 stockAlertAt 欄位（本地端標記庫存不足警示，用於橘色「庫存不足」按鈕）
   ///   v6: Customers 補 email 欄位
   ///   v7: 新增 CustomerInteractions 表（P2-DB-02）
+  ///   v8: SalesOrders 補 paymentStatus/paidAt/dueDate；Customers 補 paymentTermsDays；Products 補 costPrice（P2-DB-03~05）
   ///
   /// 升版流程：
   ///   1. 修改 schema.dart（新增欄位 / 表）
@@ -53,7 +54,7 @@ class AppDatabase extends _$AppDatabase {
   ///   3. 在 onUpgrade 的對應 from 版本中加入 migration 操作
   ///   4. 執行 build_runner build 重新產生 database.g.dart
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -86,6 +87,14 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) {
             // v6 → v7: 新增 CustomerInteractions 表（P2-DB-02）
             await m.createTable(customerInteractions);
+          }
+          if (from < 8) {
+            // v7 → v8: ACC 欄位（P2-DB-03~05）
+            await m.addColumn(salesOrders, salesOrders.paymentStatus);
+            await m.addColumn(salesOrders, salesOrders.paidAt);
+            await m.addColumn(salesOrders, salesOrders.dueDate);
+            await m.addColumn(customers, customers.paymentTermsDays);
+            await m.addColumn(products, products.costPrice);
           }
         },
       );

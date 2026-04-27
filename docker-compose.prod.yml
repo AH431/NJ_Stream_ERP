@@ -1,0 +1,104 @@
+# 生產環境 Docker Compose
+# 使用前：cp .env.production.example .env.production 並填入實際值
+# 啟動：docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+# 初次 migration：docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: nj-erp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-nj_erp}
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nj-erp-net
+    # 生產環境不對外暴露 PostgreSQL port；僅 backend 透過內部網路連線
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-nj_erp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Migration（一次性執行後自動退出）─────────────────────────────────────
+  migrate:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+      target: builder
+    entrypoint: ["node", "node_modules/.bin/drizzle-kit", "migrate"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    networks:
+      - nj-erp-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+    container_name: nj-erp-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV:                production
+      HOST:                    0.0.0.0
+      PORT:                    ${PORT:-3000}
+      DATABASE_URL:            ${DATABASE_URL:?DATABASE_URL is required}
+      JWT_SECRET:              ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ACCESS_EXPIRES_IN:   ${JWT_ACCESS_EXPIRES_IN:-3600}
+      JWT_REFRESH_EXPIRES_IN:  ${JWT_REFRESH_EXPIRES_IN:-2592000}
+      COMPANY_NAME:            ${COMPANY_NAME:-NJ Stream}
+      COMPANY_ADDRESS:         ${COMPANY_ADDRESS:-}
+      COMPANY_PHONE:           ${COMPANY_PHONE:-}
+      COMPANY_EMAIL:           ${COMPANY_EMAIL:-}
+      COMPANY_TAX_ID:          ${COMPANY_TAX_ID:-}
+      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT:-}
+    ports:
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
+    networks:
+      - nj-erp-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health 2>/dev/null | grep -q '\"status\":\"ok\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nj-erp-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -4,6 +4,42 @@
 
 ---
 
+## [Phase 2 Sprint C] 2026-04-26（customer interactions）
+
+### 新增
+- 客戶詳情頁（CustomerDetailScreen）— 互動時間軸（visit / call / email）
+- InteractionDao — 本地互動記錄 CRUD + 離線佇列支援
+- 客戶列表頁點入詳情路由
+
+**Commit**：`6401672` phase2: customer interactions
+
+---
+
+## [Phase 2 Sprint A + B] 2026-04-25（VIS + ALT）
+
+### 新增（Sprint A — VIS 分析）
+- AnalyticsProvider — 後端 `/api/v1/analytics/*` 資料拉取，15 分鐘本機快取
+- 月營收趨勢（RevenuePoint）、訂單狀態分佈（OrderStatusCount）、Top 產品排行
+- RfmProvider — RFM 客戶分群（Recency / Frequency / Monetary）
+- AnomalyProvider — AnomalyScanner 掃描結果拉取 + 標記已解決
+- Dashboard 整合 Analytics 入口
+- 後端 `analytics.route.ts` + `anomaly_scanner.service.ts`
+
+### 新增（Sprint B — ALT 推播）
+- Firebase Cloud Messaging 整合（`fcm_service.dart`、`fcm.service.ts`）
+- DeviceTokensSchema（後端）— 裝置 token 註冊 / 更新
+- NotificationScreen — 異常清單、嚴重度篩選、標記已解決
+- `notifications.route.ts` — push 觸發端點
+
+### 新增（P2-ACC 應收帳款）
+- ArScreen（Admin 專用）— aging 分桶總覽 + 未收訂單明細
+- ArProvider — 應收帳款拉取 + 標記已付款 / 呆帳沖銷
+- `ar.route.ts` — 後端 AR 查詢與更新端點
+
+**Commit**：`aee8a4f` feat(phase2): implement Sprint A (VIS) and Sprint B (ALT) modules
+
+---
+
 ## [Sprint 5] 2026-04-20 ~ 2026-04-21
 
 ### 新增

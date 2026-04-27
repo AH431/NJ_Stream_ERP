@@ -11,7 +11,6 @@
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
     "test": "vitest run --pool=threads"
@@ -26,6 +25,7 @@
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.0.0",
+    "firebase-admin": "^13.8.0",
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.5",
     "pdfkit": "^0.18.0",

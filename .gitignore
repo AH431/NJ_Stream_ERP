@@ -18,14 +18,18 @@ node_modules/
 # Build output
 dist/
 
-# Drizzle migrations（generated，含 DB schema 快照）
-packages/backend/drizzle/*.sql
-packages/backend/drizzle/meta/
+# Drizzle migrations — 納入版控（提供審計軌跡，deploy 依賴 db:migrate 流程）
+# db:push 已從 package.json 移除，禁止繞過 migration 直接推 schema
 
 # 敏感設定檔（含 DB 密碼、腳本等）
+# docker-compose.prod.yml 不在此列 — 生產設定檔納入版控（secrets 來自 .env.production）
 docker-compose.yml
-docker-compose.*.yml
+docker-compose.override.yml
+docker-compose.local.yml
 setup_gh_tasks.sh
+
+# 生產環境變數（含密碼，不進版控）
+.env.production
 
 # 系統 / IDE
 .DS_Store
@@ -34,6 +38,18 @@ Thumbs.db
 *.key
 *.p12
 *.pfx
+*.jks
+*.keystore
+
+# Android release signing（key.properties.example 納入版控，實際值不進版控）
+packages/frontend/android/key.properties
+
+# Firebase（google-services.json.example 納入版控，實際值不進版控）
+packages/frontend/android/app/google-services.json
+keystores/
+
+# APK debug symbols（含原始碼對應，勿公開）
+packages/frontend/build/debug-info/
 
 # Flutter / Dart
 .dart_tool/

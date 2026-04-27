@@ -15,6 +15,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { DrizzleDb } from '@/plugins/db.js';
+import { type NewAnomalyForFcm, sendAnomalyNotifications } from '@/services/fcm.service.js';
 
 // ── 嚴重度常數 ─────────────────────────────────────────────
 const SEV = { CRITICAL: 'critical', HIGH: 'high', MEDIUM: 'medium' } as const;
@@ -22,14 +23,20 @@ const SEV = { CRITICAL: 'critical', HIGH: 'high', MEDIUM: 'medium' } as const;
 // ── 主入口 ────────────────────────────────────────────────
 
 export async function runAnomalyScanner(db: DrizzleDb): Promise<void> {
+  const newAnomalies: NewAnomalyForFcm[] = [];
   try {
-    await scanLongPendingOrders(db);
-    await scanNegativeAvailable(db);
-    await scanStockoutProlonged(db);
-    await scanDuplicateOrders(db);
-    await scanOrderQuantitySpike(db);
-    await scanCustomerInactive(db);
+    await scanLongPendingOrders(db, newAnomalies);
+    await scanNegativeAvailable(db, newAnomalies);
+    await scanStockoutProlonged(db, newAnomalies);
+    await scanDuplicateOrders(db, newAnomalies);
+    await scanOrderQuantitySpike(db, newAnomalies);
+    await scanCustomerInactive(db, newAnomalies);
+    await scanOverduePayment(db, newAnomalies);
+    await scanHighValueChurnRisk(db, newAnomalies);
+    await scanFrequentCancellation(db, newAnomalies);
     await autoResolveStale(db);
+    // 掃描完成後，集中送出 FCM（不影響掃描結果）
+    await sendAnomalyNotifications(db, newAnomalies);
   } catch (err) {
     // Scanner 失敗不應影響主業務流程，只記 log
     console.error('[AnomalyScanner] scan failed:', err);
@@ -39,7 +46,7 @@ export async function runAnomalyScanner(db: DrizzleDb): Promise<void> {
 // ── Rule 1：LONG_PENDING_ORDER ─────────────────────────────
 // pending 訂單建立超過 14 天仍未確認。
 
-async function scanLongPendingOrders(db: DrizzleDb): Promise<void> {
+async function scanLongPendingOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     SELECT so.id, c.name AS customer_name
     FROM sales_orders so
@@ -56,6 +63,7 @@ async function scanLongPendingOrders(db: DrizzleDb): Promise<void> {
   `);
 
   for (const row of rows as unknown as Array<{ id: number; customer_name: string | null }>) {
+    const message = '訂單 #' + row.id + '（' + (row.customer_name ?? '未知客戶') + '）已超過 14 天仍為待確認狀態。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
@@ -64,17 +72,18 @@ async function scanLongPendingOrders(db: DrizzleDb): Promise<void> {
         ${SEV.MEDIUM},
         'sales_order',
         ${row.id},
-        ${'訂單 #' + row.id + '（' + (row.customer_name ?? '未知客戶') + '）已超過 14 天仍為待確認狀態。'},
+        ${message},
         ${JSON.stringify({ orderId: row.id, customerName: row.customer_name })}::jsonb
       )
     `);
+    out.push({ severity: SEV.MEDIUM, message, entityType: 'sales_order', alertType: 'LONG_PENDING_ORDER' });
   }
 }
 
 // ── Rule 2：NEGATIVE_AVAILABLE ────────────────────────────
 // quantity_on_hand - quantity_reserved < 0（資料一致性異常）
 
-async function scanNegativeAvailable(db: DrizzleDb): Promise<void> {
+async function scanNegativeAvailable(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     SELECT ii.id, p.name AS product_name,
            ii.quantity_on_hand, ii.quantity_reserved
@@ -95,6 +104,7 @@ async function scanNegativeAvailable(db: DrizzleDb): Promise<void> {
     quantity_on_hand: number; quantity_reserved: number;
   }>) {
     const available = row.quantity_on_hand - row.quantity_reserved;
+    const message = '產品「' + row.product_name + '」可用庫存異常為負數（' + available + '）。onHand=' + row.quantity_on_hand + ', reserved=' + row.quantity_reserved + '。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
@@ -103,7 +113,7 @@ async function scanNegativeAvailable(db: DrizzleDb): Promise<void> {
         ${SEV.CRITICAL},
         'inventory_item',
         ${row.id},
-        ${'產品「' + row.product_name + '」可用庫存異常為負數（' + available + '）。onHand=' + row.quantity_on_hand + ', reserved=' + row.quantity_reserved + '。'},
+        ${message},
         ${JSON.stringify({
           productName: row.product_name,
           onHand: row.quantity_on_hand,
@@ -112,13 +122,14 @@ async function scanNegativeAvailable(db: DrizzleDb): Promise<void> {
         })}::jsonb
       )
     `);
+    out.push({ severity: SEV.CRITICAL, message, entityType: 'inventory_item', alertType: 'NEGATIVE_AVAILABLE' });
   }
 }
 
 // ── Rule 3：STOCKOUT_PROLONGED ────────────────────────────
 // available < minStockLevel（且 minStockLevel > 0）
 
-async function scanStockoutProlonged(db: DrizzleDb): Promise<void> {
+async function scanStockoutProlonged(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     SELECT ii.id, p.name AS product_name,
            ii.quantity_on_hand, ii.quantity_reserved, ii.min_stock_level
@@ -140,6 +151,7 @@ async function scanStockoutProlonged(db: DrizzleDb): Promise<void> {
     quantity_on_hand: number; quantity_reserved: number; min_stock_level: number;
   }>) {
     const available = row.quantity_on_hand - row.quantity_reserved;
+    const message = '產品「' + row.product_name + '」庫存低於安全水位（可用 ' + available + '，安全水位 ' + row.min_stock_level + '）。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
@@ -148,7 +160,7 @@ async function scanStockoutProlonged(db: DrizzleDb): Promise<void> {
         ${SEV.CRITICAL},
         'inventory_item',
         ${row.id},
-        ${'產品「' + row.product_name + '」庫存低於安全水位（可用 ' + available + '，安全水位 ' + row.min_stock_level + '）。'},
+        ${message},
         ${JSON.stringify({
           productName: row.product_name,
           available,
@@ -158,6 +170,7 @@ async function scanStockoutProlonged(db: DrizzleDb): Promise<void> {
         })}::jsonb
       )
     `);
+    out.push({ severity: SEV.CRITICAL, message, entityType: 'inventory_item', alertType: 'STOCKOUT_PROLONGED' });
   }
 }
 
@@ -165,7 +178,7 @@ async function scanStockoutProlonged(db: DrizzleDb): Promise<void> {
 // 同一客戶 48 小時內存在 2+ 筆 pending 訂單，且品項 / 數量完全相同。
 // entity_type = 'customer'，每客戶一筆異常（不重複插入）。
 
-async function scanDuplicateOrders(db: DrizzleDb): Promise<void> {
+async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     WITH order_fingerprints AS (
       SELECT
@@ -208,6 +221,7 @@ async function scanDuplicateOrders(db: DrizzleDb): Promise<void> {
     order_ids: number[];
   }>) {
     const orderList = row.order_ids.map((id) => '#' + id).join('、');
+    const message = '客戶「' + row.customer_name + '」48 小時內出現內容完全相同的重複 pending 訂單（' + orderList + '）。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
@@ -216,10 +230,11 @@ async function scanDuplicateOrders(db: DrizzleDb): Promise<void> {
         ${SEV.HIGH},
         'customer',
         ${row.customer_id},
-        ${'客戶「' + row.customer_name + '」48 小時內出現內容完全相同的重複 pending 訂單（' + orderList + '）。'},
+        ${message},
         ${JSON.stringify({ customerName: row.customer_name, orderIds: row.order_ids })}::jsonb
       )
     `);
+    out.push({ severity: SEV.HIGH, message, entityType: 'customer', alertType: 'DUPLICATE_ORDER' });
   }
 }
 
@@ -227,7 +242,7 @@ async function scanDuplicateOrders(db: DrizzleDb): Promise<void> {
 // pending 訂單某品項數量 > 近 90 天（confirmed/shipped）平均單次訂購量的 3 倍。
 // entity_type = 'order_item'，每個品項一筆異常。
 
-async function scanOrderQuantitySpike(db: DrizzleDb): Promise<void> {
+async function scanOrderQuantitySpike(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     WITH avg_qty AS (
       SELECT
@@ -273,6 +288,7 @@ async function scanOrderQuantitySpike(db: DrizzleDb): Promise<void> {
   }>) {
     const avgQty = Number(row.avg_order_qty);
     const multiplier = (row.quantity / avgQty).toFixed(1);
+    const message = '訂單 #' + row.sales_order_id + '（' + row.customer_name + '）的品項「' + row.product_name + '」數量 ' + row.quantity + '，為近 90 天均值的 ' + multiplier + ' 倍（均值 ' + avgQty.toFixed(1) + '）。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
@@ -281,7 +297,7 @@ async function scanOrderQuantitySpike(db: DrizzleDb): Promise<void> {
         ${SEV.MEDIUM},
         'order_item',
         ${row.item_id},
-        ${'訂單 #' + row.sales_order_id + '（' + row.customer_name + '）的品項「' + row.product_name + '」數量 ' + row.quantity + '，為近 90 天均值的 ' + multiplier + ' 倍（均值 ' + avgQty.toFixed(1) + '）。'},
+        ${message},
         ${JSON.stringify({
           orderId: row.sales_order_id,
           productName: row.product_name,
@@ -292,6 +308,7 @@ async function scanOrderQuantitySpike(db: DrizzleDb): Promise<void> {
         })}::jsonb
       )
     `);
+    out.push({ severity: SEV.MEDIUM, message, entityType: 'order_item', alertType: 'ORDER_QUANTITY_SPIKE' });
   }
 }
 
@@ -299,7 +316,7 @@ async function scanOrderQuantitySpike(db: DrizzleDb): Promise<void> {
 // 曾下單的客戶超過 90 天未出現任何訂單。
 // entity_type = 'customer'，每客戶一筆異常。
 
-async function scanCustomerInactive(db: DrizzleDb): Promise<void> {
+async function scanCustomerInactive(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     SELECT
       c.id             AS customer_id,
@@ -325,6 +342,7 @@ async function scanCustomerInactive(db: DrizzleDb): Promise<void> {
     last_order_at: Date;
   }>) {
     const lastDate = new Date(row.last_order_at).toISOString().slice(0, 10);
+    const message = '客戶「' + row.customer_name + '」超過 90 天未下單（最後訂單：' + lastDate + '）。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
@@ -333,10 +351,188 @@ async function scanCustomerInactive(db: DrizzleDb): Promise<void> {
         ${SEV.MEDIUM},
         'customer',
         ${row.customer_id},
-        ${'客戶「' + row.customer_name + '」超過 90 天未下單（最後訂單：' + lastDate + '）。'},
+        ${message},
         ${JSON.stringify({ customerName: row.customer_name, lastOrderAt: lastDate })}::jsonb
       )
     `);
+    out.push({ severity: SEV.MEDIUM, message, entityType: 'customer', alertType: 'CUSTOMER_INACTIVE' });
+  }
+}
+
+// ── Rule 7：OVERDUE_PAYMENT ───────────────────────────────
+// shipped 訂單 due_date < NOW() 且 payment_status = 'unpaid'。
+// entity_type = 'sales_order'，每筆訂單一條異常。
+
+async function scanOverduePayment(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+  const rows = await db.execute(sql`
+    SELECT
+      so.id,
+      c.name AS customer_name,
+      so.due_date,
+      EXTRACT(DAY FROM (NOW() - so.due_date))::int AS days_overdue,
+      COALESCE(SUM(oi.subtotal), 0)::numeric(14,2) AS order_total
+    FROM sales_orders so
+    JOIN customers c ON c.id = so.customer_id
+    LEFT JOIN order_items oi ON oi.sales_order_id = so.id
+    WHERE so.payment_status = 'unpaid'
+      AND so.status = 'shipped'
+      AND so.due_date IS NOT NULL
+      AND so.due_date < NOW()
+      AND so.deleted_at IS NULL
+      AND so.id NOT IN (
+        SELECT entity_id FROM anomalies
+        WHERE alert_type = 'OVERDUE_PAYMENT'
+          AND entity_type = 'sales_order'
+          AND is_resolved = FALSE
+      )
+    GROUP BY so.id, c.name, so.due_date
+  `);
+
+  for (const row of rows as unknown as Array<{
+    id: number;
+    customer_name: string;
+    due_date: Date;
+    days_overdue: number;
+    order_total: string | number;
+  }>) {
+    const dueStr = new Date(row.due_date).toISOString().slice(0, 10);
+    const message = '訂單 #' + row.id + '（' + row.customer_name + '）應收帳款已逾期 ' + row.days_overdue + ' 天（到期日 ' + dueStr + '，未收金額 ' + Number(row.order_total).toLocaleString() + ' 元）。';
+    await db.execute(sql`
+      INSERT INTO anomalies
+        (alert_type, severity, entity_type, entity_id, message, detail)
+      VALUES (
+        'OVERDUE_PAYMENT',
+        ${SEV.HIGH},
+        'sales_order',
+        ${row.id},
+        ${message},
+        ${JSON.stringify({
+          orderId: row.id,
+          customerName: row.customer_name,
+          dueDate: dueStr,
+          daysOverdue: row.days_overdue,
+          orderTotal: Number(row.order_total),
+        })}::jsonb
+      )
+    `);
+    out.push({ severity: SEV.HIGH, message, entityType: 'sales_order', alertType: 'OVERDUE_PAYMENT' });
+  }
+}
+
+// ── Rule 8：HIGH_VALUE_CUSTOMER_CHURN_RISK ────────────────
+// 近 90 天 shipped/confirmed 累積金額在前 20% 的高價值客戶，卻在近 30 天無任何訂單。
+// entity_type = 'customer'，每客戶一筆異常。
+
+async function scanHighValueChurnRisk(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+  const rows = await db.execute(sql`
+    WITH customer_ltv AS (
+      SELECT
+        so.customer_id,
+        SUM(oi.subtotal)::numeric AS ltv_90d
+      FROM sales_orders so
+      JOIN order_items oi ON oi.sales_order_id = so.id
+      WHERE so.status IN ('confirmed', 'shipped')
+        AND so.deleted_at IS NULL
+        AND so.created_at >= NOW() - INTERVAL '90 days'
+      GROUP BY so.customer_id
+    ),
+    ltv_threshold AS (
+      SELECT PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY ltv_90d) AS p80
+      FROM customer_ltv
+    ),
+    recent_buyers AS (
+      SELECT DISTINCT customer_id
+      FROM sales_orders
+      WHERE deleted_at IS NULL
+        AND created_at >= NOW() - INTERVAL '30 days'
+    )
+    SELECT
+      cl.customer_id,
+      c.name  AS customer_name,
+      cl.ltv_90d
+    FROM customer_ltv cl
+    JOIN customers c      ON c.id = cl.customer_id
+    CROSS JOIN ltv_threshold lt
+    WHERE cl.ltv_90d >= lt.p80
+      AND lt.p80 > 0
+      AND c.deleted_at IS NULL
+      AND cl.customer_id NOT IN (SELECT customer_id FROM recent_buyers)
+      AND cl.customer_id NOT IN (
+        SELECT entity_id FROM anomalies
+        WHERE alert_type = 'HIGH_VALUE_CUSTOMER_CHURN_RISK'
+          AND entity_type = 'customer'
+          AND is_resolved = FALSE
+      )
+  `);
+
+  for (const row of rows as unknown as Array<{
+    customer_id: number;
+    customer_name: string;
+    ltv_90d: string | number;
+  }>) {
+    const ltvFormatted = Number(row.ltv_90d).toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+    const message = '高價值客戶「' + row.customer_name + '」近 30 天無訂單（近 90 天累積金額 NT$' + ltvFormatted + '，位於前 20%）。';
+    await db.execute(sql`
+      INSERT INTO anomalies
+        (alert_type, severity, entity_type, entity_id, message, detail)
+      VALUES (
+        'HIGH_VALUE_CUSTOMER_CHURN_RISK',
+        ${SEV.HIGH},
+        'customer',
+        ${row.customer_id},
+        ${message},
+        ${JSON.stringify({ customerName: row.customer_name, ltv90d: Number(row.ltv_90d) })}::jsonb
+      )
+    `);
+    out.push({ severity: SEV.HIGH, message, entityType: 'customer', alertType: 'HIGH_VALUE_CUSTOMER_CHURN_RISK' });
+  }
+}
+
+// ── Rule 9：FREQUENT_CANCELLATION ─────────────────────────
+// 近 30 天內 cancelled 訂單數 >= 3 筆的客戶。
+// entity_type = 'customer'，每客戶一筆異常。
+
+async function scanFrequentCancellation(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+  const rows = await db.execute(sql`
+    SELECT
+      so.customer_id,
+      c.name     AS customer_name,
+      COUNT(*)::int AS cancel_count
+    FROM sales_orders so
+    JOIN customers c ON c.id = so.customer_id
+    WHERE so.status = 'cancelled'
+      AND so.deleted_at IS NULL
+      AND so.updated_at >= NOW() - INTERVAL '30 days'
+      AND c.deleted_at IS NULL
+      AND so.customer_id NOT IN (
+        SELECT entity_id FROM anomalies
+        WHERE alert_type = 'FREQUENT_CANCELLATION'
+          AND entity_type = 'customer'
+          AND is_resolved = FALSE
+      )
+    GROUP BY so.customer_id, c.name
+    HAVING COUNT(*) >= 3
+  `);
+
+  for (const row of rows as unknown as Array<{
+    customer_id: number;
+    customer_name: string;
+    cancel_count: number;
+  }>) {
+    const message = '客戶「' + row.customer_name + '」近 30 天內已取消 ' + row.cancel_count + ' 筆訂單，請確認是否有問題。';
+    await db.execute(sql`
+      INSERT INTO anomalies
+        (alert_type, severity, entity_type, entity_id, message, detail)
+      VALUES (
+        'FREQUENT_CANCELLATION',
+        ${SEV.MEDIUM},
+        'customer',
+        ${row.customer_id},
+        ${message},
+        ${JSON.stringify({ customerName: row.customer_name, cancelCount: row.cancel_count })}::jsonb
+      )
+    `);
+    out.push({ severity: SEV.MEDIUM, message, entityType: 'customer', alertType: 'FREQUENT_CANCELLATION' });
   }
 }
 
@@ -428,6 +624,51 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
         SELECT DISTINCT customer_id FROM sales_orders
         WHERE deleted_at IS NULL
           AND created_at >= NOW() - INTERVAL '90 days'
+      )
+  `);
+
+  // OVERDUE_PAYMENT：訂單已付款（payment_status != 'unpaid'）
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'OVERDUE_PAYMENT'
+      AND entity_type = 'sales_order'
+      AND is_resolved = FALSE
+      AND entity_id NOT IN (
+        SELECT id FROM sales_orders
+        WHERE payment_status = 'unpaid'
+          AND status = 'shipped'
+          AND due_date IS NOT NULL
+          AND due_date < NOW()
+          AND deleted_at IS NULL
+      )
+  `);
+
+  // HIGH_VALUE_CUSTOMER_CHURN_RISK：客戶近 30 天已重新下單
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'HIGH_VALUE_CUSTOMER_CHURN_RISK'
+      AND entity_type = 'customer'
+      AND is_resolved = FALSE
+      AND entity_id IN (
+        SELECT DISTINCT customer_id FROM sales_orders
+        WHERE deleted_at IS NULL
+          AND created_at >= NOW() - INTERVAL '30 days'
+      )
+  `);
+
+  // FREQUENT_CANCELLATION：近 30 天取消數已降至 2 筆以下
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'FREQUENT_CANCELLATION'
+      AND entity_type = 'customer'
+      AND is_resolved = FALSE
+      AND entity_id NOT IN (
+        SELECT customer_id FROM sales_orders
+        WHERE status = 'cancelled'
+          AND deleted_at IS NULL
+          AND updated_at >= NOW() - INTERVAL '30 days'
+        GROUP BY customer_id
+        HAVING COUNT(*) >= 3
       )
   `);
 }

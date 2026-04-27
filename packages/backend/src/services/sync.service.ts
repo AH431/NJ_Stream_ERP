@@ -686,6 +686,16 @@ async function processSalesOrder(
     if (fields.confirmedAt !== undefined) updateFields.confirmedAt = fields.confirmedAt ? new Date(fields.confirmedAt) : null;
     if (fields.shippedAt !== undefined)   updateFields.shippedAt   = fields.shippedAt   ? new Date(fields.shippedAt)   : null;
 
+    // 出貨時自動填入 due_date（僅在首次轉為 shipped 且 due_date 尚未設定時執行）
+    if (fields.status === 'shipped' && current.dueDate == null) {
+      const [cust] = await tx.select({ paymentTermsDays: customers.paymentTermsDays })
+        .from(customers)
+        .where(eq(customers.id, current.customerId));
+      const termsDays = cust?.paymentTermsDays ?? 30;
+      const shippedDate = fields.shippedAt ? new Date(fields.shippedAt) : new Date();
+      updateFields.dueDate = new Date(shippedDate.getTime() + termsDays * 24 * 60 * 60 * 1000);
+    }
+
     await tx.update(salesOrders).set(updateFields).where(eq(salesOrders.id, id));
     return { ok: true };
   }

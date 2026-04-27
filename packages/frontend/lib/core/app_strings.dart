@@ -60,6 +60,7 @@ class AppStrings extends ChangeNotifier {
   String get tooltipSynced => _s('已同步', 'Synced');
   String get tooltipLogout => _s('登出', 'Logout');
   String get menuDevSettings => _s('開發者設定', 'Developer Settings');
+  String get menuAr => _s('應收帳款', 'Accounts Receivable');
 
   // ── Logout dialog ─────────────────────────────────────────────────────────
   String get logoutTitle => _s('確認登出', 'Confirm Logout');
@@ -348,6 +349,152 @@ class AppStrings extends ChangeNotifier {
       'This will delete all customer data on this phone. Pull to sync later to restore.');
   String get devClearCustSuccess =>
       _s('本地客戶名單已清空', 'Local client list cleared.');
+
+  // ── Accounts Receivable (AR) ──────────────────────────────────────────────
+  String get arTitle => _s('應收帳款', 'Accounts Receivable');
+  String get arSummaryTitle => _s('應收總覽', 'AR Summary');
+  String get arTotalUnpaid => _s('未收總額', 'Total Unpaid');
+  String get arTotalOverdue => _s('已逾期', 'Overdue');
+  String get arTotalCurrent => _s('未到期', 'Current');
+  String arUnpaidOrderCount(int n) =>
+      _isEnglish ? '$n unpaid orders' : '共 $n 筆待收款訂單';
+  String get arAgingTitle => _s('逾期帳齡分析', 'Aging Analysis');
+  String get arBucket030 => _s('0–30 天', '0–30 days');
+  String get arBucket3160 => _s('31–60 天', '31–60 days');
+  String get arBucket6190 => _s('61–90 天', '61–90 days');
+  String get arBucket90Plus => _s('90+ 天', '90+ days');
+  String get arUnpaidOrders => _s('未收款訂單', 'Unpaid Orders');
+  String get arNoUnpaid => _s('目前沒有未收款訂單', 'No unpaid orders.');
+  String arOrderTitle(int id, String name) =>
+      _isEnglish ? 'Order #$id  $name' : '訂單 #$id  $name';
+  String arDueDate(String d) => _isEnglish ? 'Due: $d' : '到期日：$d';
+  String arOverdueDays(int n) =>
+      _isEnglish ? '$n days overdue' : '逾期 $n 天';
+  String get arMarkStatus => _s('標記狀態', 'Mark Status');
+  String get arMarkPaid => _s('標記已付款', 'Mark as Paid');
+  String get arWriteOff => _s('沖銷呆帳', 'Write Off');
+  String get arConfirmPaid => _s('確認付款', 'Confirm Payment');
+  String get arConfirmWriteOff => _s('確認沖銷', 'Confirm Write-off');
+  String arMarkPaidBody(int id) =>
+      _isEnglish ? 'Mark order #$id as paid?' : '將訂單 #$id 標記為已付款？';
+  String arWriteOffBody(int id) => _isEnglish
+      ? 'Write off order #$id as bad debt? This cannot be undone.'
+      : '將訂單 #$id 標記為呆帳沖銷？此操作無法撤銷。';
+  String get arUpdateSuccess => _s('更新成功', 'Updated successfully.');
+  String get arUpdateFailed => _s('更新失敗，請稍後重試', 'Update failed. Please try again.');
+  String get arFetchError =>
+      _s('資料載入失敗，顯示的是上次快取結果。', 'Failed to load data. Showing cached results.');
+
+  // ── Notification Screen ───────────────────────────────────────────────────
+  String get notifTitle => _s('異常通知', 'Notifications');
+  String get notifEmpty => _s('目前沒有異常通知。', 'No anomalies found.');
+  String get notifAuthError =>
+      _s('請先登入以查看異常通知。', 'Please log in to view notifications.');
+  String get notifResolveFailed => _s('標記失敗，請重試。', 'Failed to resolve.');
+  String get notifBtnResolve => _s('已解決', 'Resolve');
+  String get notifFilterAll => _s('全部', 'All');
+  String get notifFilterCritical => _s('緊急', 'Critical');
+  String get notifFilterHigh => _s('高', 'High');
+  String get notifFilterMedium => _s('中', 'Medium');
+
+  String notifAlertTypeLabel(String type) {
+    if (_isEnglish) {
+      const enMap = {
+        'LONG_PENDING_ORDER':             'Long Pending',
+        'NEGATIVE_AVAILABLE':             'Neg. Stock',
+        'STOCKOUT_PROLONGED':             'Stockout',
+        'DUPLICATE_ORDER':                'Duplicate Order',
+        'ORDER_QUANTITY_SPIKE':           'Qty Spike',
+        'CUSTOMER_INACTIVE':              'Inactive Customer',
+        'OVERDUE_PAYMENT':                'Overdue Payment',
+        'HIGH_VALUE_CUSTOMER_CHURN_RISK': 'Churn Risk',
+        'FREQUENT_CANCELLATION':          'Freq. Cancellation',
+      };
+      return enMap[type] ?? type;
+    }
+    const zhMap = {
+      'LONG_PENDING_ORDER':             '訂單停滯',
+      'NEGATIVE_AVAILABLE':             '庫存異常',
+      'STOCKOUT_PROLONGED':             '長期缺貨',
+      'DUPLICATE_ORDER':                '重複訂單',
+      'ORDER_QUANTITY_SPIKE':           '數量異常',
+      'CUSTOMER_INACTIVE':              '客戶沉默',
+      'OVERDUE_PAYMENT':                '逾期未收',
+      'HIGH_VALUE_CUSTOMER_CHURN_RISK': '高價值客戶流失風險',
+      'FREQUENT_CANCELLATION':          '頻繁取消',
+    };
+    return zhMap[type] ?? type;
+  }
+
+  String notifEntityLabel(String type, int id) {
+    if (_isEnglish) {
+      const enMap = {
+        'sales_order':    'Order',
+        'inventory_item': 'Inventory',
+        'customer':       'Customer',
+        'order_item':     'Order Item',
+      };
+      return '${enMap[type] ?? type} #$id';
+    }
+    const zhMap = {
+      'sales_order':    '訂單',
+      'inventory_item': '庫存',
+      'customer':       '客戶',
+      'order_item':     '訂單品項',
+    };
+    return '${zhMap[type] ?? type} #$id';
+  }
+
+  String notifTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) {
+      return _isEnglish ? '${diff.inMinutes}m ago' : '${diff.inMinutes} 分鐘前';
+    }
+    if (diff.inHours < 24) {
+      return _isEnglish ? '${diff.inHours}h ago' : '${diff.inHours} 小時前';
+    }
+    return _isEnglish ? '${diff.inDays}d ago' : '${diff.inDays} 天前';
+  }
+
+  // ── Notification Bell ─────────────────────────────────────────────────────
+  String get tooltipNotifications => _s('異常通知', 'Notifications');
+  String tooltipUrgentAnomalies(int n) =>
+      _isEnglish ? '$n unresolved anomalies' : '有 $n 筆未解決異常';
+
+  // ── Dashboard Charts ──────────────────────────────────────────────────────
+  String dashProfitTitle(String month) =>
+      _isEnglish ? 'P&L Summary ($month)' : '損益摘要（$month）';
+  String get dashProfitRevenue => _s('出貨收入', 'Revenue');
+  String get dashProfitCogs => _s('出貨成本', 'COGS');
+  String get dashProfitGross => _s('毛利', 'Gross Profit');
+  String get dashProfitMargin => _s('毛利率', 'Margin');
+  String get dashQuotFunnelTitle => _s('報價轉換漏斗（近 30 天）', 'Quote Conversion (last 30 days)');
+  String get dashQuotCreated => _s('建立報價', 'Quotes Created');
+  String get dashQuotConverted => _s('已轉訂單', 'Converted');
+  String get dashQuotRate => _s('轉換率', 'Conv. Rate');
+  String get dashQuotAvgDays => _s('平均天數', 'Avg. Days');
+  String dashQuotDays(String n) => _isEnglish ? '$n days' : '$n 天';
+  String get dashQuotExpired => _s('到期', 'Expired');
+  String get dashQuotPending => _s('進行中', 'In Progress');
+  String get dashShipmentTrendTitle =>
+      _s('月度出貨量趨勢（近 6 個月）', 'Monthly Shipment Trend (6 months)');
+  String get dashHeatmapTitle =>
+      _s('客戶下單熱力圖（Top 10 × 近 6 個月）', 'Customer Order Heatmap (Top 10 × 6 months)');
+  String monthLabel(String yyyyMm) {
+    final parts = yyyyMm.split('-');
+    if (parts.length != 2) return yyyyMm;
+    final m = int.tryParse(parts[1]) ?? 0;
+    if (_isEnglish) {
+      const abbr = ['', 'Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.',
+                         'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+      return m >= 1 && m <= 12 ? abbr[m] : yyyyMm;
+    }
+    return '${parts[1]}月';
+  }
+  String dashShipmentTooltip(String month, int outbound, int products) =>
+      _isEnglish
+          ? '$month\nShipped: $outbound units\n$products SKUs'
+          : '$month\n出貨 $outbound 件\n$products 種商品';
 
   // ── Document Actions ──────────────────────────────────────────────────────
   String get msgEmailSent => _s('郵件已寄送', 'Email sent successfully.');
