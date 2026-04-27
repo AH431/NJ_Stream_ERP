@@ -21,7 +21,7 @@ dependencies:
   decimal: ^3.0.0
 
   # Token 刷新與 Sync 會用到
-  flutter_secure_storage: ^9.2.0
+  flutter_secure_storage: ^10.0.0
   dio: ^5.7.0
   jwt_decoder: ^2.0.1
   uuid: ^4.0.0   # 用來產生 operation.id
