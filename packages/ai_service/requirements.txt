@@ -1,0 +1,11 @@
+langchain
+langchain-community
+langchain-text-splitters
+langchain-chroma
+langchain-ollama
+langchain-huggingface
+chromadb
+unstructured
+python-frontmatter
+python-dotenv
+streamlit

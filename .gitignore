@@ -107,6 +107,15 @@ docs/nj_stream_erp_erd.html
 # WAF / 資安設定細節（含 Cloudflare 規則，勿公開）
 docs/cloudflare-waf-setup.md
 
+# AI Service — ChromaDB 向量資料庫（二進位，不進版控）
+packages/ai_service/db/
+# AI Service — Python 虛擬環境
+packages/ai_service/venv/
+packages/ai_service/.venv/
+# AI Service — Python cache
+packages/ai_service/**/__pycache__/
+packages/ai_service/**/*.pyc
+
 # Phase 3 PRD 草稿（v1–v4 為迭代中版本，僅保留最終版 v5）
 docs/NJ_Stream_ERP Phase3 PRD v1.0.md
 docs/NJ_Stream_ERP Phase3 PRD V2_codex.md
