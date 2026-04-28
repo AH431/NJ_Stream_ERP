@@ -62,11 +62,11 @@ console.log(`✅ Products (${insertedProducts.length}): ${[p0, p1, p2, p3, p4].j
 
 // ── Step 2: 客戶（5 家公司）────────────────────────────────
 const insertedCustomers = await db.insert(schema.customers).values([
-  { name: '台灣精工企業有限公司', contact: '張志明', email: 'contact@tw-seiko.example',    taxId: '10001001', paymentTermsDays: 30 },
-  { name: '建弘工程股份有限公司', contact: '林雅惠', email: 'purchase@jianhong.example',   taxId: '10002002', paymentTermsDays: 45 },
-  { name: '鋒茂科技有限公司',    contact: '陳建國', email: 'order@fengmao.example',        taxId: '10003003', paymentTermsDays: 30 },
-  { name: '聚隆製造有限公司',    contact: '黃明達', email: 'procurement@julong.example',   taxId: '10004004', paymentTermsDays: 60 },
-  { name: '允昇工業股份有限公司', contact: '吳芳儀', email: 'supply@yunsheng.example',      taxId: '10005005', paymentTermsDays: 30 },
+  { name: 'Taiwan Precision Works Ltd.',  contact: '張志明', email: 'contact@tw-seiko.example',    taxId: '10001001', paymentTermsDays: 30 },
+  { name: 'Jianhong Engineering Corp.',   contact: '林雅惠', email: 'purchase@jianhong.example',   taxId: '10002002', paymentTermsDays: 45 },
+  { name: 'Fengmao Technology Co., Ltd.', contact: '陳建國', email: 'order@fengmao.example',        taxId: '10003003', paymentTermsDays: 30 },
+  { name: 'Julong Manufacturing Ltd.',    contact: '黃明達', email: 'procurement@julong.example',   taxId: '10004004', paymentTermsDays: 60 },
+  { name: 'Yunsheng Industrial Corp.',    contact: '吳芳儀', email: 'supply@yunsheng.example',      taxId: '10005005', paymentTermsDays: 30 },
 ]).returning({ id: schema.customers.id });
 
 const [c0, c1, c2, c3, c4] = insertedCustomers.map((r) => r.id);

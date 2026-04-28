@@ -13,7 +13,7 @@
  */
 
 import { z } from 'zod';
-import { eq, isNull, and } from 'drizzle-orm';
+import { eq, isNull, and, sql } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
@@ -167,6 +167,8 @@ function inventoryToState(row: typeof inventoryItems.$inferSelect): InventoryIte
     quantityOnHand: row.quantityOnHand,
     quantityReserved: row.quantityReserved,
     minStockLevel: row.minStockLevel,
+    alertStockLevel: row.alertStockLevel,
+    criticalStockLevel: row.criticalStockLevel,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     deletedAt: null,
@@ -267,11 +269,12 @@ const SalesOrderCreateSchema = z.object({
 });
 
 const SalesOrderMutateSchema = z.object({
-  id:          z.number().int().positive(),
-  status:      z.enum(['pending', 'confirmed', 'shipped', 'cancelled']).optional(),
-  confirmedAt: z.string().datetime().nullable().optional(),
-  shippedAt:   z.string().datetime().nullable().optional(),
-  updatedAt: z.string().datetime(),
+  id:                   z.number().int().positive(),
+  status:               z.enum(['pending', 'confirmed', 'shipped', 'cancelled']).optional(),
+  confirmedAt:          z.string().datetime().nullable().optional(),
+  shippedAt:            z.string().datetime().nullable().optional(),
+  updatedAt:            z.string().datetime(),
+  bypassDuplicateCheck: z.boolean().optional(),
 });
 
 const InventoryDeltaSchema = z.object({
@@ -673,6 +676,7 @@ async function processSalesOrder(
         status: current.status as SalesOrderPayload['status'],
         confirmedAt: toIso(current.confirmedAt),
         shippedAt: toIso(current.shippedAt),
+        dueDate: toIso(current.dueDate),
         createdAt: current.createdAt.toISOString(),
         updatedAt: current.updatedAt.toISOString(),
         deletedAt: toIso(current.deletedAt),
@@ -680,20 +684,58 @@ async function processSalesOrder(
       return makeFailure(op.id, 'FORBIDDEN_OPERATION',
         'LWW：伺服器資料較新，執行 Force Overwrite。', state);
     }
+    // ── 重複訂單警告（confirmed / shipped 時觸發）──────────────
+    // 掃描同客戶 48 小時內所有非取消訂單（含已出貨），
+    // 若品項 ID + 數量完全相同，要求前端二次確認後以 bypassDuplicateCheck=true 重送。
+    if (
+      (fields.status === 'confirmed' || fields.status === 'shipped') &&
+      !fields.bypassDuplicateCheck
+    ) {
+      const dupRows = await tx.execute(sql`
+        WITH target_fp AS (
+          SELECT
+            array_agg(product_id ORDER BY product_id, quantity) AS pids,
+            array_agg(quantity   ORDER BY product_id, quantity) AS qtys
+          FROM order_items
+          WHERE sales_order_id = ${id}
+        ),
+        candidates AS (
+          SELECT
+            so.id AS order_id,
+            array_agg(oi.product_id ORDER BY oi.product_id, oi.quantity) AS pids,
+            array_agg(oi.quantity   ORDER BY oi.product_id, oi.quantity) AS qtys
+          FROM sales_orders so
+          JOIN order_items oi ON oi.sales_order_id = so.id
+          WHERE so.customer_id  = ${current.customerId}
+            AND so.id          <> ${id}
+            AND so.status      <> 'cancelled'
+            AND so.deleted_at  IS NULL
+            AND so.created_at  >= NOW() - INTERVAL '48 hours'
+          GROUP BY so.id
+        )
+        SELECT c.order_id
+        FROM candidates c, target_fp t
+        WHERE c.pids = t.pids AND c.qtys = t.qtys
+      `) as unknown as Array<{ order_id: number }>;
+
+      if (dupRows.length > 0) {
+        const orderList = dupRows.map((r) => '#' + r.order_id).join('、');
+        return makeFailure(op.id, 'DUPLICATE_ORDER_WARNING',
+          `客戶 48 小時內已有內容完全相同的訂單（${orderList}），請再次確認後繼續。`);
+      }
+    }
+
     // 將 nullable datetime 欄位轉回 Date | null
     const updateFields: Record<string, unknown> = { updatedAt: new Date() };
     if (fields.status !== undefined)      updateFields.status = fields.status;
     if (fields.confirmedAt !== undefined) updateFields.confirmedAt = fields.confirmedAt ? new Date(fields.confirmedAt) : null;
     if (fields.shippedAt !== undefined)   updateFields.shippedAt   = fields.shippedAt   ? new Date(fields.shippedAt)   : null;
 
-    // 出貨時自動填入 due_date（僅在首次轉為 shipped 且 due_date 尚未設定時執行）
-    if (fields.status === 'shipped' && current.dueDate == null) {
-      const [cust] = await tx.select({ paymentTermsDays: customers.paymentTermsDays })
-        .from(customers)
-        .where(eq(customers.id, current.customerId));
-      const termsDays = cust?.paymentTermsDays ?? 30;
-      const shippedDate = fields.shippedAt ? new Date(fields.shippedAt) : new Date();
-      updateFields.dueDate = new Date(shippedDate.getTime() + termsDays * 24 * 60 * 60 * 1000);
+    // 確認時自動填入 due_date（僅在首次轉為 confirmed 且 due_date 尚未設定時執行）
+    // 結帳規則：確認日次月月底。new Date(y, m+2, 0) = day 0 of m+2 = last day of m+1
+    if (fields.status === 'confirmed' && current.dueDate == null) {
+      const confirmedDate = fields.confirmedAt ? new Date(fields.confirmedAt) : new Date();
+      updateFields.dueDate = new Date(confirmedDate.getFullYear(), confirmedDate.getMonth() + 2, 0);
     }
 
     await tx.update(salesOrders).set(updateFields).where(eq(salesOrders.id, id));

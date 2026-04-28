@@ -24,7 +24,12 @@ export const inventoryItems = pgTable('inventory_items', {
   quantityOnHand:   integer('quantity_on_hand').notNull().default(0),
   /** 已預留數量。DB CHECK：<= quantityOnHand */
   quantityReserved: integer('quantity_reserved').notNull().default(0),
-  minStockLevel:    integer('min_stock_level').notNull().default(0),
+  /** 安全庫存水位（2 週用量）：低於此值觸發 STOCK_SAFETY (MEDIUM) 補貨提醒 */
+  minStockLevel:      integer('min_stock_level').notNull().default(0),
+  /** 警急庫存水位（1 週用量）：低於此值觸發 STOCK_ALERT (HIGH) 緊急詢源 */
+  alertStockLevel:    integer('alert_stock_level').notNull().default(0),
+  /** 危急庫存水位（3 天用量）：低於此值觸發 STOCK_CRITICAL (CRITICAL) 主管通報 */
+  criticalStockLevel: integer('critical_stock_level').notNull().default(0),
   createdAt:        timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt:        timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow().$onUpdate(() => new Date()),
   deletedAt:        timestamp('deleted_at',  { withTimezone: true, mode: 'date' }),

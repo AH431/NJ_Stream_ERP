@@ -60,6 +60,8 @@ export const SYNC_ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   /** 嚴重衝突，無法自動解決 → 人工介入 */
   DATA_CONFLICT: 'DATA_CONFLICT',
+  /** 重複訂單警告 → 前端彈出確認對話框後以 bypassDuplicateCheck=true 重送 */
+  DUPLICATE_ORDER_WARNING: 'DUPLICATE_ORDER_WARNING',
 } as const;
 
 export type SyncErrorCode = typeof SYNC_ERROR_CODES[keyof typeof SYNC_ERROR_CODES];

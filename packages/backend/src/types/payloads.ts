@@ -58,6 +58,7 @@ export interface SalesOrderPayload {
   status: 'pending' | 'confirmed' | 'shipped' | 'cancelled';
   confirmedAt: string | null;
   shippedAt: string | null;
+  dueDate: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -82,6 +83,8 @@ export interface InventoryItemPayload {
   quantityOnHand: number;
   quantityReserved: number;
   minStockLevel: number;
+  alertStockLevel: number;
+  criticalStockLevel: number;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

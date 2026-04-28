@@ -7,7 +7,9 @@
  * MVP 規則集（V2_codex § 6.2）：
  *   LONG_PENDING_ORDER    — pending 訂單超過 14 天未確認
  *   NEGATIVE_AVAILABLE    — inventory available (onHand - reserved) < 0
- *   STOCKOUT_PROLONGED    — available < minStockLevel（minStockLevel > 0）
+ *   STOCK_CRITICAL (CRITICAL) — available < criticalStockLevel（3 天用量）→ 主管通報
+ *   STOCK_ALERT    (HIGH)     — available < alertStockLevel（1 週用量）且 >= criticalStockLevel → 緊急詢源
+ *   STOCK_SAFETY   (MEDIUM)   — available < minStockLevel（2 週用量）且 >= alertStockLevel → 標準補貨
  *
  * 去重邏輯：同 alertType + entityId 已有 isResolved=false 的記錄則跳過。
  * 自動解除：當觸發條件消失時，標記現有異常為 resolved。
@@ -27,8 +29,9 @@ export async function runAnomalyScanner(db: DrizzleDb): Promise<void> {
   try {
     await scanLongPendingOrders(db, newAnomalies);
     await scanNegativeAvailable(db, newAnomalies);
-    await scanStockoutProlonged(db, newAnomalies);
-    await scanDuplicateOrders(db, newAnomalies);
+    await scanStockCritical(db, newAnomalies);
+    await scanStockAlert(db, newAnomalies);
+    await scanStockSafety(db, newAnomalies);
     await scanOrderQuantitySpike(db, newAnomalies);
     await scanCustomerInactive(db, newAnomalies);
     await scanOverduePayment(db, newAnomalies);
@@ -126,21 +129,22 @@ async function scanNegativeAvailable(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
   }
 }
 
-// ── Rule 3：STOCKOUT_PROLONGED ────────────────────────────
-// available < minStockLevel（且 minStockLevel > 0）
+// ── Rule 3a：STOCK_CRITICAL ───────────────────────────────
+// available < criticalStockLevel（3 天用量）→ 主管通報
+// 三層中最高優先；criticalStockLevel = 0 表示該產品不啟用此層。
 
-async function scanStockoutProlonged(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+async function scanStockCritical(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
     SELECT ii.id, p.name AS product_name,
-           ii.quantity_on_hand, ii.quantity_reserved, ii.min_stock_level
+           ii.quantity_on_hand, ii.quantity_reserved, ii.critical_stock_level
     FROM inventory_items ii
     JOIN products p ON p.id = ii.product_id
-    WHERE ii.min_stock_level > 0
-      AND (ii.quantity_on_hand - ii.quantity_reserved) < ii.min_stock_level
+    WHERE ii.critical_stock_level > 0
+      AND (ii.quantity_on_hand - ii.quantity_reserved) < ii.critical_stock_level
       AND p.deleted_at IS NULL
       AND ii.id NOT IN (
         SELECT entity_id FROM anomalies
-        WHERE alert_type = 'STOCKOUT_PROLONGED'
+        WHERE alert_type = 'STOCK_CRITICAL'
           AND entity_type = 'inventory_item'
           AND is_resolved = FALSE
       )
@@ -148,15 +152,15 @@ async function scanStockoutProlonged(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
 
   for (const row of rows as unknown as Array<{
     id: number; product_name: string;
-    quantity_on_hand: number; quantity_reserved: number; min_stock_level: number;
+    quantity_on_hand: number; quantity_reserved: number; critical_stock_level: number;
   }>) {
     const available = row.quantity_on_hand - row.quantity_reserved;
-    const message = '產品「' + row.product_name + '」庫存低於安全水位（可用 ' + available + '，安全水位 ' + row.min_stock_level + '）。';
+    const message = '【緊急】產品「' + row.product_name + '」庫存危急（可用 ' + available + '，危急水位 ' + row.critical_stock_level + '）。請立即通報主管。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
       VALUES (
-        'STOCKOUT_PROLONGED',
+        'STOCK_CRITICAL',
         ${SEV.CRITICAL},
         'inventory_item',
         ${row.id},
@@ -164,77 +168,125 @@ async function scanStockoutProlonged(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
         ${JSON.stringify({
           productName: row.product_name,
           available,
-          minStockLevel: row.min_stock_level,
+          criticalStockLevel: row.critical_stock_level,
           onHand: row.quantity_on_hand,
           reserved: row.quantity_reserved,
         })}::jsonb
       )
     `);
-    out.push({ severity: SEV.CRITICAL, message, entityType: 'inventory_item', alertType: 'STOCKOUT_PROLONGED' });
+    out.push({ severity: SEV.CRITICAL, message, entityType: 'inventory_item', alertType: 'STOCK_CRITICAL' });
   }
 }
 
-// ── Rule 4：DUPLICATE_ORDER ───────────────────────────────
-// 同一客戶 48 小時內存在 2+ 筆 pending 訂單，且品項 / 數量完全相同。
-// entity_type = 'customer'，每客戶一筆異常（不重複插入）。
+// ── Rule 3b：STOCK_ALERT ──────────────────────────────────
+// available < alertStockLevel（1 週用量）且 >= criticalStockLevel → 緊急詢源
+// 僅在未跌入危急區時觸發，避免與 STOCK_CRITICAL 同時存在。
 
-async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+async function scanStockAlert(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
   const rows = await db.execute(sql`
-    WITH order_fingerprints AS (
-      SELECT
-        so.id           AS order_id,
-        so.customer_id,
-        array_agg(oi.product_id ORDER BY oi.product_id ASC, oi.quantity ASC) AS product_ids,
-        array_agg(oi.quantity   ORDER BY oi.product_id ASC, oi.quantity ASC) AS quantities
-      FROM sales_orders so
-      JOIN order_items oi ON oi.sales_order_id = so.id
-      WHERE so.status   = 'pending'
-        AND so.deleted_at IS NULL
-        AND so.created_at >= NOW() - INTERVAL '48 hours'
-      GROUP BY so.id, so.customer_id
-    ),
-    dup_groups AS (
-      SELECT
-        customer_id,
-        array_agg(order_id ORDER BY order_id) AS order_ids
-      FROM order_fingerprints
-      GROUP BY customer_id, product_ids, quantities
-      HAVING COUNT(*) >= 2
-    )
-    SELECT
-      dg.customer_id,
-      c.name AS customer_name,
-      dg.order_ids
-    FROM dup_groups dg
-    JOIN customers c ON c.id = dg.customer_id
-    WHERE dg.customer_id NOT IN (
-      SELECT entity_id FROM anomalies
-      WHERE alert_type = 'DUPLICATE_ORDER'
-        AND entity_type = 'customer'
-        AND is_resolved = FALSE
-    )
+    SELECT ii.id, p.name AS product_name,
+           ii.quantity_on_hand, ii.quantity_reserved,
+           ii.alert_stock_level, ii.critical_stock_level
+    FROM inventory_items ii
+    JOIN products p ON p.id = ii.product_id
+    WHERE ii.alert_stock_level > 0
+      AND (ii.quantity_on_hand - ii.quantity_reserved) < ii.alert_stock_level
+      AND (
+        ii.critical_stock_level = 0
+        OR (ii.quantity_on_hand - ii.quantity_reserved) >= ii.critical_stock_level
+      )
+      AND p.deleted_at IS NULL
+      AND ii.id NOT IN (
+        SELECT entity_id FROM anomalies
+        WHERE alert_type = 'STOCK_ALERT'
+          AND entity_type = 'inventory_item'
+          AND is_resolved = FALSE
+      )
   `);
 
   for (const row of rows as unknown as Array<{
-    customer_id: number;
-    customer_name: string;
-    order_ids: number[];
+    id: number; product_name: string;
+    quantity_on_hand: number; quantity_reserved: number;
+    alert_stock_level: number; critical_stock_level: number;
   }>) {
-    const orderList = row.order_ids.map((id) => '#' + id).join('、');
-    const message = '客戶「' + row.customer_name + '」48 小時內出現內容完全相同的重複 pending 訂單（' + orderList + '）。';
+    const available = row.quantity_on_hand - row.quantity_reserved;
+    const message = '【警急】產品「' + row.product_name + '」庫存偏低（可用 ' + available + '，警急水位 ' + row.alert_stock_level + '）。請啟動緊急詢源。';
     await db.execute(sql`
       INSERT INTO anomalies
         (alert_type, severity, entity_type, entity_id, message, detail)
       VALUES (
-        'DUPLICATE_ORDER',
+        'STOCK_ALERT',
         ${SEV.HIGH},
-        'customer',
-        ${row.customer_id},
+        'inventory_item',
+        ${row.id},
         ${message},
-        ${JSON.stringify({ customerName: row.customer_name, orderIds: row.order_ids })}::jsonb
+        ${JSON.stringify({
+          productName: row.product_name,
+          available,
+          alertStockLevel: row.alert_stock_level,
+          criticalStockLevel: row.critical_stock_level,
+          onHand: row.quantity_on_hand,
+          reserved: row.quantity_reserved,
+        })}::jsonb
       )
     `);
-    out.push({ severity: SEV.HIGH, message, entityType: 'customer', alertType: 'DUPLICATE_ORDER' });
+    out.push({ severity: SEV.HIGH, message, entityType: 'inventory_item', alertType: 'STOCK_ALERT' });
+  }
+}
+
+// ── Rule 3c：STOCK_SAFETY ─────────────────────────────────
+// available < minStockLevel（2 週用量）且 >= alertStockLevel → 標準補貨提醒
+// 僅在未跌入警急／危急區時觸發。
+
+async function scanStockSafety(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+  const rows = await db.execute(sql`
+    SELECT ii.id, p.name AS product_name,
+           ii.quantity_on_hand, ii.quantity_reserved,
+           ii.min_stock_level, ii.alert_stock_level
+    FROM inventory_items ii
+    JOIN products p ON p.id = ii.product_id
+    WHERE ii.min_stock_level > 0
+      AND (ii.quantity_on_hand - ii.quantity_reserved) < ii.min_stock_level
+      AND (
+        ii.alert_stock_level = 0
+        OR (ii.quantity_on_hand - ii.quantity_reserved) >= ii.alert_stock_level
+      )
+      AND p.deleted_at IS NULL
+      AND ii.id NOT IN (
+        SELECT entity_id FROM anomalies
+        WHERE alert_type = 'STOCK_SAFETY'
+          AND entity_type = 'inventory_item'
+          AND is_resolved = FALSE
+      )
+  `);
+
+  for (const row of rows as unknown as Array<{
+    id: number; product_name: string;
+    quantity_on_hand: number; quantity_reserved: number;
+    min_stock_level: number; alert_stock_level: number;
+  }>) {
+    const available = row.quantity_on_hand - row.quantity_reserved;
+    const message = '產品「' + row.product_name + '」庫存低於安全水位（可用 ' + available + '，安全水位 ' + row.min_stock_level + '）。請安排標準補貨。';
+    await db.execute(sql`
+      INSERT INTO anomalies
+        (alert_type, severity, entity_type, entity_id, message, detail)
+      VALUES (
+        'STOCK_SAFETY',
+        ${SEV.MEDIUM},
+        'inventory_item',
+        ${row.id},
+        ${message},
+        ${JSON.stringify({
+          productName: row.product_name,
+          available,
+          minStockLevel: row.min_stock_level,
+          alertStockLevel: row.alert_stock_level,
+          onHand: row.quantity_on_hand,
+          reserved: row.quantity_reserved,
+        })}::jsonb
+      )
+    `);
+    out.push({ severity: SEV.MEDIUM, message, entityType: 'inventory_item', alertType: 'STOCK_SAFETY' });
   }
 }
 
@@ -563,7 +615,54 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
       )
   `);
 
-  // STOCKOUT_PROLONGED：庫存已補充回安全水位
+  // STOCK_CRITICAL：已補充回危急水位以上，或危急水位設為 0（停用）
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'STOCK_CRITICAL'
+      AND entity_type = 'inventory_item'
+      AND is_resolved = FALSE
+      AND entity_id NOT IN (
+        SELECT id FROM inventory_items
+        WHERE critical_stock_level > 0
+          AND (quantity_on_hand - quantity_reserved) < critical_stock_level
+      )
+  `);
+
+  // STOCK_ALERT：已補充回警急水位以上，或已跌入危急區（升級為 STOCK_CRITICAL）
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'STOCK_ALERT'
+      AND entity_type = 'inventory_item'
+      AND is_resolved = FALSE
+      AND entity_id NOT IN (
+        SELECT id FROM inventory_items
+        WHERE alert_stock_level > 0
+          AND (quantity_on_hand - quantity_reserved) < alert_stock_level
+          AND (
+            critical_stock_level = 0
+            OR (quantity_on_hand - quantity_reserved) >= critical_stock_level
+          )
+      )
+  `);
+
+  // STOCK_SAFETY：已補充回安全水位以上，或已跌入警急區（升級為 STOCK_ALERT）
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'STOCK_SAFETY'
+      AND entity_type = 'inventory_item'
+      AND is_resolved = FALSE
+      AND entity_id NOT IN (
+        SELECT id FROM inventory_items
+        WHERE min_stock_level > 0
+          AND (quantity_on_hand - quantity_reserved) < min_stock_level
+          AND (
+            alert_stock_level = 0
+            OR (quantity_on_hand - quantity_reserved) >= alert_stock_level
+          )
+      )
+  `);
+
+  // STOCKOUT_PROLONGED（舊版規則）：清理歷史遺留記錄
   await db.execute(sql`
     UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
     WHERE alert_type = 'STOCKOUT_PROLONGED'
@@ -573,31 +672,6 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
         SELECT id FROM inventory_items
         WHERE min_stock_level > 0
           AND (quantity_on_hand - quantity_reserved) < min_stock_level
-      )
-  `);
-
-  // DUPLICATE_ORDER：客戶不再有重複內容的 pending 訂單（48h 窗口內）
-  await db.execute(sql`
-    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
-    WHERE alert_type = 'DUPLICATE_ORDER'
-      AND entity_type = 'customer'
-      AND is_resolved = FALSE
-      AND entity_id NOT IN (
-        SELECT DISTINCT customer_id
-        FROM (
-          SELECT
-            so.customer_id,
-            array_agg(oi.product_id ORDER BY oi.product_id ASC, oi.quantity ASC) AS product_ids,
-            array_agg(oi.quantity   ORDER BY oi.product_id ASC, oi.quantity ASC) AS quantities
-          FROM sales_orders so
-          JOIN order_items oi ON oi.sales_order_id = so.id
-          WHERE so.status   = 'pending'
-            AND so.deleted_at IS NULL
-            AND so.created_at >= NOW() - INTERVAL '48 hours'
-          GROUP BY so.id, so.customer_id
-        ) f
-        GROUP BY f.customer_id, f.product_ids, f.quantities
-        HAVING COUNT(*) >= 2
       )
   `);
 

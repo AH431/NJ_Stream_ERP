@@ -2,7 +2,7 @@
  * AR (Accounts Receivable) API — Phase 2 (P2-ACC)
  *
  * Admin 專用。計算基準：sales_orders.payment_status = 'unpaid' 且 status = 'shipped'。
- * due_date 由後端依 customers.payment_terms_days 在出貨時自動填入（見 sales_orders route TODO）。
+ * due_date 由後端在訂單確認（confirmed）時自動填入：結帳期限為確認日次月月底。
  *
  * 端點：
  *   GET /ar/summary   → 未收總覽（aging buckets）
