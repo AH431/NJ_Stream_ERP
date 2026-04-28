@@ -104,6 +104,15 @@ NJ_Stream_ERP_Brochure.pdf
 docs/api-contract-*.yaml
 docs/nj_stream_erp_erd.html
 
+# WAF / 資安設定細節（含 Cloudflare 規則，勿公開）
+docs/cloudflare-waf-setup.md
+
+# Phase 3 PRD 草稿（v1–v4 為迭代中版本，僅保留最終版 v5）
+docs/NJ_Stream_ERP Phase3 PRD v1.0.md
+docs/NJ_Stream_ERP Phase3 PRD V2_codex.md
+docs/NJ_Stream_ERP Phase3 PRD v3.0.md
+docs/NJ_Stream_ERP Phase3 PRD V4_codex.md
+
 # Editor
 .idea/
 .vscode/
