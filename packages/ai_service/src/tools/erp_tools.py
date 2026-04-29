@@ -9,7 +9,7 @@ import os
 
 import httpx
 
-_DEFAULT_BASE_URL = os.environ.get("FASTIFY_BASE_URL", "http://localhost:3000/api/v1")
+_DEFAULT_BASE_URL = os.environ.get("FASTIFY_INTERNAL_URL", "http://localhost:3000/api/v1")
 _TIMEOUT = float(os.environ.get("ERP_TOOL_TIMEOUT", "10"))
 
 

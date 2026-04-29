@@ -17,7 +17,7 @@ from src.tools.formatters import (
 )
 
 INTERNAL_TOKEN = os.environ.get("AI_SERVICE_INTERNAL_TOKEN", "")
-FASTIFY_BASE_URL = os.environ.get("FASTIFY_BASE_URL", "http://localhost:3000/api/v1")
+FASTIFY_BASE_URL = os.environ.get("FASTIFY_INTERNAL_URL", "http://localhost:3000/api/v1")
 
 # Fallback tokens used when query route is static (RAG not yet implemented)
 _STATIC_PLACEHOLDER = [
