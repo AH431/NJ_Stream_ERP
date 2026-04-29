@@ -13,3 +13,5 @@ unstructured
 python-frontmatter
 python-dotenv
 streamlit
+rank_bm25
+psycopg2-binary

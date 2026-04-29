@@ -18,11 +18,10 @@ from src.tools.formatters import (
 
 INTERNAL_TOKEN = os.environ.get("AI_SERVICE_INTERNAL_TOKEN", "")
 FASTIFY_BASE_URL = os.environ.get("FASTIFY_INTERNAL_URL", "http://localhost:3000/api/v1")
+AI_FAKE_LLM = os.environ.get("AI_FAKE_LLM", "false").lower() == "true"
+CHROMA_PATH = os.environ.get("CHROMA_PATH", "./db")
 
-# Fallback tokens used when query route is static (RAG not yet implemented)
-_STATIC_PLACEHOLDER = [
-    "此問題需要知識庫回答，", "RAG 模組將於", "PR-6 啟用。",
-]
+_rag_vs = None  # lazy-initialized Chroma vectorstore
 
 router = APIRouter()
 
@@ -73,6 +72,55 @@ def _sse_response(generator) -> StreamingResponse:
     )
 
 
+def _get_rag_vectorstore():
+    global _rag_vs
+    if _rag_vs is None:
+        from src.indexing.embedder import get_embeddings
+        from src.indexing.vectorstore import get_vectorstore
+        _rag_vs = get_vectorstore(get_embeddings(), db_path=CHROMA_PATH)
+    return _rag_vs
+
+
+async def _rag_stream(question: str, role: str):
+    from src.rag.retriever import build_hybrid_retriever
+    from src.rag.prompt import RAG_PROMPT
+
+    try:
+        vs = _get_rag_vectorstore()
+        retriever = build_hybrid_retriever(vs, role=role)
+        docs = await asyncio.to_thread(retriever.invoke, question)
+    except Exception:
+        yield f'data: {json.dumps({"type": "token", "content": "知識庫暫時無法存取，請稍後再試。"})}\n\n'
+        yield f'data: {json.dumps({"type": "done"})}\n\n'
+        return
+
+    if not docs:
+        yield f'data: {json.dumps({"type": "token", "content": "根據現有資料，無法回答此問題。"})}\n\n'
+        yield f'data: {json.dumps({"type": "done"})}\n\n'
+        return
+
+    context = "\n\n".join(d.page_content for d in docs)
+
+    if AI_FAKE_LLM:
+        async for chunk in _text_stream(context[:300]):
+            yield chunk
+        return
+
+    from langchain_ollama import ChatOllama
+    model = ChatOllama(
+        base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
+        model=os.environ.get("OLLAMA_MODEL", "llama3.2:3b"),
+        num_ctx=int(os.environ.get("OLLAMA_NUM_CTX", "8192")),
+        temperature=float(os.environ.get("OLLAMA_TEMPERATURE", "0.3")),
+    )
+    prompt_msgs = RAG_PROMPT.format_messages(context=context, question=question)
+    async for chunk in model.astream(prompt_msgs):
+        content = chunk.content if hasattr(chunk, "content") else ""
+        if content:
+            yield f'data: {json.dumps({"type": "token", "content": content})}\n\n'
+    yield f'data: {json.dumps({"type": "done"})}\n\n'
+
+
 @router.post("/chat")
 async def chat(
     body: ChatRequest,
@@ -90,5 +138,5 @@ async def chat(
         answer = await _resolve_inventory(body.userJwt, parsed.sku)
         return _sse_response(_text_stream(answer))
 
-    # static or unhandled dynamic → placeholder until PR-6/PR-7
-    return _sse_response(_token_stream(_STATIC_PLACEHOLDER))
+    # static (or unhandled dynamic) → RAG pipeline (PR-6)
+    return _sse_response(_rag_stream(body.question, body.role))

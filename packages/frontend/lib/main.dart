@@ -23,8 +23,10 @@ import 'providers/analytics_provider.dart';
 import 'providers/anomaly_provider.dart';
 import 'providers/rfm_provider.dart';
 import 'providers/ar_provider.dart';
+import 'providers/ai_provider.dart';
 import 'features/notifications/notification_screen.dart';
 import 'features/ar/ar_screen.dart';
+import 'features/ai/chat_screen.dart';
 import 'services/fcm_service.dart';
 
 // ==============================================================================
@@ -115,6 +117,16 @@ Future<void> main() async {
           ),
           update: (_, sync, prev) =>
               prev ?? ArProvider(dio: sync.authenticatedDio),
+        ),
+
+        // ── AiProvider ───────────────────────────────────────────────────────
+        // Phase 3 M1.3：SSE 串流聊天（所有登入角色可用）
+        ChangeNotifierProxyProvider<SyncProvider, AiProvider>(
+          create: (ctx) => AiProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? AiProvider(dio: sync.authenticatedDio),
         ),
 
         // ── AppStrings ───────────────────────────────────────────────────────
@@ -255,6 +267,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const ArScreen()),
                 );
+              } else if (value == 'ai_chat') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatScreen()),
+                );
               } else if (value == 'logout') {
                 _confirmLogout(context, sync, s);
               }
@@ -271,6 +288,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+              PopupMenuItem(
+                value: 'ai_chat',
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Text(s.menuAiChat),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'dev_settings',
                 child: Row(

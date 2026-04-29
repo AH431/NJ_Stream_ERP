@@ -61,6 +61,7 @@ class AppStrings extends ChangeNotifier {
   String get tooltipLogout => _s('登出', 'Logout');
   String get menuDevSettings => _s('開發者設定', 'Developer Settings');
   String get menuAr => _s('應收帳款', 'Accounts Receivable');
+  String get menuAiChat => _s('AI 問庫存', 'AI Chat');
 
   // ── Logout dialog ─────────────────────────────────────────────────────────
   String get logoutTitle => _s('確認登出', 'Confirm Logout');
