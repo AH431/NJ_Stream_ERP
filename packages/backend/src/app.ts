@@ -18,6 +18,8 @@ import customerInteractionsRoutes from '@/routes/customer_interactions.route.js'
 import arRoutes from '@/routes/ar.route.js';
 import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
 import notificationsRoutes from '@/routes/notifications.route.js';
+import aiRoutes from '@/routes/ai.route.js';
+import inventoryRoutes from '@/routes/inventory.route.js';
 import { initFcm } from '@/services/fcm.service.js';
 
 export function buildApp() {
@@ -78,6 +80,8 @@ export function buildApp() {
   app.register(customerInteractionsRoutes,  { prefix: '/api/v1/customer-interactions' });
   app.register(arRoutes,                    { prefix: '/api/v1/ar' });
   app.register(notificationsRoutes,         { prefix: '/api/v1/notifications' });
+  app.register(aiRoutes,                    { prefix: '/api/v1/ai' });
+  app.register(inventoryRoutes,             { prefix: '/api/v1/inventory' });
 
   // ── Firebase Admin SDK 初始化（FIREBASE_SERVICE_ACCOUNT 不存在時靜默跳過）──
   initFcm();

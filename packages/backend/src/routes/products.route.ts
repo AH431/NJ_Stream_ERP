@@ -14,7 +14,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq, isNull, and } from 'drizzle-orm';
+import { eq, isNull, and, ilike, or } from 'drizzle-orm';
 import { products } from '@/schemas/products.schema.js';
 import { USER_ROLES } from '@/constants/index.js';
 
@@ -47,10 +47,41 @@ const IdParam = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+/** GET /products/search query */
+const SearchQuery = z.object({
+  q: z.string().min(1).max(200),
+});
+
 // ── 路由處理 ──────────────────────────────────────────────
 
 export default async function productsRoutes(app: FastifyInstance) {
   const { db } = app;
+
+  // ── GET /products/search ───────────────────────────────
+  // Full-text search on name and sku (ILIKE). All roles, JWT required.
+  // Must be registered before /:id so Fastify doesn't treat "search" as an ID.
+  app.get('/search', {
+    preHandler: [app.verifyJwt],
+  }, async (request, reply) => {
+    const parsed = SearchQuery.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'q 參數為必填且不可空白。' });
+    }
+
+    const { q } = parsed.data;
+    const term = `%${q}%`;
+    const items = await db
+      .select()
+      .from(products)
+      .where(and(
+        isNull(products.deletedAt),
+        or(ilike(products.name, term), ilike(products.sku, term)),
+      ))
+      .orderBy(products.id)
+      .limit(20);
+
+    return reply.status(200).send({ items, total: items.length });
+  });
 
   // ── GET /products ──────────────────────────────────────
   // 回傳所有未軟刪除的產品，全角色可存取

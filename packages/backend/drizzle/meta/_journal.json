@@ -50,6 +50,13 @@
       "when": 1777119710892,
       "tag": "0006_aberrant_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777439038481,
+      "tag": "0007_dry_justice",
+      "breakpoints": true
     }
   ]
 }

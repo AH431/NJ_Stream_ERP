@@ -13,6 +13,7 @@
  *   8. processed_operations ← 含冪等 UNIQUE + 兩個索引
  *   9. anomalies            ← P2-DB-01：異常事件記錄（Phase 2）
  *  10. device_tokens        ← FCM push 通知裝置 token
+ *  11. audit_logs           ← Phase 3 AI 助理稽核記錄（不混用 processed_operations）
  *
  * Relations 集中定義於此檔案，避免各 schema 檔案之間的循環引用。
  */
@@ -29,6 +30,7 @@ export * from './processed_operations.schema.ts';
 export * from './anomalies.schema.ts';
 export * from './customer_interactions.schema.ts';
 export * from './device_tokens.schema.ts';
+export * from './audit_logs.schema.ts';
 
 // ── Relations ─────────────────────────────────────────────
 import { relations } from 'drizzle-orm';
