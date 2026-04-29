@@ -217,6 +217,7 @@ class _AnomalyCard extends StatelessWidget {
     final s     = AppStrings.of(context);
     final color = _sevColors[item.severity] ?? Colors.blueGrey;
     final icon  = _sevIcons[item.severity]  ?? Icons.circle_notifications;
+    final message = s.notifMessage(item.alertType, item.detail, item.message);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -271,7 +272,7 @@ class _AnomalyCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   // 說明文字
-                  Text(item.message, style: const TextStyle(fontSize: 13)),
+                  Text(message, style: const TextStyle(fontSize: 13)),
                   // 建立時間
                   const SizedBox(height: 4),
                   Text(

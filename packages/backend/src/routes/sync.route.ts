@@ -27,6 +27,7 @@ import { orderItems } from '@/schemas/order_items.schema.js';
 import { customerInteractions } from '@/schemas/customer_interactions.schema.js';
 import { processOperation } from '@/services/sync.service.js';
 import type { ProcessResult } from '@/services/sync.service.js';
+import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
 import { SYNC } from '@/constants/index.js';
 import type { FailedOperation } from '@/types/index.js';
 
@@ -101,6 +102,7 @@ export default async function syncRoutes(app: FastifyInstance) {
     const idMap: Record<string, number> = {};
     const failed: FailedOperation[] = [];
     const { userId, role } = request.user;
+    let shouldRunAnomalyScan = false;
 
     // 批次內臨時 ID 映射：localId（負數）→ serverId（正整數）
     // 解決同批次內 customer:create 先行，quotation:create 的 customerId 仍為負數的問題
@@ -150,6 +152,12 @@ export default async function syncRoutes(app: FastifyInstance) {
         // ── 6. 彙整結果 ──────────────────────────────────
         if (result.ok) {
           succeeded.push(op.id);
+          if (
+            op.entityType === 'sales_order' &&
+            (op.operationType === 'create' || op.operationType === 'update' || op.operationType === 'delete')
+          ) {
+            shouldRunAnomalyScan = true;
+          }
           if (result.serverId !== undefined) {
             idMap[op.id] = result.serverId;
             // 記錄批次內本地 ID → server ID，供後續 op 的 FK 替換使用
@@ -171,6 +179,14 @@ export default async function syncRoutes(app: FastifyInstance) {
           message: '伺服器處理時發生未預期的錯誤，請稍後重試。',
           server_state: null,
         });
+      }
+    }
+
+    if (shouldRunAnomalyScan) {
+      try {
+        await runAnomalyScanner(db);
+      } catch (err: unknown) {
+        app.log.error({ err }, 'anomaly scan after sales_order sync failed');
       }
     }
 

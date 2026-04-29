@@ -6,6 +6,7 @@
  *
  * MVP 規則集（V2_codex § 6.2）：
  *   LONG_PENDING_ORDER    — pending 訂單超過 14 天未確認
+ *   DUPLICATE_ORDER       — 同客戶 48 小時內有 2+ 筆內容相同的 pending 訂單
  *   NEGATIVE_AVAILABLE    — inventory available (onHand - reserved) < 0
  *   STOCK_CRITICAL (CRITICAL) — available < criticalStockLevel（3 天用量）→ 主管通報
  *   STOCK_ALERT    (HIGH)     — available < alertStockLevel（1 週用量）且 >= criticalStockLevel → 緊急詢源
@@ -28,6 +29,7 @@ export async function runAnomalyScanner(db: DrizzleDb): Promise<void> {
   const newAnomalies: NewAnomalyForFcm[] = [];
   try {
     await scanLongPendingOrders(db, newAnomalies);
+    await scanDuplicateOrders(db, newAnomalies);
     await scanNegativeAvailable(db, newAnomalies);
     await scanStockCritical(db, newAnomalies);
     await scanStockAlert(db, newAnomalies);
@@ -80,6 +82,103 @@ async function scanLongPendingOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
       )
     `);
     out.push({ severity: SEV.MEDIUM, message, entityType: 'sales_order', alertType: 'LONG_PENDING_ORDER' });
+  }
+}
+
+// ── Rule 1.5：DUPLICATE_ORDER ──────────────────────────────
+// 同一客戶 48 小時內有 2+ 筆 pending 訂單，且品項 + 數量 fingerprint 完全一致。
+// entity_type = 'customer'，每客戶一筆異常。
+
+async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
+  const rows = await db.execute(sql`
+    WITH order_fingerprints AS (
+      SELECT
+        so.id AS order_id,
+        so.customer_id,
+        c.name AS customer_name,
+        STRING_AGG(
+          oi.product_id::text || ':' || oi.quantity::text,
+          ',' ORDER BY oi.product_id, oi.quantity, oi.id
+        ) AS fingerprint
+      FROM sales_orders so
+      JOIN order_items oi ON oi.sales_order_id = so.id
+      LEFT JOIN customers c ON c.id = so.customer_id
+      WHERE so.status = 'pending'
+        AND so.deleted_at IS NULL
+        AND so.created_at >= NOW() - INTERVAL '48 hours'
+      GROUP BY so.id, so.customer_id, c.name
+    ),
+    duplicate_groups AS (
+      SELECT
+        customer_id,
+        customer_name,
+        fingerprint,
+        ARRAY_AGG(order_id ORDER BY order_id) AS order_ids
+      FROM order_fingerprints
+      GROUP BY customer_id, customer_name, fingerprint
+      HAVING COUNT(*) >= 2
+    )
+    SELECT customer_id, customer_name, fingerprint, order_ids
+    FROM duplicate_groups
+    WHERE customer_id NOT IN (
+      SELECT entity_id FROM anomalies
+      WHERE alert_type = 'DUPLICATE_ORDER'
+        AND entity_type = 'customer'
+        AND is_resolved = FALSE
+    )
+    ORDER BY customer_id
+  `);
+
+  const byCustomer = new Map<number, {
+    customerName: string;
+    orderIds: number[];
+    groups: Array<{ fingerprint: string; orderIds: number[] }>;
+  }>();
+
+  for (const row of rows as unknown as Array<{
+    customer_id: number;
+    customer_name: string | null;
+    fingerprint: string;
+    order_ids: number[] | string;
+  }>) {
+    const orderIds = Array.isArray(row.order_ids)
+      ? row.order_ids.map(Number)
+      : String(row.order_ids).replace(/[{}]/g, '').split(',').filter(Boolean).map(Number);
+
+    const current = byCustomer.get(row.customer_id) ?? {
+      customerName: row.customer_name ?? '未知客戶',
+      orderIds: [],
+      groups: [],
+    };
+
+    current.orderIds.push(...orderIds);
+    current.groups.push({ fingerprint: row.fingerprint, orderIds });
+    byCustomer.set(row.customer_id, current);
+  }
+
+  for (const [customerId, data] of byCustomer) {
+    const uniqueOrderIds = [...new Set(data.orderIds)].sort((a, b) => a - b);
+    const orderList = uniqueOrderIds.map((id) => '#' + id).join('、');
+    const message = '客戶「' + data.customerName + '」48 小時內出現內容完全相同的重複 pending 訂單（' + orderList + '）。';
+
+    await db.execute(sql`
+      INSERT INTO anomalies
+        (alert_type, severity, entity_type, entity_id, message, detail)
+      VALUES (
+        'DUPLICATE_ORDER',
+        ${SEV.HIGH},
+        'customer',
+        ${customerId},
+        ${message},
+        ${JSON.stringify({
+          customerName: data.customerName,
+          orderIds: uniqueOrderIds,
+          groups: data.groups,
+          windowHours: 48,
+        })}::jsonb
+      )
+    `);
+    out.push({ severity: SEV.HIGH, message, entityType: 'customer', alertType: 'DUPLICATE_ORDER' });
   }
 }
 
@@ -600,6 +699,35 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
       AND entity_id NOT IN (
         SELECT id FROM sales_orders
         WHERE status = 'pending' AND deleted_at IS NULL
+      )
+  `);
+
+  // DUPLICATE_ORDER：客戶已不再有 48 小時內內容相同的重複 pending 訂單
+  await db.execute(sql`
+    UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
+    WHERE alert_type = 'DUPLICATE_ORDER'
+      AND entity_type = 'customer'
+      AND is_resolved = FALSE
+      AND entity_id NOT IN (
+        WITH order_fingerprints AS (
+          SELECT
+            so.id AS order_id,
+            so.customer_id,
+            STRING_AGG(
+              oi.product_id::text || ':' || oi.quantity::text,
+              ',' ORDER BY oi.product_id, oi.quantity, oi.id
+            ) AS fingerprint
+          FROM sales_orders so
+          JOIN order_items oi ON oi.sales_order_id = so.id
+          WHERE so.status = 'pending'
+            AND so.deleted_at IS NULL
+            AND so.created_at >= NOW() - INTERVAL '48 hours'
+          GROUP BY so.id, so.customer_id
+        )
+        SELECT customer_id
+        FROM order_fingerprints
+        GROUP BY customer_id, fingerprint
+        HAVING COUNT(*) >= 2
       )
   `);
 

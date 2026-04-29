@@ -452,6 +452,118 @@ class AppStrings extends ChangeNotifier {
     return '${zhMap[type] ?? type} #$id';
   }
 
+  String notifMessage(String alertType, Map<String, dynamic>? detail, String fallback) {
+    final d = detail ?? const <String, dynamic>{};
+
+    String listOfIds(List<dynamic> ids) =>
+        ids.map((id) => '#$id').join(_isEnglish ? ', ' : '、');
+
+    String numFmt(dynamic value) {
+      if (value == null) return '-';
+      final n = num.tryParse(value.toString());
+      if (n == null) return value.toString();
+      final isInt = n == n.roundToDouble();
+      return isInt ? n.toInt().toString() : n.toStringAsFixed(1);
+    }
+
+    String moneyFmt(dynamic value) {
+      if (value == null) return '-';
+      final n = num.tryParse(value.toString());
+      if (n == null) return value.toString();
+      final fixed = n.toStringAsFixed(0);
+      final chars = fixed.split('').reversed.toList();
+      final out = <String>[];
+      for (var i = 0; i < chars.length; i++) {
+        if (i > 0 && i % 3 == 0) out.add(',');
+        out.add(chars[i]);
+      }
+      return out.reversed.join();
+    }
+
+    switch (alertType) {
+      case 'LONG_PENDING_ORDER':
+        final orderId = d['orderId'];
+        final customerName = d['customerName'] ?? '';
+        return _isEnglish
+            ? 'Order #$orderId ($customerName) has remained pending for over 14 days.'
+            : '訂單 #$orderId（$customerName）已超過 14 天仍為待確認狀態。';
+      case 'NEGATIVE_AVAILABLE':
+        final productName = d['productName'] ?? '';
+        final available = d['available'];
+        final onHand = d['onHand'];
+        final reserved = d['reserved'];
+        return _isEnglish
+            ? 'Product "$productName" has negative available stock ($available). On hand: $onHand, reserved: $reserved.'
+            : '產品「$productName」可用庫存異常為負數（$available）。onHand=$onHand, reserved=$reserved。';
+      case 'STOCK_CRITICAL':
+        final productName = d['productName'] ?? '';
+        final available = d['available'];
+        final level = d['criticalStockLevel'];
+        return _isEnglish
+            ? 'Critical stock for "$productName" (available $available, critical level $level). Notify a supervisor immediately.'
+            : '【緊急】產品「$productName」庫存危急（可用 $available，危急水位 $level）。請立即通報主管。';
+      case 'STOCK_ALERT':
+        final productName = d['productName'] ?? '';
+        final available = d['available'];
+        final level = d['alertStockLevel'];
+        return _isEnglish
+            ? 'Low stock alert for "$productName" (available $available, alert level $level). Start urgent sourcing.'
+            : '【警急】產品「$productName」庫存偏低（可用 $available，警急水位 $level）。請啟動緊急詢源。';
+      case 'STOCK_SAFETY':
+        final productName = d['productName'] ?? '';
+        final available = d['available'];
+        final level = d['minStockLevel'];
+        return _isEnglish
+            ? 'Product "$productName" is below the safety stock level (available $available, safety level $level).'
+            : '產品「$productName」庫存低於安全水位（可用 $available，安全水位 $level）。請安排標準補貨。';
+      case 'DUPLICATE_ORDER':
+        final customerName = d['customerName'] ?? '';
+        final orderIds = d['orderIds'] as List<dynamic>? ?? const [];
+        return _isEnglish
+            ? 'Customer "$customerName" placed duplicate pending orders with identical contents within 48 hours (${listOfIds(orderIds)}).'
+            : '客戶「$customerName」48 小時內出現內容完全相同的重複 pending 訂單（${listOfIds(orderIds)}）。';
+      case 'ORDER_QUANTITY_SPIKE':
+        final orderId = d['orderId'];
+        final customerName = d['customerName'] ?? '';
+        final productName = d['productName'] ?? '';
+        final quantity = numFmt(d['quantity']);
+        final avg = numFmt(d['avgOrderQty']);
+        final multiplier = numFmt(d['multiplier']);
+        return _isEnglish
+            ? 'Order #$orderId ($customerName) contains "$productName" quantity $quantity, about ${multiplier}x the 90-day average ($avg).'
+            : '訂單 #$orderId（$customerName）的品項「$productName」數量 $quantity，為近 90 天均值的 $multiplier 倍（均值 $avg）。';
+      case 'CUSTOMER_INACTIVE':
+        final customerName = d['customerName'] ?? '';
+        final lastOrderAt = d['lastOrderAt'] ?? '-';
+        return _isEnglish
+            ? 'Customer "$customerName" has not placed an order for over 90 days (last order: $lastOrderAt).'
+            : '客戶「$customerName」超過 90 天未下單（最後訂單：$lastOrderAt）。';
+      case 'OVERDUE_PAYMENT':
+        final orderId = d['orderId'];
+        final customerName = d['customerName'] ?? '';
+        final dueDate = d['dueDate'] ?? '-';
+        final days = d['daysOverdue'] ?? '-';
+        final total = moneyFmt(d['orderTotal']);
+        return _isEnglish
+            ? 'Order #$orderId ($customerName) is $days days overdue (due $dueDate, unpaid amount NT\$$total).'
+            : '訂單 #$orderId（$customerName）應收帳款已逾期 $days 天（到期日 $dueDate，未收金額 $total 元）。';
+      case 'HIGH_VALUE_CUSTOMER_CHURN_RISK':
+        final customerName = d['customerName'] ?? '';
+        final ltv = moneyFmt(d['ltv90d']);
+        return _isEnglish
+            ? 'High-value customer "$customerName" has placed no orders in the last 30 days (90-day total NT\$$ltv, top 20%).'
+            : '高價值客戶「$customerName」近 30 天無訂單（近 90 天累積金額 NT\$$ltv，位於前 20%）。';
+      case 'FREQUENT_CANCELLATION':
+        final customerName = d['customerName'] ?? '';
+        final count = d['cancelCount'] ?? '-';
+        return _isEnglish
+            ? 'Customer "$customerName" has cancelled $count orders in the last 30 days.'
+            : '客戶「$customerName」近 30 天內已取消 $count 筆訂單，請確認是否有問題。';
+      default:
+        return fallback;
+    }
+  }
+
   String notifTimeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 60) {
