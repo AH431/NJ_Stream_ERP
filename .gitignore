@@ -21,6 +21,7 @@ dist/
 
 # Drizzle migrations — 納入版控（提供審計軌跡，deploy 依賴 db:migrate 流程）
 # db:push 已從 package.json 移除，禁止繞過 migration 直接推 schema
+packages/backend/.drizzle-schema/
 
 # 敏感設定檔（含 DB 密碼、腳本等）
 # docker-compose.prod.yml 不在此列 — 生產設定檔納入版控（secrets 來自 .env.production）

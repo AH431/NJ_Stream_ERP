@@ -10,9 +10,9 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "node ./scripts/prepare-drizzle-schema.js && drizzle-kit generate --config drizzle.config.js",
+    "db:studio": "node ./scripts/prepare-drizzle-schema.js && drizzle-kit studio --config drizzle.config.js",
+    "db:migrate": "node ./scripts/run-drizzle-migrate.js",
     "test": "vitest run --pool=threads"
   },
   "dependencies": {
