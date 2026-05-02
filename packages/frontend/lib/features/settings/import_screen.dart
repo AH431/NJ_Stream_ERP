@@ -443,7 +443,9 @@ class _ImportScreenState extends State<ImportScreen> {
                         ListTile(
                           leading: Radio<String>(
                             value: fullPath,
+                            // ignore: deprecated_member_use
                             groupValue: _selectedFilePath,
+                            // ignore: deprecated_member_use
                             onChanged: (v) => _selectAndPreview(v!),
                           ),
                           title: Text(

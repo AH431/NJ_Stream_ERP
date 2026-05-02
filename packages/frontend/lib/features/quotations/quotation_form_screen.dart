@@ -322,6 +322,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     return DropdownButtonFormField<int>(
       decoration: InputDecoration(
           labelText: s.quotFieldCustomer, border: const OutlineInputBorder()),
+      // ignore: deprecated_member_use
       value: _selectedCustomerId,
       items: _customers
           .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
@@ -356,6 +357,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
+                      // ignore: deprecated_member_use
                       value: row.productId,
                       items: _products
                           .map((p) => DropdownMenuItem(

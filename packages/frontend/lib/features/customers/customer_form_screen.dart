@@ -69,9 +69,6 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       final sync = context.read<SyncProvider>();
       final now  = DateTime.now().toUtc();
 
-      // 負數臨時 id（W1–W2：離線新增用，Issue #6 pull 後覆蓋為後端真實 id）
-      final localId = SyncProvider.nextLocalId();
-
       final name    = _nameCtrl.text.trim();
       final contact = _contactCtrl.text.trim().isEmpty ? null : _contactCtrl.text.trim();
       final email   = _emailCtrl.text.trim().isEmpty   ? null : _emailCtrl.text.trim();
