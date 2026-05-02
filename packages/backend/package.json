@@ -13,6 +13,8 @@
     "db:generate": "node ./scripts/prepare-drizzle-schema.js && drizzle-kit generate --config drizzle.config.js",
     "db:studio": "node ./scripts/prepare-drizzle-schema.js && drizzle-kit studio --config drizzle.config.js",
     "db:migrate": "node ./scripts/run-drizzle-migrate.js",
+    "db:migrate:guarded": "powershell -ExecutionPolicy Bypass -File ../../scripts/migrate_with_log.ps1",
+    "seed:phone-demo": "node ./node_modules/tsx/dist/cli.mjs ./scripts/seed-phone-demo-en.ts",
     "test": "vitest run --pool=threads"
   },
   "dependencies": {

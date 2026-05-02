@@ -9,11 +9,14 @@
  * 冪等性: 偵測到 SKU=TUBE-A001 時自動跳過
  */
 
+/// <reference types="node" />
+
 import 'dotenv/config';
 import { drizzle }  from 'drizzle-orm/postgres-js';
 import postgres      from 'postgres';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import * as schema   from '../src/schemas/index.js';
+import { runAnomalyScanner } from '../src/services/anomaly_scanner.service.js';
 
 const sqlClient = postgres(process.env.DATABASE_URL!);
 const db = drizzle(sqlClient, { schema });
@@ -22,6 +25,7 @@ const db = drizzle(sqlClient, { schema });
 /** 建立指定日期的 UTC Date（時間固定 08:00:00）*/
 const d = (y: number, m: number, day: number) =>
   new Date(`${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}T08:00:00.000Z`);
+const hoursAgo = (hours: number) => new Date(Date.now() - hours * 60 * 60 * 1000);
 
 // ── Step 0: Guard - 確認 admin_test 存在 ──────────────────
 const [adminUser] = await db
@@ -36,41 +40,58 @@ if (!adminUser) {
 }
 const adminId = adminUser.id;
 
-// ── Step 0: Guard - 冪等性檢查 ────────────────────────────
+// ── Step 0: Guard - 基礎資料是否已存在 ───────────────────
 const [existingProduct] = await db
   .select({ id: schema.products.id })
   .from(schema.products)
   .where(eq(schema.products.sku, 'TUBE-A001'));
 
-if (existingProduct) {
-  console.log('⚠️  Demo 資料已存在（TUBE-A001），跳過 seed。');
-  await sqlClient.end();
-  process.exit(0);
-}
+const baseDatasetExists = Boolean(existingProduct);
 
 // ── Step 1: 產品（5 種，含成本價，2 個低庫存） ──────────────
-const insertedProducts = await db.insert(schema.products).values([
-  { name: '精密管材 A 型', sku: 'TUBE-A001',  unitPrice: '2500.00', costPrice: '1850.00', minStockLevel: 50  },
-  { name: '角型鋼材 B 型', sku: 'ANGLE-B002', unitPrice: '980.00',  costPrice: '720.00',  minStockLevel: 100 },
-  { name: '板材 C 型',    sku: 'PLATE-C003', unitPrice: '1800.00', costPrice: '1300.00', minStockLevel: 80  },
-  { name: '特殊材料 D 型', sku: 'SPEC-D004',  unitPrice: '5200.00', costPrice: '3800.00', minStockLevel: 20  },
-  { name: '標準零件 E 型', sku: 'PART-E005',  unitPrice: '480.00',  costPrice: '350.00',  minStockLevel: 200 },
-]).returning({ id: schema.products.id });
+let p0: number;
+let p1: number;
+let p2: number;
+let p3: number;
+let p4: number;
 
-const [p0, p1, p2, p3, p4] = insertedProducts.map((r) => r.id);
-console.log(`✅ Products (${insertedProducts.length}): ${[p0, p1, p2, p3, p4].join(', ')}`);
+let c0: number;
+let c1: number;
+let c2: number;
+let c3: number;
+let c4: number;
+
+if (!baseDatasetExists) {
+  const insertedProducts = await db.insert(schema.products).values([
+    { name: '精密管材 A 型', sku: 'TUBE-A001',  unitPrice: '2500.00', costPrice: '1850.00', minStockLevel: 50  },
+    { name: '角型鋼材 B 型', sku: 'ANGLE-B002', unitPrice: '980.00',  costPrice: '720.00',  minStockLevel: 100 },
+    { name: '板材 C 型',    sku: 'PLATE-C003', unitPrice: '1800.00', costPrice: '1300.00', minStockLevel: 80  },
+    { name: '特殊材料 D 型', sku: 'SPEC-D004',  unitPrice: '5200.00', costPrice: '3800.00', minStockLevel: 20  },
+    { name: '標準零件 E 型', sku: 'PART-E005',  unitPrice: '480.00',  costPrice: '350.00',  minStockLevel: 200 },
+  ]).returning({ id: schema.products.id });
+
+  p0 = insertedProducts[0].id;
+  p1 = insertedProducts[1].id;
+  p2 = insertedProducts[2].id;
+  p3 = insertedProducts[3].id;
+  p4 = insertedProducts[4].id;
+  console.log(`✅ Products (${insertedProducts.length}): ${[p0, p1, p2, p3, p4].join(', ')}`);
 
 // ── Step 2: 客戶（5 家公司）────────────────────────────────
-const insertedCustomers = await db.insert(schema.customers).values([
-  { name: 'Taiwan Precision Works Ltd.',  contact: '張志明', email: 'contact@tw-seiko.example',    taxId: '10001001', paymentTermsDays: 30 },
-  { name: 'Jianhong Engineering Corp.',   contact: '林雅惠', email: 'purchase@jianhong.example',   taxId: '10002002', paymentTermsDays: 45 },
-  { name: 'Fengmao Technology Co., Ltd.', contact: '陳建國', email: 'order@fengmao.example',        taxId: '10003003', paymentTermsDays: 30 },
-  { name: 'Julong Manufacturing Ltd.',    contact: '黃明達', email: 'procurement@julong.example',   taxId: '10004004', paymentTermsDays: 60 },
-  { name: 'Yunsheng Industrial Corp.',    contact: '吳芳儀', email: 'supply@yunsheng.example',      taxId: '10005005', paymentTermsDays: 30 },
-]).returning({ id: schema.customers.id });
+  const insertedCustomers = await db.insert(schema.customers).values([
+    { name: 'Taiwan Precision Works Ltd.',  contact: '張志明', email: 'contact@tw-seiko.example',    taxId: '10001001', paymentTermsDays: 30 },
+    { name: 'Jianhong Engineering Corp.',   contact: '林雅惠', email: 'purchase@jianhong.example',   taxId: '10002002', paymentTermsDays: 45 },
+    { name: 'Fengmao Technology Co., Ltd.', contact: '陳建國', email: 'order@fengmao.example',        taxId: '10003003', paymentTermsDays: 30 },
+    { name: 'Julong Manufacturing Ltd.',    contact: '黃明達', email: 'procurement@julong.example',   taxId: '10004004', paymentTermsDays: 60 },
+    { name: 'Yunsheng Industrial Corp.',    contact: '吳芳儀', email: 'supply@yunsheng.example',      taxId: '10005005', paymentTermsDays: 30 },
+  ]).returning({ id: schema.customers.id });
 
-const [c0, c1, c2, c3, c4] = insertedCustomers.map((r) => r.id);
-console.log(`✅ Customers (${insertedCustomers.length}): ${[c0, c1, c2, c3, c4].join(', ')}`);
+  c0 = insertedCustomers[0].id;
+  c1 = insertedCustomers[1].id;
+  c2 = insertedCustomers[2].id;
+  c3 = insertedCustomers[3].id;
+  c4 = insertedCustomers[4].id;
+  console.log(`✅ Customers (${insertedCustomers.length}): ${[c0, c1, c2, c3, c4].join(', ')}`);
 
 // ── Step 3: 庫存（p1 角型鋼材 B、p3 特殊材料 D 低庫存警示）─
 await db.insert(schema.inventoryItems).values([
@@ -395,6 +416,111 @@ await db.insert(schema.quotations).values([
   },
 ]);
 console.log('✅ Quotations (12) inserted');
+} else {
+  console.log('⚠️ Base demo dataset already exists; skip bulk seed and only repair phone-test anomalies.');
+
+  const products = await db.select({
+    id: schema.products.id,
+    sku: schema.products.sku,
+  }).from(schema.products);
+  const customers = await db.select({
+    id: schema.customers.id,
+    email: schema.customers.email,
+  }).from(schema.customers);
+
+  const productMap = new Map(products.map((row) => [row.sku, row.id]));
+  const customerMap = new Map(customers.map((row) => [row.email ?? '', row.id]));
+
+  p0 = productMap.get('TUBE-A001') ?? 0;
+  p4 = productMap.get('PART-E005') ?? 0;
+  c0 = customerMap.get('contact@tw-seiko.example') ?? 0;
+
+  if (!p0 || !p4 || !c0) {
+    console.error('❌ Existing demo dataset is incomplete; expected TUBE-A001, PART-E005, and Taiwan Precision customer.');
+    await sqlClient.end();
+    process.exit(1);
+  }
+}
+
+// ── Step 6: 補齊「第一筆後 48 小時內第二筆」重複 pending 訂單 ─────
+// 這組資料對應 DUPLICATE_ORDER：同客戶、同品項與數量，第二筆建立時間落在第一筆後 48 小時內。
+type DuplicatePairRow = { first_order_id: number; second_order_id: number };
+
+const duplicatePairs = await db.execute(sql`
+  WITH candidate_orders AS (
+    SELECT
+      so.id AS order_id,
+      so.created_at,
+      STRING_AGG(
+        oi.product_id::text || ':' || oi.quantity::text,
+        ',' ORDER BY oi.product_id, oi.quantity, oi.id
+      ) AS fingerprint
+    FROM sales_orders so
+    JOIN order_items oi ON oi.sales_order_id = so.id
+    WHERE so.customer_id = ${c0}
+      AND so.status = 'pending'
+      AND so.deleted_at IS NULL
+    GROUP BY so.id, so.created_at
+  )
+  SELECT
+    older.order_id AS first_order_id,
+    newer.order_id AS second_order_id
+  FROM candidate_orders older
+  JOIN candidate_orders newer
+    ON newer.fingerprint = older.fingerprint
+   AND (
+     newer.created_at > older.created_at
+     OR (newer.created_at = older.created_at AND newer.order_id > older.order_id)
+   )
+   AND newer.created_at <= older.created_at + INTERVAL '48 hours'
+  WHERE older.fingerprint = ${p0 + ':6,' + p4 + ':40'}
+  LIMIT 1
+`);
+const duplicatePairRows = duplicatePairs as unknown as DuplicatePairRow[];
+
+if (duplicatePairRows.length === 0) {
+  const duplicateSpecs = [
+    { createdAt: hoursAgo(6), updatedAt: hoursAgo(6) },
+    { createdAt: hoursAgo(2), updatedAt: hoursAgo(2) },
+  ];
+  const insertedOrderIds: number[] = [];
+
+  for (const spec of duplicateSpecs) {
+    const [order] = await db.insert(schema.salesOrders).values({
+      customerId: c0,
+      createdBy: adminId,
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      createdAt: spec.createdAt,
+      updatedAt: spec.updatedAt,
+    }).returning({ id: schema.salesOrders.id });
+
+    await db.insert(schema.orderItems).values([
+      {
+        salesOrderId: order.id,
+        productId: p0,
+        quantity: 6,
+        unitPrice: '2500.00',
+        subtotal: '15000.00',
+      },
+      {
+        salesOrderId: order.id,
+        productId: p4,
+        quantity: 40,
+        unitPrice: '480.00',
+        subtotal: '19200.00',
+      },
+    ]);
+    insertedOrderIds.push(order.id);
+  }
+  console.log(`✅ Inserted duplicate pending order pair for DUPLICATE_ORDER anomaly: ${insertedOrderIds.map((id) => `#${id}`).join(', ')}`);
+} else {
+  const pair = duplicatePairRows[0];
+  console.log(`⚠️ Duplicate pending order pair already exists (#${pair.first_order_id}, #${pair.second_order_id}); skip backfill.`);
+}
+
+await runAnomalyScanner(db);
+console.log('✅ Anomaly scanner executed after seed/backfill');
 
 // ── Summary ────────────────────────────────────────────────
 console.log(`
@@ -403,10 +529,10 @@ console.log(`
 ╠══════════════════════════════════════════════════════╣
 ║  Products  : 5 種（p1角型鋼材B、p3特殊材料D 低庫存）  ║
 ║  Customers : 5 家                                    ║
-║  Sales Orders : 26 筆                                ║
+║  Sales Orders : 28 筆（含 2 筆重複 pending 測試單）    ║
 ║    ├ shipped  : 22 筆（歷史 + 4月前兩筆）             ║
 ║    ├ confirmed:  1 筆（4月第 3 筆）                   ║
-║    └ pending  :  1 筆（4月第 4 筆）                   ║
+║    └ pending  :  3 筆（含 2 筆重複訂單測試）           ║
 ║  月度營收（confirmed+shipped）:                       ║
 ║    2025-10: ~NT$ 463,000                             ║
 ║    2025-11: ~NT$ 646,500                             ║

@@ -6,7 +6,7 @@
  *
  * MVP 規則集（V2_codex § 6.2）：
  *   LONG_PENDING_ORDER    — pending 訂單超過 14 天未確認
- *   DUPLICATE_ORDER       — 同客戶 48 小時內有 2+ 筆內容相同的 pending 訂單
+ *   DUPLICATE_ORDER       — 同客戶建立 pending 訂單後 48 小時內，又出現內容相同的 pending 訂單
  *   NEGATIVE_AVAILABLE    — inventory available (onHand - reserved) < 0
  *   STOCK_CRITICAL (CRITICAL) — available < criticalStockLevel（3 天用量）→ 主管通報
  *   STOCK_ALERT    (HIGH)     — available < alertStockLevel（1 週用量）且 >= criticalStockLevel → 緊急詢源
@@ -86,7 +86,7 @@ async function scanLongPendingOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
 }
 
 // ── Rule 1.5：DUPLICATE_ORDER ──────────────────────────────
-// 同一客戶 48 小時內有 2+ 筆 pending 訂單，且品項 + 數量 fingerprint 完全一致。
+// 同一客戶建立 pending 訂單後 48 小時內，又出現品項 + 數量 fingerprint 完全一致的 pending 訂單。
 // entity_type = 'customer'，每客戶一筆異常。
 
 async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<void> {
@@ -96,6 +96,7 @@ async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Prom
         so.id AS order_id,
         so.customer_id,
         c.name AS customer_name,
+        so.created_at,
         STRING_AGG(
           oi.product_id::text || ':' || oi.quantity::text,
           ',' ORDER BY oi.product_id, oi.quantity, oi.id
@@ -105,8 +106,31 @@ async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Prom
       LEFT JOIN customers c ON c.id = so.customer_id
       WHERE so.status = 'pending'
         AND so.deleted_at IS NULL
-        AND so.created_at >= NOW() - INTERVAL '48 hours'
-      GROUP BY so.id, so.customer_id, c.name
+      GROUP BY so.id, so.customer_id, c.name, so.created_at
+    ),
+    duplicate_pairs AS (
+      SELECT
+        older.customer_id,
+        older.customer_name,
+        older.fingerprint,
+        older.order_id AS first_order_id,
+        newer.order_id AS second_order_id
+      FROM order_fingerprints older
+      JOIN order_fingerprints newer
+        ON newer.customer_id = older.customer_id
+       AND newer.fingerprint = older.fingerprint
+       AND (
+         newer.created_at > older.created_at
+         OR (newer.created_at = older.created_at AND newer.order_id > older.order_id)
+       )
+       AND newer.created_at <= older.created_at + INTERVAL '48 hours'
+    ),
+    duplicate_orders AS (
+      SELECT customer_id, customer_name, fingerprint, first_order_id AS order_id
+      FROM duplicate_pairs
+      UNION
+      SELECT customer_id, customer_name, fingerprint, second_order_id AS order_id
+      FROM duplicate_pairs
     ),
     duplicate_groups AS (
       SELECT
@@ -114,9 +138,8 @@ async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Prom
         customer_name,
         fingerprint,
         ARRAY_AGG(order_id ORDER BY order_id) AS order_ids
-      FROM order_fingerprints
+      FROM duplicate_orders
       GROUP BY customer_id, customer_name, fingerprint
-      HAVING COUNT(*) >= 2
     )
     SELECT customer_id, customer_name, fingerprint, order_ids
     FROM duplicate_groups
@@ -159,7 +182,7 @@ async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Prom
   for (const [customerId, data] of byCustomer) {
     const uniqueOrderIds = [...new Set(data.orderIds)].sort((a, b) => a - b);
     const orderList = uniqueOrderIds.map((id) => '#' + id).join('、');
-    const message = '客戶「' + data.customerName + '」48 小時內出現內容完全相同的重複 pending 訂單（' + orderList + '）。';
+    const message = '客戶「' + data.customerName + '」建立 pending 訂單後 48 小時內，又出現內容完全相同的重複 pending 訂單（' + orderList + '）。';
 
     await db.execute(sql`
       INSERT INTO anomalies
@@ -702,7 +725,7 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
       )
   `);
 
-  // DUPLICATE_ORDER：客戶已不再有 48 小時內內容相同的重複 pending 訂單
+  // DUPLICATE_ORDER：客戶已不再有建立後 48 小時內內容相同的重複 pending 訂單
   await db.execute(sql`
     UPDATE anomalies SET is_resolved = TRUE, resolved_at = NOW(), updated_at = NOW()
     WHERE alert_type = 'DUPLICATE_ORDER'
@@ -713,6 +736,7 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
           SELECT
             so.id AS order_id,
             so.customer_id,
+            so.created_at,
             STRING_AGG(
               oi.product_id::text || ':' || oi.quantity::text,
               ',' ORDER BY oi.product_id, oi.quantity, oi.id
@@ -721,13 +745,22 @@ async function autoResolveStale(db: DrizzleDb): Promise<void> {
           JOIN order_items oi ON oi.sales_order_id = so.id
           WHERE so.status = 'pending'
             AND so.deleted_at IS NULL
-            AND so.created_at >= NOW() - INTERVAL '48 hours'
-          GROUP BY so.id, so.customer_id
+          GROUP BY so.id, so.customer_id, so.created_at
+        ),
+        duplicate_pairs AS (
+          SELECT older.customer_id
+          FROM order_fingerprints older
+          JOIN order_fingerprints newer
+            ON newer.customer_id = older.customer_id
+           AND newer.fingerprint = older.fingerprint
+           AND (
+             newer.created_at > older.created_at
+             OR (newer.created_at = older.created_at AND newer.order_id > older.order_id)
+           )
+           AND newer.created_at <= older.created_at + INTERVAL '48 hours'
         )
-        SELECT customer_id
-        FROM order_fingerprints
-        GROUP BY customer_id, fingerprint
-        HAVING COUNT(*) >= 2
+        SELECT DISTINCT customer_id
+        FROM duplicate_pairs
       )
   `);
 

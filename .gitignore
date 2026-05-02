@@ -79,7 +79,9 @@ ios/.symlinks/
 # 日誌與快取
 *.log
 logs/
-LOG/
+LOG/*
+!LOG/db/
+!LOG/db/*.md
 backups/
 cache/
 tmp/

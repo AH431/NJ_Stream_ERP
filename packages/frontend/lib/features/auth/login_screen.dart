@@ -53,6 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
+    final currentApiBaseUrl = context.watch<SyncProvider>().currentApiBaseUrl;
+    final isUsingLocalhost = currentApiBaseUrl.contains('localhost');
     return Scaffold(
       appBar: AppBar(
         title: Text(s.loginTitle),
@@ -87,6 +89,48 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Image.asset('assets/images/app_icon.png', width: 80, height: 80),
                         const SizedBox(height: 32),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isUsingLocalhost
+                                ? Colors.orange.shade50
+                                : Colors.blueGrey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isUsingLocalhost
+                                  ? Colors.orange.shade200
+                                  : Colors.blueGrey.shade200,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.loginCurrentApiLabel,
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                              const SizedBox(height: 6),
+                              SelectableText(
+                                currentApiBaseUrl,
+                                style: const TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (isUsingLocalhost) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  s.loginLocalhostWarning,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade900,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         TextField(
                           controller: _usernameController,
                           decoration: InputDecoration(

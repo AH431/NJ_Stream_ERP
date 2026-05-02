@@ -198,41 +198,56 @@ class AnalyticsProvider extends ChangeNotifier {
   // ── 個別 fetch helpers ──────────────────────────────────
 
   Future<List<RevenuePoint>> _fetchRevenue() async {
-    final resp = await _dio.get<Map<String, dynamic>>(
-      '/api/v1/analytics/revenue',
-      queryParameters: {'months': 6},
-    );
-    final rows = (resp.data?['data'] as List?) ?? [];
-    return rows.map((r) => RevenuePoint(
-      month:   r['month'] as String,
-      revenue: double.tryParse(r['revenue'].toString()) ?? 0.0,
-    )).toList();
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '/api/v1/analytics/revenue',
+        queryParameters: {'months': 6},
+      );
+      final rows = (resp.data?['data'] as List?) ?? [];
+      return rows.map((r) => RevenuePoint(
+        month:   r['month'] as String,
+        revenue: double.tryParse(r['revenue'].toString()) ?? 0.0,
+      )).toList();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) return [];
+      rethrow;
+    }
   }
 
   Future<List<OrderStatusCount>> _fetchOrderStatus() async {
-    final resp = await _dio.get<Map<String, dynamic>>(
-      '/api/v1/analytics/orders/status-summary',
-    );
-    final rows = (resp.data?['data'] as List?) ?? [];
-    return rows.map((r) => OrderStatusCount(
-      status: r['status'] as String,
-      count:  (r['count'] as num).toInt(),
-    )).toList();
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '/api/v1/analytics/orders/status-summary',
+      );
+      final rows = (resp.data?['data'] as List?) ?? [];
+      return rows.map((r) => OrderStatusCount(
+        status: r['status'] as String,
+        count:  (r['count'] as num).toInt(),
+      )).toList();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) return [];
+      rethrow;
+    }
   }
 
   Future<List<TopProduct>> _fetchTopProducts() async {
-    final resp = await _dio.get<Map<String, dynamic>>(
-      '/api/v1/analytics/products/top-sales',
-      queryParameters: {'days': 30, 'limit': 5},
-    );
-    final rows = (resp.data?['data'] as List?) ?? [];
-    return rows.map((r) => TopProduct(
-      id:           (r['id'] as num).toInt(),
-      name:         r['name'] as String,
-      sku:          r['sku'] as String,
-      totalQty:     (r['total_qty'] as num).toInt(),
-      totalRevenue: double.tryParse(r['total_revenue'].toString()) ?? 0.0,
-    )).toList();
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '/api/v1/analytics/products/top-sales',
+        queryParameters: {'days': 30, 'limit': 5},
+      );
+      final rows = (resp.data?['data'] as List?) ?? [];
+      return rows.map((r) => TopProduct(
+        id:           (r['id'] as num).toInt(),
+        name:         r['name'] as String,
+        sku:          r['sku'] as String,
+        totalQty:     (r['total_qty'] as num).toInt(),
+        totalRevenue: double.tryParse(r['total_revenue'].toString()) ?? 0.0,
+      )).toList();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) return [];
+      rethrow;
+    }
   }
 
   Future<List<ProfitPoint>> _fetchProfit() async {

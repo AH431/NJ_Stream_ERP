@@ -90,6 +90,10 @@ class AppStrings extends ChangeNotifier {
   String get loginFieldUsername => _s('帳號', 'Username');
   String get loginFieldPassword => _s('密碼', 'Password');
   String get btnLogin => _s('登入', 'Login');
+  String get loginCurrentApiLabel => _s('目前 API Base URL', 'Current API Base URL');
+  String get loginLocalhostWarning => _s(
+      '若這裡是 localhost，手機會連到手機自己，不是電腦後端。請先到右上角開發者設定改成 Tunnel URL 或電腦的區網 IP。',
+      'If this shows localhost, the phone is pointing to itself, not your computer. Open Developer Settings and switch to a tunnel URL or your computer LAN IP.');
   String get errEmptyCredentials =>
       _s('請輸入帳號與密碼', 'Please enter username and password.');
   String get errLoginFailed =>
