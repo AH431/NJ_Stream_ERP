@@ -97,6 +97,9 @@ class _StockInDialogState extends State<StockInDialog> {
                           // 產品選擇
                           DropdownButtonFormField<int>(
                             isExpanded: true, // 修復長名稱導致的水平溢出
+                            // Flutter SDK compatibility: older channels only expose `value`,
+                            // while newer analyzers mark it deprecated in favor of `initialValue`.
+                            // ignore: deprecated_member_use
                             value: _selectedProductId,
                             decoration: InputDecoration(labelText: s.stockInFieldProd),
                             items: _eligibleProducts
