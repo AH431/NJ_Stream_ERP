@@ -36,11 +36,28 @@ function Fail {
     Write-Host "[drill] FAIL: $Msg" -ForegroundColor Red
     exit 1
 }
+function Remove-DrillContainerIfExists {
+    param([string]$ContainerName)
+
+    $existingContainers = & docker ps -a --format '{{.Names}}'
+    if ($LASTEXITCODE -ne 0) {
+        Fail 'Failed to query Docker containers.'
+    }
+
+    if ($existingContainers -contains $ContainerName) {
+        & docker rm -f $ContainerName *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Failed to remove existing container '$ContainerName'."
+        }
+    }
+}
 
 # ── 1. Validate required env vars ─────────────────────────────────────────────
 $required = @('POSTGRES_USER', 'POSTGRES_DB', 'POSTGRES_PASSWORD', 'BACKUP_PASSPHRASE', 'BACKUP_DIR')
 foreach ($var in $required) {
-    if ([string]::IsNullOrWhiteSpace((Get-Item -Path "Env:$var" -ErrorAction SilentlyContinue)?.Value)) {
+    $envItem = Get-Item -Path "Env:$var" -ErrorAction SilentlyContinue
+    $envValue = if ($envItem) { $envItem.Value } else { $null }
+    if ([string]::IsNullOrWhiteSpace($envValue)) {
         Fail "Required environment variable '$var' is not set."
     }
 }
@@ -71,7 +88,7 @@ Write-Drill "Using backup: $($latestBackup.FullName)"
 Write-Drill "Starting isolated drill container: $drillContainer"
 
 # Remove any leftover container from a previous failed drill
-docker rm -f $drillContainer 2>$null
+Remove-DrillContainerIfExists -ContainerName $drillContainer
 
 docker run -d `
     --name $drillContainer `
@@ -138,7 +155,7 @@ foreach ($tbl in $coreTables) {
 
 # ── 8. Tear down drill container ──────────────────────────────────────────────
 Write-Drill 'Tearing down drill container...'
-docker rm -f $drillContainer 2>$null
+Remove-DrillContainerIfExists -ContainerName $drillContainer
 $drillStarted = $false
 
 # ── 9. Report ─────────────────────────────────────────────────────────────────
