@@ -80,6 +80,7 @@ ios/.symlinks/
 *.log
 logs/
 LOG/
+backups/
 cache/
 tmp/
 
