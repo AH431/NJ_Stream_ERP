@@ -39,3 +39,37 @@ async def get_inventory(jwt: str, product_id: int, base_url: str = _DEFAULT_BASE
         )
         r.raise_for_status()
         return r.json()
+
+
+async def search_customers(jwt: str, q: str, base_url: str = _DEFAULT_BASE_URL) -> dict:
+    """GET /api/v1/customers/search?q=<q>  → {"items": [...], "total": N}"""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        r = await client.get(
+            f"{base_url}/customers/search",
+            params={"q": q},
+            headers=_auth_headers(jwt),
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+async def get_quotation(jwt: str, quotation_id: int, base_url: str = _DEFAULT_BASE_URL) -> dict:
+    """GET /api/v1/quotations/<id> → quotation header + items"""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        r = await client.get(
+            f"{base_url}/quotations/{quotation_id}",
+            headers=_auth_headers(jwt),
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+async def get_sales_order(jwt: str, order_id: int, base_url: str = _DEFAULT_BASE_URL) -> dict:
+    """GET /api/v1/sales-orders/<id> → sales order header + items"""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        r = await client.get(
+            f"{base_url}/sales-orders/{order_id}",
+            headers=_auth_headers(jwt),
+        )
+        r.raise_for_status()
+        return r.json()

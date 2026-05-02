@@ -1,0 +1,138 @@
+name: Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'k6 script to run'
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - load
+          - spike
+      base_url:
+        description: 'Backend base URL (leave blank to spin up local stack)'
+        required: false
+        default: ''
+
+jobs:
+  load-test:
+    name: k6 ${{ github.event.inputs.test_type }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── k6 installation ──────────────────────────────────────────────────────
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+
+      # ── Spin up local stack when no external URL is provided ─────────────────
+      - name: Write test env
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: |
+          cat <<'EOF' > .env.test-prod
+          POSTGRES_DB=nj_erp_prod_test
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=prod-test-password
+          DATABASE_URL=postgresql://postgres:prod-test-password@postgres:5432/nj_erp_prod_test
+          JWT_SECRET=prod-test-jwt-secret-for-load-test
+          JWT_ACCESS_EXPIRES_IN=3600
+          JWT_REFRESH_EXPIRES_IN=2592000
+          COMPANY_NAME=NJ Stream
+          PORT=3000
+          BACKEND_BIND_ADDRESS=0.0.0.0
+          EOF
+
+      - name: Build prod compose
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod build
+
+      - name: Start postgres
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod up -d postgres
+
+      - name: Wait for postgres health
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: |
+          for _ in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' nj-erp-postgres 2>/dev/null || true)"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            sleep 2
+          done
+          echo "postgres did not become healthy in time"; exit 1
+
+      - name: Run migrations
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod --profile migrate run --rm migrate
+
+      - name: Start backend
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod up -d backend
+
+      - name: Wait for backend health
+        if: ${{ github.event.inputs.base_url == '' }}
+        run: |
+          for _ in $(seq 1 60); do
+            body="$(curl -sf http://localhost:3000/health 2>/dev/null || true)"
+            if echo "$body" | grep -q '"status":"ok"'; then exit 0; fi
+            sleep 2
+          done
+          echo "backend did not become healthy in time"; exit 1
+
+      # ── Seed test users ───────────────────────────────────────────────────────
+      - name: Setup Node.js
+        if: ${{ github.event.inputs.base_url == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: packages/backend/package-lock.json
+
+      - name: Install backend deps
+        if: ${{ github.event.inputs.base_url == '' }}
+        working-directory: packages/backend
+        run: npm ci
+
+      - name: Seed test users
+        if: ${{ github.event.inputs.base_url == '' }}
+        working-directory: packages/backend
+        env:
+          DATABASE_URL: postgresql://postgres:prod-test-password@localhost:5432/nj_erp_prod_test
+        run: npx tsx scripts/seed-test-user.ts
+
+      # ── Run k6 ───────────────────────────────────────────────────────────────
+      - name: Run k6 ${{ github.event.inputs.test_type }}
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url != '' && github.event.inputs.base_url || 'http://localhost:3000' }}
+        run: |
+          k6 run \
+            --env BASE_URL="${BASE_URL}" \
+            --env USERNAME=sales_test \
+            --env PASSWORD='P@ssw0rd!' \
+            --out json=results.json \
+            scripts/load_test/k6_${{ github.event.inputs.test_type }}.js
+
+      # ── Upload results ────────────────────────────────────────────────────────
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results-${{ github.event.inputs.test_type }}
+          path: results.json
+
+      # ── Teardown local stack ──────────────────────────────────────────────────
+      - name: Teardown
+        if: ${{ always() && github.event.inputs.base_url == '' }}
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod down -v --remove-orphans

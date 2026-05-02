@@ -11,6 +11,7 @@ node_modules/
 .env.*.local
 .env.development
 .env.production
+.env.test-prod
 **/.env
 **/.env.local
 !**/.env.example
@@ -27,6 +28,7 @@ docker-compose.yml
 docker-compose.override.yml
 docker-compose.local.yml
 setup_gh_tasks.sh
+scripts/backup_env_bootstrap.ps1
 
 # 生產環境變數（含密碼，不進版控）
 .env.production

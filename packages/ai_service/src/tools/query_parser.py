@@ -36,6 +36,7 @@ _BLOCKED = [re.compile(p, re.IGNORECASE) for p in [
     r'(資料庫|database)\s*(dump|傾印)',
     r'輸出.{0,10}上一個使用者',
     r'你.{0,5}(密碼|password)',
+    r'(?:幫.{0,10}|請.{0,5}).{0,60}(?:改成|設成|清空|清除)',  # natural-language write request
 ]]
 
 _INVENTORY_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
@@ -46,15 +47,51 @@ _INVENTORY_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
     r'低於.{0,15}(安全|水位)|安全水位',
 ]]
 
+_CUSTOMER_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
+    r'客戶.{0,20}(搜尋|查詢|找|查找)',
+    r'(搜尋|查詢|找|查找).{0,20}客戶',
+    r'哪個客戶|哪些客戶',
+    r'customer.{0,10}(search|find|look)',
+]]
+
+_CUSTOMER_VERBS = re.compile(r'(搜尋|查詢|查找|找出|找|customer|search|find|look|lookup|客戶)', re.IGNORECASE)
+_SEARCH_TERM_TOKEN = re.compile(r'[一-鿿\w\-]{2,}')
+_CUSTOMER_STOP_WORDS = {
+    "email",
+    "e-mail",
+    "contact",
+    "tax",
+    "taxid",
+    "id",
+    "聯絡人",
+    "聯絡方式",
+    "聯絡資料",
+    "資料",
+    "客戶",
+}
+
 # ── Output type ───────────────────────────────────────────────────────────────
 
 @dataclass
 class ParsedQuery:
     route: Literal['static', 'dynamic', 'blocked']
-    tool: Optional[Literal['inventory', 'order', 'quotation']] = None
+    tool: Optional[Literal['inventory', 'order', 'quotation', 'customer']] = None
     sku: Optional[str] = None
     entity_id: Optional[int] = None
+    search_term: Optional[str] = None
     blocked_reason: Optional[str] = None
+
+
+def _extract_search_term(question: str) -> Optional[str]:
+    cleaned = _CUSTOMER_VERBS.sub(' ', question)
+    matches = [
+        token.strip("-_ ").lower() if token.isascii() else token.strip("-_ ")
+        for token in _SEARCH_TERM_TOKEN.findall(cleaned)
+    ]
+    matches = [token for token in matches if token and token not in _CUSTOMER_STOP_WORDS]
+    if matches:
+        return max(matches, key=len).strip()
+    return None
 
 
 # ── Main function ─────────────────────────────────────────────────────────────
@@ -90,5 +127,13 @@ def parse_question(question: str) -> ParsedQuery:
     if entity_id and re.search(r'訂單|order', question, re.IGNORECASE):
         return ParsedQuery(route='dynamic', tool='order', entity_id=entity_id)
 
-    # 6. Default: static (RAG)
+    # 6. Dynamic: customer search only when we can extract a name/term
+    for pattern in _CUSTOMER_DYNAMIC:
+        if pattern.search(question):
+            search_term = _extract_search_term(question)
+            if search_term:
+                return ParsedQuery(route='dynamic', tool='customer', search_term=search_term)
+            break
+
+    # 7. Default: static (RAG)
     return ParsedQuery(route='static')

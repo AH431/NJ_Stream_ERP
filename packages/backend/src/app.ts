@@ -20,6 +20,8 @@ import { runAnomalyScanner } from '@/services/anomaly_scanner.service.js';
 import notificationsRoutes from '@/routes/notifications.route.js';
 import aiRoutes from '@/routes/ai.route.js';
 import inventoryRoutes from '@/routes/inventory.route.js';
+import quotationsRoutes from '@/routes/quotations.route.js';
+import salesOrdersRoutes from '@/routes/sales_orders.route.js';
 import { initFcm } from '@/services/fcm.service.js';
 
 export function buildApp() {
@@ -62,10 +64,13 @@ export function buildApp() {
   app.register(authPlugin);
 
   // ── 健康檢查 ────────────────────────────────────────────
-  // rate limit 獨立設定，防止自動化工具用 /health 探測服務狀態
-  app.get('/health', {
-    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-  }, async () => ({ status: 'ok' }));
+  // Must use app.after() so the rate-limit plugin's onRoute hook is registered
+  // before this route is added (plugin registration is async via avvio).
+  app.after(() => {
+    app.get('/health', {
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    }, async () => ({ status: 'ok' }));
+  });
 
   // ── 路由 ────────────────────────────────────────────────
   app.register(authRoutes,      { prefix: '/api/v1/auth' });
@@ -82,6 +87,8 @@ export function buildApp() {
   app.register(notificationsRoutes,         { prefix: '/api/v1/notifications' });
   app.register(aiRoutes,                    { prefix: '/api/v1/ai' });
   app.register(inventoryRoutes,             { prefix: '/api/v1/inventory' });
+  app.register(quotationsRoutes,            { prefix: '/api/v1/quotations' });
+  app.register(salesOrdersRoutes,           { prefix: '/api/v1/sales-orders' });
 
   // ── Firebase Admin SDK 初始化（FIREBASE_SERVICE_ACCOUNT 不存在時靜默跳過）──
   initFcm();

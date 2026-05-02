@@ -5,6 +5,7 @@ import {
   createAuditLog,
   finishAuditLog,
   hashText,
+  logAuditEvent,
 } from '@/services/audit.service.js';
 
 const ChatBody = z.object({
@@ -102,12 +103,53 @@ export default async function aiRoutes(app: FastifyInstance) {
     try {
       const reader  = upstreamRes.body!.getReader();
       const decoder = new TextDecoder();
+      let sseBuffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         if (reply.raw.destroyed) break;
-        reply.raw.write(decoder.decode(value, { stream: true }));
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const events = sseBuffer.split('\n\n');
+        sseBuffer = events.pop() ?? '';
+
+        for (const raw of events) {
+          if (!raw.startsWith('data: ')) {
+            reply.raw.write(raw + '\n\n');
+            continue;
+          }
+
+          let payload: any;
+          try {
+            payload = JSON.parse(raw.slice(6));
+          } catch {
+            reply.raw.write(raw + '\n\n');
+            continue;
+          }
+
+          if (payload.type === 'tool_call') {
+            void logAuditEvent(db, {
+              requestId,
+              userId,
+              userRole: role,
+              action: 'ai.tool_call',
+              toolName: payload.tool,
+              resourceType: payload.resourceType,
+              resourceId: payload.resourceId != null ? String(payload.resourceId) : undefined,
+              status: 'success',
+            }).catch(() => {});
+            continue;
+          }
+
+          reply.raw.write(raw + '\n\n');
+        }
       }
+
+      if (sseBuffer && !reply.raw.destroyed) {
+        reply.raw.write(sseBuffer);
+      }
+
       clearTimeout(timer);
       await finishAuditLog(db, auditId, { status: 'success' });
     } catch (err: any) {

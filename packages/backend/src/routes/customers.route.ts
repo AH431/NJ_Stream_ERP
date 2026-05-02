@@ -17,7 +17,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq, isNull, and, sql } from 'drizzle-orm';
+import { eq, isNull, and, sql, ilike, or } from 'drizzle-orm';
 import { customers } from '@/schemas/customers.schema.js';
 import { USER_ROLES } from '@/constants/index.js';
 
@@ -81,6 +81,10 @@ const UpdateCustomerBody = z.object({
 /** 路由 params */
 const IdParam = z.object({
   id: z.coerce.number().int().positive(),
+});
+
+const SearchQuery = z.object({
+  q: z.string().min(1).max(200),
 });
 
 // ── 路由處理 ──────────────────────────────────────────────
@@ -186,6 +190,35 @@ export default async function customersRoutes(app: FastifyInstance) {
     });
 
     return reply.status(200).send(result);
+  });
+
+  // ── GET /customers/search ─────────────────────────────
+  // CRM search for AI tools and sales workflows.
+  // PRD v5.0: admin / sales only; warehouse must receive 403.
+  app.get('/search', {
+    preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.SALES, USER_ROLES.ADMIN)],
+  }, async (request, reply) => {
+    const parsed = SearchQuery.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'q 參數為必填且不可空白。' });
+    }
+
+    const term = `%${parsed.data.q}%`;
+    const items = await db
+      .select()
+      .from(customers)
+      .where(and(
+        isNull(customers.deletedAt),
+        or(
+          ilike(customers.name, term),
+          ilike(customers.contact, term),
+          ilike(customers.email, term),
+        ),
+      ))
+      .orderBy(customers.id)
+      .limit(20);
+
+    return reply.status(200).send({ items, total: items.length });
   });
 
   // ── GET /customers/:id ─────────────────────────────────

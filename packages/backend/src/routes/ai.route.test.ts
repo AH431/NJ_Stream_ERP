@@ -80,6 +80,12 @@ const VALID_SSE_CHUNKS = [
   'data: {"type":"done"}\n\n',
 ];
 
+const TOOL_CALL_SSE_CHUNKS = [
+  'data: {"type":"tool_call","tool":"get_quotation","resourceType":"quotation","resourceId":1}\n\n',
+  'data: {"type":"token","content":"報價狀態"}\n\n',
+  'data: {"type":"done"}\n\n',
+];
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 afterEach(() => vi.unstubAllGlobals());
@@ -212,6 +218,37 @@ describe('POST /chat — SSE proxy', () => {
     expect(body.role).toBe('admin');
     expect(body.userId).toBe(3);
     expect(typeof body.requestId).toBe('string');
+  });
+
+  it('logs tool_call audit events and does not forward tool_call SSE frames to client', async () => {
+    vi.stubGlobal('fetch', async () => makeFakeUpstreamOk(TOOL_CALL_SSE_CHUNKS));
+
+    const { app, fake } = buildTestApp({ userId: 9, role: 'sales' });
+    await app.ready();
+
+    const res = await app.inject({
+      method:  'POST',
+      url:     '/chat',
+      headers: {
+        'content-type':  'application/json',
+        'authorization': 'Bearer fake.jwt.token',
+      },
+      body: JSON.stringify({ question: '報價單 #1 的狀態是什麼' }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('報價狀態');
+    expect(res.body).not.toContain('"type":"tool_call"');
+
+    expect(fake.insertedRows).toHaveLength(2);
+    expect(fake.insertedRows[0]?.action).toBe('ai.chat');
+    expect(fake.insertedRows[1]).toMatchObject({
+      action: 'ai.tool_call',
+      toolName: 'get_quotation',
+      resourceType: 'quotation',
+      resourceId: '1',
+      status: 'success',
+    });
   });
 
   it('returns 503 and updates audit to error when ai_service is unreachable', async () => {

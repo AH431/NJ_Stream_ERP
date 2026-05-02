@@ -38,6 +38,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test
+        run: npm test
+
   # ── 前端：Flutter 分析 ────────────────────────────────────
   frontend:
     name: Frontend (Flutter)
@@ -60,3 +63,71 @@ jobs:
       - name: Dart analyze
         working-directory: packages/frontend
         run: dart analyze --fatal-infos
+
+  docker-prod-validate:
+    name: Docker Prod Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write test env
+        shell: bash
+        run: |
+          cat <<'EOF' > .env.test-prod
+          POSTGRES_DB=nj_erp_prod_test
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=prod-test-password
+          DATABASE_URL=postgresql://postgres:prod-test-password@postgres:5432/nj_erp_prod_test
+          JWT_SECRET=prod-test-jwt-secret-for-ci
+          JWT_ACCESS_EXPIRES_IN=3600
+          JWT_REFRESH_EXPIRES_IN=2592000
+          COMPANY_NAME=NJ Stream
+          PORT=3000
+          BACKEND_BIND_ADDRESS=127.0.0.1
+          EOF
+
+      - name: Build prod compose
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod build
+
+      - name: Start postgres
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod up -d postgres
+
+      - name: Wait for postgres health
+        shell: bash
+        run: |
+          for _ in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' nj-erp-postgres 2>/dev/null || true)"
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "postgres did not become healthy in time"
+          exit 1
+
+      - name: Run migrations
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod --profile migrate run --rm migrate
+
+      - name: Start backend
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod up -d backend
+
+      - name: Wait for health
+        shell: bash
+        run: |
+          for _ in $(seq 1 60); do
+            response="$(curl -sS -D - http://127.0.0.1:3000/health -o /tmp/health-body.txt || true)"
+            body="$(cat /tmp/health-body.txt 2>/dev/null || true)"
+            if printf '%s' "$body" | grep -q '"status":"ok"' && \
+               printf '%s' "$response" | grep -iq '^x-content-type-options:' && \
+               printf '%s' "$response" | grep -iq '^x-frame-options:'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "backend did not become healthy in time"
+          exit 1
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod down -v --remove-orphans
