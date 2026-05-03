@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_strings.dart';
 import '../../providers/ai_provider.dart';
 import 'source_card.dart';
 
@@ -49,6 +50,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final ai = context.watch<AiProvider>();
+    final s = AppStrings.of(context);
 
     if (ai.isStreaming) {
       WidgetsBinding.instance
@@ -57,12 +59,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI 問庫存'),
+        title: Text(s.aiChatTitle),
         actions: [
           if (ai.messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: '清除對話',
+              tooltip: s.aiChatClear,
               onPressed: ai.isStreaming ? null : ai.clearMessages,
             ),
         ],
@@ -71,20 +73,20 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           if (ai.error != null)
             MaterialBanner(
-              content: Text(_errorText(ai.error!)),
+              content: Text(_errorText(ai.error!, s)),
               backgroundColor:
                   Theme.of(context).colorScheme.errorContainer,
               actions: [
                 TextButton(
-                    onPressed: ai.clearError, child: const Text('關閉')),
+                    onPressed: ai.clearError, child: Text(s.aiChatClose)),
               ],
             ),
           Expanded(
             child: ai.messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      '輸入問題，例如：IC-8800 現在庫存多少？',
-                      style: TextStyle(color: Colors.grey),
+                      s.aiChatEmptyHint,
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   )
                 : ListView.builder(
@@ -105,10 +107,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  String _errorText(String code) => switch (code) {
-    'auth_error' => '登入已過期，請重新登入',
-    'rate_limit' => '請求過於頻繁，請稍後再試',
-    _            => 'AI 服務暫時無法使用，請稍後再試',
+  String _errorText(String code, AppStrings s) => switch (code) {
+    'auth_error' => s.aiErrAuthExpired,
+    'rate_limit' => s.aiErrRateLimit,
+    _            => s.aiErrUnavailable,
   };
 }
 
@@ -197,11 +199,11 @@ class _InputBar extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 enabled: !isStreaming,
-                decoration: const InputDecoration(
-                  hintText: '輸入問題…',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: AppStrings.read(context).aiChatInputHint,
+                  border: const OutlineInputBorder(),
                   contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
                 onSubmitted: (_) => onSend(),
                 textInputAction: TextInputAction.send,

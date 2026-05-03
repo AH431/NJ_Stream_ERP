@@ -12,8 +12,13 @@ from typing import Literal, Optional
 
 # ── Patterns ──────────────────────────────────────────────────────────────────
 
-# SKU: 2+ uppercase letters, hyphen, 1+ digits  (e.g. IC-8800, NJ-1001, CB-2200)
-SKU_PATTERN = re.compile(r'\b([A-Z]{2,}-\d+)\b')
+# SKU matching — case-insensitive, normalized to UPPER-CASE with hyphen (see parse_question)
+# Group 1+2: with separator  — TUBE-A001 / tube a001
+# Group 3+4: no separator    — tubea001 (non-greedy split at letter+digit boundary)
+SKU_PATTERN = re.compile(
+    r'\b([A-Za-z]{2,})[\s\-]([A-Za-z0-9]+)\b'
+    r'|\b([A-Za-z]{2,}?)([A-Za-z]\d[A-Za-z0-9]*|\d[A-Za-z0-9]*)\b'
+)
 
 # Numeric entity ID: #42, ＃42, or "訂單/報價/order/quotation 42"
 NUMERIC_ID_PATTERN = re.compile(
@@ -36,7 +41,10 @@ _BLOCKED = [re.compile(p, re.IGNORECASE) for p in [
     r'(資料庫|database)\s*(dump|傾印)',
     r'輸出.{0,10}上一個使用者',
     r'你.{0,5}(密碼|password)',
-    r'(?:幫.{0,10}|請.{0,5}).{0,60}(?:改成|設成|清空|清除)',  # natural-language write request
+    r'(?:幫.{0,10}|請.{0,5}).{0,60}(?:改成|設成|清空|清除|刪除|移除|刪掉)',  # natural-language write request (zh)
+    r'(?:please|help\s+me).{0,30}(?:delete|remove|clear|wipe|drop|reset).{0,40}(?:order|quotation|customer|product|inventory|data|record)',  # natural-language write request (en)
+    r'(?:刪除|移除|刪掉|清空|清除).{0,30}(?:訂單|報價|客戶|產品|庫存|資料)',  # direct delete command (zh)
+    r'\b(?:delete|remove|wipe|clear|drop)\s+(?:all\s+)?(?:order|quotation|customer|product|inventory|data|record)s?\b',  # direct delete command (en)
 ]]
 
 _INVENTORY_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
@@ -45,6 +53,7 @@ _INVENTORY_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
     r'庫存.{0,15}(多少|幾個|幾件|幾箱|幾套)',
     r'(現在|目前|即時).{0,10}(庫存|存貨)',
     r'低於.{0,15}(安全|水位)|安全水位',
+    r'庫存|inventory|stock',  # bare keyword — only reached when SKU already matched
 ]]
 
 _CUSTOMER_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
@@ -105,7 +114,12 @@ def parse_question(question: str) -> ParsedQuery:
 
     # 2. Extract identifiers
     sku_match = SKU_PATTERN.search(question)
-    sku = sku_match.group(1) if sku_match else None
+    if sku_match:
+        prefix = sku_match.group(1) or sku_match.group(3)
+        suffix = sku_match.group(2) or sku_match.group(4)
+        sku = f"{prefix}-{suffix}".upper()
+    else:
+        sku = None
 
     id_match = NUMERIC_ID_PATTERN.search(question)
     entity_id: Optional[int] = None

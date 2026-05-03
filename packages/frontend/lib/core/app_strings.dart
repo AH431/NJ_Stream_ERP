@@ -61,7 +61,7 @@ class AppStrings extends ChangeNotifier {
   String get tooltipLogout => _s('登出', 'Logout');
   String get menuDevSettings => _s('開發者設定', 'Developer Settings');
   String get menuAr => _s('應收帳款', 'Accounts Receivable');
-  String get menuAiChat => _s('AI 問庫存', 'AI Chat');
+  String get menuAiChat => _s('AI Assistant', 'AI Assistant');
 
   // ── Logout dialog ─────────────────────────────────────────────────────────
   String get logoutTitle => _s('確認登出', 'Confirm Logout');
@@ -623,4 +623,30 @@ class AppStrings extends ChangeNotifier {
   String get msgEmailSent => _s('郵件已寄送', 'Email sent successfully.');
   String msgEmailFailed(String e) =>
       _isEnglish ? 'Failed to send: $e' : '寄送失敗：$e';
+
+  // ── AI Chat ───────────────────────────────────────────────────────────────
+  String get aiChatTitle => _s('AI Assistant', 'AI Assistant');
+  String get aiChatClear => _s('清除對話', 'Clear Chat');
+  String get aiChatClose => _s('關閉', 'Close');
+  String get aiChatEmptyHint =>
+      _s('輸入問題，例如：TUBE-A001 現在庫存多少？', 'Ask a question, e.g.: TUBE-A001 inventory?');
+  String get aiChatInputHint => _s('輸入問題…', 'Type your question…');
+  String get aiErrAuthExpired =>
+      _s('登入已過期，請重新登入', 'Session expired. Please log in again.');
+  String get aiErrRateLimit =>
+      _s('請求過於頻繁，請稍後再試', 'Too many requests. Please wait a moment.');
+  String get aiErrUnavailable =>
+      _s('AI 服務暫時無法使用，請稍後再試', 'AI service unavailable. Please try again later.');
+
+  // ── Source Card ───────────────────────────────────────────────────────────
+  String get srcToolLabel => _s('工具', 'Tool');
+  String get srcTypeLabel => _s('類型', 'Type');
+  String get srcIdLabel => _s('資源 ID', 'Resource ID');
+  String srcToolName(String tool) => switch (tool) {
+    'get_inventory'    => _s('庫存查詢', 'Inventory Query'),
+    'get_quotation'    => _s('報價查詢', 'Quotation Query'),
+    'get_sales_order'  => _s('訂單查詢', 'Order Query'),
+    'search_customers' => _s('客戶查詢', 'Customer Search'),
+    _                  => tool,
+  };
 }

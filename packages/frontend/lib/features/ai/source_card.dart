@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_strings.dart';
 import '../../providers/ai_provider.dart';
 
 class SourceCard extends StatelessWidget {
@@ -9,7 +10,8 @@ class SourceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final label = _toolLabel(source.tool);
+    final s = AppStrings.of(context);
+    final label = s.srcToolName(source.tool);
     final subtitle = source.resourceId != null
         ? '${source.resourceType} · ${source.resourceId}'
         : source.resourceType;
@@ -38,10 +40,10 @@ class SourceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _row('工具', source.tool, cs),
-                _row('類型', source.resourceType, cs),
+                _row(s.srcToolLabel, source.tool, cs),
+                _row(s.srcTypeLabel, source.resourceType, cs),
                 if (source.resourceId != null)
-                  _row('資源 ID', source.resourceId!, cs),
+                  _row(s.srcIdLabel, source.resourceId!, cs),
               ],
             ),
           ),
@@ -74,11 +76,4 @@ class SourceCard extends StatelessWidget {
     ),
   );
 
-  static String _toolLabel(String tool) => switch (tool) {
-    'get_inventory'    => '庫存查詢',
-    'get_quotation'    => '報價查詢',
-    'get_sales_order'  => '訂單查詢',
-    'search_customers' => '客戶查詢',
-    _                  => tool,
-  };
 }
