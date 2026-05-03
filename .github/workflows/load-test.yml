@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # ── k6 installation ──────────────────────────────────────────────────────
       - name: Install k6
@@ -94,7 +94,7 @@ jobs:
       # ── Seed test users ───────────────────────────────────────────────────────
       - name: Setup Node.js
         if: ${{ github.event.inputs.base_url == '' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -127,7 +127,7 @@ jobs:
       # ── Upload results ────────────────────────────────────────────────────────
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: k6-results-${{ github.event.inputs.test_type }}
           path: results.json
