@@ -82,6 +82,7 @@ logs/
 LOG/*
 !LOG/db/
 !LOG/db/*.md
+LOG/db/Product Sample .md
 backups/
 cache/
 tmp/
