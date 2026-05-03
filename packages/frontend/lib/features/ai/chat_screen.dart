@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/ai_provider.dart';
+import 'source_card.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -153,6 +154,16 @@ class _MessageTile extends StatelessWidget {
                   height: 2,
                   width: 40,
                   child: LinearProgressIndicator(),
+                ),
+              ),
+            if (!isUser && message.sources.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: message.sources
+                      .map((s) => SourceCard(s))
+                      .toList(),
                 ),
               ),
           ],

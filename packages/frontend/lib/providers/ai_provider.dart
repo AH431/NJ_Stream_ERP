@@ -1,11 +1,12 @@
 // ==============================================================================
-// AiProvider — Phase 3 M1.3
+// AiProvider — Phase 3 M1.3 / M6.2
 //
 // SSE 串流聊天：傳送問題給 /api/v1/ai/chat，以 LineSplitter 逐行解析 SSE events，
 // 逐 token 累積回覆訊息。
 //
-// SSE event 格式（8.9）：
+// SSE event 格式：
 //   data: {"type":"token","content":"..."}
+//   data: {"type":"tool_call","tool":"...","resourceType":"...","resourceId":"..."}
 //   data: {"type":"done"}
 // ==============================================================================
 
@@ -17,24 +18,43 @@ import 'package:flutter/foundation.dart';
 
 // ── 資料模型 ──────────────────────────────────────────────
 
+class ChatSource {
+  final String tool;
+  final String resourceType;
+  final String? resourceId;
+
+  const ChatSource({
+    required this.tool,
+    required this.resourceType,
+    this.resourceId,
+  });
+}
+
 class ChatMessage {
   final String id;
   final String role; // 'user' | 'assistant'
   final String content;
   final bool isStreaming;
+  final List<ChatSource> sources;
 
   const ChatMessage({
     required this.id,
     required this.role,
     required this.content,
     this.isStreaming = false,
+    this.sources = const [],
   });
 
-  ChatMessage copyWith({String? content, bool? isStreaming}) => ChatMessage(
+  ChatMessage copyWith({
+    String? content,
+    bool? isStreaming,
+    List<ChatSource>? sources,
+  }) => ChatMessage(
     id: id,
     role: role,
     content: content ?? this.content,
     isStreaming: isStreaming ?? this.isStreaming,
+    sources: sources ?? this.sources,
   );
 }
 
@@ -96,6 +116,15 @@ class AiProvider extends ChangeNotifier {
             switch (event['type'] as String?) {
               case 'token':
                 _append(assistantId, (event['content'] as String?) ?? '');
+              case 'tool_call':
+                _addSource(
+                  assistantId,
+                  ChatSource(
+                    tool: (event['tool'] as String?) ?? '',
+                    resourceType: (event['resourceType'] as String?) ?? '',
+                    resourceId: event['resourceId']?.toString(),
+                  ),
+                );
               case 'done':
                 _finalize(assistantId);
                 if (!completer.isCompleted) completer.complete();
@@ -132,6 +161,15 @@ class AiProvider extends ChangeNotifier {
       _isStreaming = false;
       notifyListeners();
     }
+  }
+
+  void _addSource(String id, ChatSource source) {
+    final idx = _messages.indexWhere((m) => m.id == id);
+    if (idx == -1) return;
+    _messages[idx] = _messages[idx].copyWith(
+      sources: [..._messages[idx].sources, source],
+    );
+    notifyListeners();
   }
 
   void _append(String id, String token) {
