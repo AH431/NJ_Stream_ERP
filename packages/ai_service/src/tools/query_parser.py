@@ -61,7 +61,7 @@ _CUSTOMER_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
     r'(搜尋|查詢|找|查找).{0,20}客戶',
     r'哪個客戶|哪些客戶',
     r'customer.{0,10}(search|find|look)',
-    r'客戶[「『].{1,15}[」』]',  # 客戶「NAME」的 X 是什麼？ — by-name attribute lookup
+    r'客戶[「『].{1,40}[」』]',  # 客戶「NAME」的 X 是什麼？ — by-name attribute lookup
 ]]
 
 _CUSTOMER_VERBS = re.compile(r'(搜尋|查詢|查找|找出|找|customer|search|find|look|lookup|客戶)', re.IGNORECASE)

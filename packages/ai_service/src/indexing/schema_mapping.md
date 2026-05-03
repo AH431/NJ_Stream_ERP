@@ -1,45 +1,115 @@
-# Schema Mapping — Knowledge Card Fields
+# Schema Mapping — Knowledge Card Fields (v2, 2026-05-03)
 
-## Products（商品）
+Two-layer card architecture:
+- **Layer 1 (DB)**: price, stock quantities, stock levels, contact, payment terms — read at card-gen time.
+- **Layer 2 (catalog)**: category, aliases, description, specs, typical use, suppliers, substitutes, notes, QA — from `data/product_catalog.yaml` and `data/customer_catalog.yaml`.
 
-| DB 欄位 | Card 標籤 | 包含 | 備註 |
+---
+
+## Products
+
+### DB Fields
+
+| DB table / column | Card section | Included | Notes |
 |---|---|---|---|
-| id | entity_id (frontmatter) | ✓ | 主鍵 |
-| sku | SKU | ✓ | |
-| name | 名稱 | ✓ | |
-| unit_price | 單價 | ✓ | |
-| cost_price | — | ✗ | **黑名單**：進貨成本，商業機密 |
-| min_stock_level | 最低庫存水位 | ✓ | |
-| created_at / updated_at / deleted_at | — | ✗ | 系統欄位 |
+| `products.id` | frontmatter `entity_id` | ✓ | Primary key |
+| `products.sku` | frontmatter `sku` + Product Identity | ✓ | |
+| `products.name` | heading + Product Identity | ✓ | |
+| `products.unit_price` | Pricing section | ✓ | |
+| `products.cost_price` | — | ✗ | **Blacklist**: trade secret |
+| `inventory_items.quantity_on_hand` | Inventory Status | ✓ | |
+| `inventory_items.quantity_reserved` | Inventory Status | ✓ | |
+| `inventory_items.min_stock_level` | Inventory Status | ✓ | Safety threshold |
+| `inventory_items.alert_stock_level` | Inventory Status | ✓ | Alert threshold |
+| `inventory_items.critical_stock_level` | Inventory Status | ✓ | Critical threshold |
+| `products.created_at / updated_at / deleted_at` | — | ✗ | System fields |
 
-## Customers（客戶）
+### Catalog Fields (product_catalog.yaml)
 
-| DB 欄位 | Card 標籤 | 包含 | 備註 |
+| YAML field | Card section | Notes |
+|---|---|---|
+| `category` | frontmatter `category` + Product Identity | |
+| `aliases` | Product Identity "Also known as" | Enables alias / synonym retrieval |
+| `description` | Description section | Rich natural-language description |
+| `common_specs` | Specifications section | Key-value dict |
+| `typical_use` | Typical Applications section | Bullet list |
+| `suppliers` | Suppliers section | Bullet list |
+| `substitutes` | Substitutes / Alternatives section | Bullet list |
+| `notes` | Notes section | Free text; include warnings where relevant |
+| `qa` | Q&A section | List of `{q, a}` pairs |
+
+---
+
+## Customers
+
+### DB Fields
+
+| DB table / column | Card section | Included | Notes |
 |---|---|---|---|
-| id | entity_id (frontmatter) | ✓ | 主鍵 |
-| name | 名稱 | ✓ | |
-| contact | 聯絡人 | ✓ | nullable |
-| payment_terms_days | 付款天數 | ✓ | |
-| email | — | ✗ | **黑名單**：個人資料 |
-| tax_id | — | ✗ | **黑名單**：統一編號 |
-| created_at / updated_at / deleted_at | — | ✗ | 系統欄位 |
+| `customers.id` | frontmatter `entity_id` + Customer Identity | ✓ | Primary key |
+| `customers.name` | heading + Customer Identity | ✓ | |
+| `customers.contact` | Contact Summary | ✓ | nullable |
+| `customers.payment_terms_days` | Payment Terms | ✓ | |
+| `customers.email` | — | ✗ | **Blacklist**: personal data |
+| `customers.tax_id` | — | ✗ | **Blacklist**: tax identifier |
+| `customers.created_at / updated_at / deleted_at` | — | ✗ | System fields |
 
-## Role 可見性
+### Catalog Fields (customer_catalog.yaml)
 
-| entity_type | role_admin | role_sales | role_warehouse |
+| YAML field | Card section | Notes |
+|---|---|---|
+| `segment` | Industry / Segment section | Industry and product focus |
+| `preferred_products` | Preferred Products section | Bullet list of SKUs |
+| `account_notes` | Account Notes section | Buying patterns, special requirements |
+| `common_asks` | Common Asks / FAQ section | List of `{q, a}` pairs |
+
+---
+
+## Frontmatter Fields
+
+| Field | Products | Customers | Notes |
 |---|---|---|---|
-| product | true | true | true |
-| customer | true | true | **false** |
+| `entity_type` | `product` | `customer` | |
+| `entity_id` | ✓ | ✓ | DB primary key |
+| `sku` | ✓ | — | Product SKU for retrieval |
+| `category` | ✓ | — | From catalog |
+| `role_admin` | `true` | `true` | |
+| `role_sales` | `true` | `true` | |
+| `role_warehouse` | `true` | `false` | Warehouse cannot read customer cards |
+| `source` | `db+catalog` | `db+catalog` | Both layers used |
 
-## 敏感欄位黑名單
+---
 
-永不寫入卡片（在 `card_generator.py` generator 層排除，不靠後續 filter）：
+## Sensitive Field Blacklist
 
-- `email` — 個人資料保護
-- `tax_id` — 統一編號
-- `cost_price` — 進貨成本（商業機密；未來若需 admin-only 欄位需另建 `role_admin_only` metadata 機制）
+Never written to any card (excluded in `card_generator.py` at generation time):
 
-## 備註
+| Field | Table | Reason |
+|---|---|---|
+| `email` | customers | Personal data protection |
+| `tax_id` | customers | Tax identifier |
+| `cost_price` | products | Trade secret — business cost margin |
 
-- `cost_price` 暫時排除，因目前 card 格式無 admin-only 欄位遮罩機制
-- Warehouse role 不得取得任何 customer card（BM25 corpus 亦不含 customer docs）
+Contact queries (email, phone) must use the dynamic tool path, not static RAG.
+
+---
+
+## Stock Status Logic
+
+Derived from `inventory_items` thresholds; displayed in Inventory Status section:
+
+| Condition | Status label |
+|---|---|
+| `qty_on_hand <= critical_stock_level` | CRITICAL — urgent reorder |
+| `qty_on_hand <= alert_stock_level` | ALERT — reorder soon |
+| `qty_on_hand <= min_stock_level` | LOW — below safety level |
+| otherwise | OK |
+
+---
+
+## Output Paths
+
+| Card type | Output directory | Filename pattern |
+|---|---|---|
+| Product | `data/knowledge_cards/products/` | `{SKU}.md` |
+| Customer | `data/knowledge_cards/customers/` | `customer_{id:03d}.md` |

@@ -354,6 +354,16 @@ class AppStrings extends ChangeNotifier {
       'This will delete all customer data on this phone. Pull to sync later to restore.');
   String get devClearCustSuccess =>
       _s('本地客戶名單已清空', 'Local client list cleared.');
+  String get devForceFullSyncTitle => _s('DB 重建全量同步', 'Full Rebuild Sync');
+  String get devForceFullSyncDesc => _s(
+      '清除手機所有快照與待同步操作，從後端全量拉取。\n僅在後端 DB 重建後使用。',
+      'Wipes all local snapshots and pending ops, then pulls everything fresh.\nUse only after a backend DB rebuild.');
+  String get devForceFullSyncConfirmTitle => _s('確認全量重置？', 'Confirm Full Reset?');
+  String get devForceFullSyncConfirmBody => _s(
+      '這將刪除手機上的所有本地資料（含未同步操作），然後從後端全量拉取。\n此操作無法復原。',
+      'All local data including pending operations will be deleted, then re-pulled from server.\nThis cannot be undone.');
+  String get devForceFullSyncSuccess => _s('全量同步完成', 'Full sync complete.');
+  String get btnForceFullSync => _s('執行全量同步', 'Run Full Sync');
 
   // ── Accounts Receivable (AR) ──────────────────────────────────────────────
   String get arTitle => _s('應收帳款', 'Accounts Receivable');

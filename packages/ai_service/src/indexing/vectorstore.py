@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Dict, List
 
 from langchain_chroma import Chroma
@@ -16,8 +17,9 @@ def build_vectorstore(
     embedding: Embeddings,
     db_path: str = None,
 ) -> Chroma:
-    """Full rebuild: create ChromaDB from documents and persist to disk."""
+    """Full rebuild: wipe existing DB dir then create from documents."""
     db_path = db_path or os.getenv("CHROMA_DB_PATH", "./db")
+    shutil.rmtree(db_path, ignore_errors=True)
     return Chroma.from_documents(
         documents=documents,
         embedding=embedding,

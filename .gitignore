@@ -115,6 +115,9 @@ docs/cloudflare-waf-setup.md
 
 # AI Service — ChromaDB 向量資料庫（二進位，不進版控）
 packages/ai_service/db/
+packages/ai_service/chroma_test/
+# AI Service — 產生的知識卡片（runtime output，由 card_generator.py 建立）
+packages/ai_service/data/knowledge_cards/
 # AI Service — Python 虛擬環境
 packages/ai_service/venv/
 packages/ai_service/.venv/

@@ -46,7 +46,8 @@ def _prepare_chunks(
     ]
     cleaned = [d for d in cleaned if d.page_content.strip()]
     chunks = split_documents(cleaned, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    return [c for c in chunks if c.page_content.strip()]
+    # Drop chunks too short to carry semantic meaning (e.g. "## Last Updated\n2026-05-03")
+    return [c for c in chunks if len(c.page_content.strip()) >= 60]
 
 
 def build_index(

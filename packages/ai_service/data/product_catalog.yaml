@@ -1,0 +1,813 @@
+# Product Catalog — Static Metadata for Rich Knowledge Cards
+# Source of truth for category, aliases, description, specs, use, suppliers, substitutes, notes, QA.
+# DB-volatile fields (price, stock quantities, stock levels) are NOT stored here — read from DB at card-gen time.
+
+- sku: MCU-STM32F103C8
+  category: microcontroller
+  aliases:
+    - STM32
+    - STM32F103
+    - STM32F103C8T6
+    - Blue Pill MCU
+    - STM32 Cortex-M3
+  description: >
+    STMicroelectronics 32-bit ARM Cortex-M3 microcontroller running at 72 MHz with 64 KB Flash
+    and 20 KB RAM. Rich peripheral set including UART, SPI, I2C, USB, and CAN.
+    One of the most popular MCUs for embedded IoT firmware and industrial control.
+  common_specs:
+    core: ARM Cortex-M3 @ 72 MHz
+    flash: 64 KB
+    ram: 20 KB
+    gpio: 37 pins
+    interfaces: UART, SPI, I2C, USB, CAN
+    package: LQFP48
+    supply_voltage: 2.0–3.6V
+  typical_use:
+    - Industrial sensor nodes
+    - Motor control boards
+    - Custom IoT firmware development
+    - Wired embedded data loggers
+    - Rapid prototyping
+  suppliers:
+    - STMicroelectronics (OEM)
+    - Various Blue Pill module manufacturers
+  substitutes:
+    - MCU-ESP32-WROOM32U (if WiFi or Bluetooth required)
+    - COMM-NRF52840-MOD (if BLE-only required)
+  notes: >
+    "Blue Pill" form factor widely available. Strong Arduino and STM32CubeIDE ecosystem.
+    No built-in wireless — use ESP32 or nRF52840 for connected designs.
+  qa:
+    - q: What is MCU-STM32F103C8?
+      a: A 32-bit ARM Cortex-M3 microcontroller by STMicroelectronics running at 72 MHz with 64 KB Flash and 20 KB RAM, featuring UART, SPI, I2C, USB, and CAN peripherals.
+    - q: What is the STM32F103C8 used for?
+      a: Embedded firmware development, industrial sensor nodes, motor control boards, and wired IoT prototyping where wireless connectivity is not required.
+    - q: What is the difference between STM32 and ESP32?
+      a: STM32F103C8 has no built-in wireless and is suited for cost-sensitive wired applications. ESP32 adds dual-core 240 MHz CPU, WiFi, and Bluetooth but costs more. Choose STM32 for wired control; ESP32 for connected IoT.
+
+- sku: MCU-ESP32-WROOM32U
+  category: microcontroller
+  aliases:
+    - ESP32
+    - ESP32-WROOM
+    - WROOM32U
+    - ESP32 WiFi module
+    - Espressif ESP32
+  description: >
+    Espressif dual-core 240 MHz MCU module with integrated 2.4 GHz WiFi 802.11 b/g/n and
+    Bluetooth 4.2/BLE. The -32U variant uses a U.FL connector for an external antenna,
+    providing better range. 4 MB Flash onboard. Ideal for connected IoT endpoints and gateways.
+  common_specs:
+    core: Xtensa LX6 dual-core @ 240 MHz
+    flash: 4 MB (onboard)
+    ram: 520 KB SRAM
+    wifi: 802.11 b/g/n 2.4 GHz
+    bluetooth: BT 4.2 + BLE
+    gpio: 34 usable pins
+    package: SMD module (18 x 20 mm)
+    supply_voltage: 3.0–3.6V (3.3V typical)
+  typical_use:
+    - WiFi-connected sensor nodes
+    - BLE beacons and proximity sensors
+    - Smart home device firmware
+    - OTA-updateable IoT endpoints
+    - MQTT / HTTP gateway nodes
+  suppliers:
+    - Espressif Systems (OEM)
+    - Authorized module distributors
+  substitutes:
+    - MCU-STM32F103C8 (if wireless not needed, lower cost)
+    - COMM-NRF52840-MOD (if BLE-only and ultra-low power required)
+  notes: >
+    Requires 3.3V with careful power filtering (100 nF + 10 µF bypass caps near VCC).
+    Use -32U variant when external antenna needed for improved range.
+    High current draw during WiFi transmission (~240 mA peak) — size supply accordingly.
+  qa:
+    - q: Does MCU-ESP32-WROOM32U support WiFi?
+      a: Yes, it supports 802.11 b/g/n 2.4 GHz WiFi and Bluetooth 4.2/BLE built-in.
+    - q: What is the difference between ESP32-WROOM32 and ESP32-WROOM32U?
+      a: The 32U has a U.FL external antenna connector for better range; the standard 32 uses a built-in PCB antenna.
+    - q: Can ESP32 run on battery?
+      a: Yes, but WiFi transmit peaks at ~240 mA. Use deep sleep (5–10 µA) and duty cycle carefully. Pair with BATT-LIPO-3V7-1800 and a 3.3V LDO.
+
+- sku: COMM-NRF52840-MOD
+  category: connectivity
+  aliases:
+    - nRF52840
+    - NRF52840
+    - BLE 5.0 module
+    - Nordic BLE module
+    - nRF52 module
+  description: >
+    Nordic Semiconductor nRF52840-based SoC module with Bluetooth 5.0 LE, Thread, Zigbee,
+    and IEEE 802.15.4 support. ARM Cortex-M4F at 64 MHz with 1 MB Flash and 256 KB RAM.
+    Best-in-class BLE range, power efficiency, and protocol flexibility for wearables
+    and mesh network nodes.
+  common_specs:
+    core: ARM Cortex-M4F @ 64 MHz
+    flash: 1 MB
+    ram: 256 KB
+    bluetooth: BLE 5.0 (Long Range, 2M PHY)
+    protocols: Thread, Zigbee, IEEE 802.15.4
+    gpio: 48 pins
+    supply_voltage: 1.7–3.6V
+  typical_use:
+    - Wearable health sensors
+    - BLE mesh networks
+    - Thread / Matter smart home nodes
+    - Low-power field data loggers
+    - Industrial BLE sensors
+  suppliers:
+    - Nordic Semiconductor (OEM)
+    - Authorized module manufacturers (e.g. Raytac, Fanstel)
+  substitutes:
+    - MCU-ESP32-WROOM32U (if WiFi + BLE needed at lower cost)
+  notes: >
+    Current stock is near safety level — verify availability before placing large orders.
+    BLE 5.0 Long Range mode extends range to ~400 m outdoors. Supports USB CDC natively.
+  qa:
+    - q: What wireless protocols does nRF52840 support?
+      a: Bluetooth 5.0 LE (Long Range, 2M PHY), Thread, Zigbee, and IEEE 802.15.4.
+    - q: Why choose nRF52840 over ESP32 for BLE?
+      a: nRF52840 offers lower power consumption, BLE 5.0 Long Range, and Thread/Zigbee support. ESP32 is cheaper and adds WiFi but uses more power for BLE-only designs.
+    - q: Is nRF52840 stock currently low?
+      a: Check live inventory — this SKU has historically run near safety level. Confirm stock before committing to large orders.
+
+- sku: SENS-BME280-3IN1
+  category: sensor
+  aliases:
+    - BME280
+    - environmental sensor
+    - T/H/P sensor
+    - temperature humidity pressure sensor
+    - Bosch BME280
+  description: >
+    Bosch Sensortec compact sensor combining temperature (±1°C), relative humidity (±3% RH),
+    and barometric pressure (±1 hPa) in a single 2.5×2.5 mm LGA package.
+    Supports I2C and SPI. Standard choice for environmental monitoring in IoT sensor nodes.
+  common_specs:
+    interface: I2C (0x76 / 0x77) or SPI
+    temperature_range: -40 to +85°C (±1°C accuracy)
+    humidity_range: 0–100% RH (±3% RH accuracy)
+    pressure_range: 300–1100 hPa (±1 hPa accuracy)
+    supply_voltage: 1.71–3.6V
+    package: LGA-8 (2.5 x 2.5 mm)
+  typical_use:
+    - Weather station nodes
+    - HVAC monitoring and control
+    - Smart home climate sensing
+    - Altitude / barometric pressure logging
+    - Wearable environmental monitors
+  suppliers:
+    - Bosch Sensortec (OEM)
+    - Module breakout boards widely available
+  substitutes:
+    - DHT22 (humidity + temp only, lower accuracy, no pressure)
+    - BMP280 (pressure + temp only, no humidity)
+  notes: >
+    Two I2C addresses available (0x76 / 0x77) via SDO pin — allows two sensors per bus.
+    Avoid using I2C if bus is noisy; SPI is more robust in industrial environments.
+  qa:
+    - q: What does BME280 measure?
+      a: Temperature (±1°C), relative humidity (±3% RH), and barometric pressure (±1 hPa) simultaneously.
+    - q: What interface does SENS-BME280-3IN1 use?
+      a: Both I2C (addresses 0x76 or 0x77) and SPI are supported.
+    - q: What is the difference between BME280 and BMP280?
+      a: BME280 adds humidity sensing. BMP280 measures only temperature and pressure.
+
+- sku: SENS-MPU6050-6AX
+  category: sensor
+  aliases:
+    - MPU-6050
+    - IMU sensor
+    - 6-axis IMU
+    - gyroscope accelerometer
+    - GY-521
+    - 6DOF sensor
+  description: >
+    InvenSense MPU-6050 6-axis MEMS IMU combining a 3-axis gyroscope and 3-axis accelerometer
+    with an onboard Digital Motion Processor (DMP) for sensor fusion. I2C interface (400 kHz).
+    Widely used in balance robots, drones, and motion-tracking applications.
+  common_specs:
+    interface: I2C (0x68 / 0x69)
+    gyroscope: ±250 / 500 / 1000 / 2000 °/s (selectable)
+    accelerometer: ±2 / 4 / 8 / 16 g (selectable)
+    supply_voltage: 2.375–3.46V
+    package: QFN-24 (4 x 4 mm)
+    dmp: Yes (quaternion output)
+  typical_use:
+    - Drone and UAV flight controllers
+    - Self-balancing robots
+    - Fall detection systems
+    - Gesture recognition devices
+    - Motion capture and logging
+  suppliers:
+    - TDK InvenSense (OEM)
+  substitutes:
+    - BMI160 (lower power consumption)
+    - ICM-20689 (higher dynamic range)
+  notes: >
+    Popular GY-521 breakout board widely available for prototyping.
+    DMP offloads motion fusion computation from host MCU.
+    I2C address selectable via AD0 pin (0x68 or 0x69) — allows two per bus.
+  qa:
+    - q: What does MPU-6050 measure?
+      a: 3-axis gyroscope (angular rate) and 3-axis accelerometer (linear acceleration), providing full 6-DOF motion data.
+    - q: Does MPU-6050 have built-in motion processing?
+      a: Yes, the onboard DMP (Digital Motion Processor) can output quaternions and tap/gesture detection, reducing MCU load.
+    - q: What is a 6-axis IMU used for?
+      a: Motion sensing applications including drones, balance robots, fall detection, gesture recognition, and attitude estimation.
+
+- sku: BATT-LIPO-3V7-1800
+  category: battery
+  aliases:
+    - LiPo 1800mAh
+    - 3.7V LiPo battery
+    - lithium polymer 1800
+    - LiPo cell 1800
+  description: >
+    Soft-pack lithium polymer rechargeable cell, 3.7V nominal voltage, 1800 mAh capacity.
+    JST-PH 2P 2.0mm connector standard. Suitable for portable IoT devices, wearables, and
+    field data loggers requiring multi-day battery life.
+  common_specs:
+    chemistry: Lithium Polymer (LiPo)
+    voltage: 3.7V nominal (4.2V fully charged, 3.0V cutoff)
+    capacity: 1800 mAh (6.66 Wh)
+    connector: JST-PH 2P (2.0mm pitch)
+    dimensions: approx 50 x 34 x 8 mm
+    charge_rate: 0.5C recommended (900 mA max)
+  typical_use:
+    - Portable IoT sensor nodes
+    - Wearable devices
+    - Handheld instruments
+    - Field-deployed data loggers
+    - Battery-powered smart home sensors
+  suppliers:
+    - Various OEM soft-cell manufacturers
+  substitutes:
+    - LiPo 1000 mAh (smaller, shorter runtime)
+    - 18650 Li-Ion cylindrical (higher capacity, rigid form factor)
+  notes: >
+    CAUTION: Current stock is below safety level — reorder urgently.
+    Pairs with CONN-JST-PH2-2P for wiring. Requires LiPo charge IC (e.g. TP4056) for safe charging.
+    Never short-circuit or over-discharge below 3.0V.
+  qa:
+    - q: What connector does the LiPo battery use?
+      a: JST-PH 2P (2.0mm pitch), which pairs with CONN-JST-PH2-2P connectors stocked in the catalog.
+    - q: How long does 1800 mAh last on a typical IoT sensor?
+      a: At 10 mA average (sleep-duty-cycle sensor), roughly 7–8 days. At 50 mA continuous, about 36 hours.
+    - q: Is LiPo stock available?
+      a: Check live inventory — this SKU has been flagged as below safety level. Confirm before committing to orders.
+
+- sku: PMIC-LDO-AMS1117-33
+  category: power
+  aliases:
+    - AMS1117
+    - AMS1117-3.3
+    - LDO 3.3V
+    - LDO regulator
+    - 3.3V regulator
+  description: >
+    Advanced Monolithic Systems AMS1117-3.3 low-dropout linear voltage regulator.
+    Fixed 3.3V output, 800 mA maximum output current, SOT-223 package.
+    Standard choice for powering 3.3V MCUs and sensors from a 5V USB or unregulated supply.
+  common_specs:
+    output_voltage: 3.3V fixed
+    input_voltage_max: 15V
+    output_current: 800 mA max
+    dropout_voltage: 1.3V typical
+    package: SOT-223
+    quiescent_current: 5 mA typical
+  typical_use:
+    - 3.3V regulated rail from 5V USB
+    - MCU and sensor power supply
+    - Breadboard and prototype power
+    - Low-current regulated supply nodes
+  suppliers:
+    - Advanced Monolithic Systems (OEM)
+    - Compatible equivalents (HT7333, XC6206-3.3, etc.)
+  substitutes:
+    - PMIC-BUCK-LM2596S (higher efficiency for large Vin-Vout gaps or >500 mA loads)
+  notes: >
+    At Vin=5V, Vout=3.3V, 800 mA → power dissipation is 1.36W (requires heatsink pad on PCB).
+    For Vin > 7V or loads > 300 mA, switch to LM2596S buck converter for efficiency.
+  qa:
+    - q: What voltage does AMS1117-3.3 output?
+      a: Fixed 3.3V regulated output, suitable for powering STM32, ESP32, nRF52840, and most 3.3V sensors.
+    - q: Can AMS1117 power an ESP32?
+      a: Yes, at light loads. ESP32 WiFi peak current is ~240 mA, which is within the 800 mA rating — but use adequate input decoupling capacitors.
+    - q: When should I use LM2596 instead of AMS1117?
+      a: Use LM2596S when input voltage exceeds 7V or load current exceeds 300 mA consistently, to avoid thermal issues.
+
+- sku: PMIC-BUCK-LM2596S
+  category: power
+  aliases:
+    - LM2596
+    - LM2596S
+    - buck converter
+    - DC-DC step-down converter
+    - switching regulator
+  description: >
+    Texas Instruments LM2596S adjustable buck (step-down) switching voltage regulator.
+    3A output current, 150 kHz switching frequency, TO-263-5 (D2PAK) package.
+    Significantly more efficient than LDO regulators when input-output voltage gap is large.
+  common_specs:
+    input_voltage: 4.5–40V
+    output_voltage: "1.23–37V adjustable (fixed versions: 3.3V / 5V / 12V)"
+    output_current: 3A max
+    switching_frequency: 150 kHz
+    efficiency: up to 92%
+    package: TO-263-5 (D2PAK)
+  typical_use:
+    - 12V to 5V / 3.3V power conversion
+    - Battery charger input regulation
+    - Industrial panel power supply rails
+    - High-current MCU power nodes
+  suppliers:
+    - Texas Instruments (OEM)
+    - Compatible equivalents (MC34063 for lower current)
+  substitutes:
+    - PMIC-LDO-AMS1117-33 (simpler, no external components, but less efficient)
+  notes: >
+    Requires external inductor (33–68 µH), output capacitors, and catch diode (Schottky 3A).
+    Refer to LM2596 datasheet application circuit for correct BOM and layout.
+    Inductor must be rated ≥ 3A; use ferrite bead only for noise suppression, not the main inductor.
+  qa:
+    - q: What is the difference between LM2596 and AMS1117?
+      a: LM2596S is a switching (buck) regulator with up to 92% efficiency, suitable for high currents and wide input voltage range. AMS1117 is a linear LDO — simpler but wastes energy as heat.
+    - q: How efficient is LM2596S?
+      a: Up to 92% efficiency, compared to ~66% for a 5V→3.3V LDO at similar loads.
+    - q: What external components does LM2596 need?
+      a: An inductor (33–68 µH, 3A rated), output filter capacitor (100–220 µF), feedback resistors, and a Schottky catch diode.
+
+- sku: CONN-USBC-16P-SMD
+  category: connector
+  aliases:
+    - USB-C connector
+    - USB Type-C receptacle
+    - USBC 16P SMD
+    - Type-C SMD connector
+  description: >
+    Mid-mount SMD USB Type-C receptacle with 16 pins (4 power, 4 ground, 8 data/CC pins).
+    Supports USB 2.0 data, power delivery signaling, and device charging.
+    Standard modern connector for IoT device USB interfaces.
+  common_specs:
+    pins: 16
+    standard: USB 2.0 compatible (D+/D-, CC1/CC2, VBUS, GND)
+    mount: SMD mid-mount
+    current_rating: 5A / 20V
+    mating_cycles: 10,000 minimum
+  typical_use:
+    - MCU firmware programming port
+    - Device USB charging interface
+    - USB HID / CDC device interface
+    - Data transfer and debug port
+  suppliers:
+    - CNC Tech, XKB Connectivity, GCT, or compatible SMD OEMs
+  substitutes:
+    - Micro-USB (legacy, not recommended for new designs)
+  notes: >
+    Requires 5.1 kΩ pull-down resistors on CC1 and CC2 for passive USB-C cable compatibility.
+    Verify exact footprint variant (mid-mount height) matches PCB stackup before ordering.
+  qa:
+    - q: What is a USB Type-C 16P SMD connector?
+      a: A surface-mount USB Type-C receptacle with 16 electrical contacts for power, data, and configuration channel signals.
+    - q: Do I need CC resistors with USB-C?
+      a: Yes — add 5.1 kΩ pull-down resistors on CC1 and CC2 pins so standard USB-C cables can identify the device as a USB peripheral.
+
+- sku: CONN-JST-PH2-2P
+  category: connector
+  aliases:
+    - JST PH2 connector
+    - JST 2-pin
+    - 2mm pitch connector
+    - JST-PH 2mm battery connector
+    - JST PH 2P
+  description: >
+    JST PH series 2.0mm pitch 2-pin connector pair (PCB header + wire-side housing with contacts).
+    Standard battery connector for LiPo cells. Widely used for small peripheral wiring
+    in IoT devices, wearables, and embedded systems.
+  common_specs:
+    pitch: 2.0mm
+    pins: 2
+    series: JST PH
+    current_rating: 2A per contact
+    includes: PCB header + wire housing + crimp contacts
+  typical_use:
+    - LiPo battery connection (pairs with BATT-LIPO-3V7-1800)
+    - Small sensor wiring
+    - PCB-to-wire power connections
+    - Wearable device battery harness
+  suppliers:
+    - JST (OEM)
+    - Compatible clone manufacturers
+  substitutes:
+    - CONN-JST-GH 1.25mm (smaller, for compact wearables)
+    - Dupont 2P (2.54mm, larger pitch, less secure)
+  notes: >
+    Pairs directly with BATT-LIPO-3V7-1800. Sold as a set including PCB header and wire housing.
+    Polarity is keyed — verify orientation against battery lead before connecting.
+  qa:
+    - q: What is CONN-JST-PH2-2P used for?
+      a: Primarily for LiPo battery connections. The JST-PH 2.0mm 2-pin is the standard connector on most 3.7V LiPo cells.
+    - q: Is JST-PH compatible with the LiPo batteries in the catalog?
+      a: Yes — BATT-LIPO-3V7-1800 uses a JST-PH 2P connector, which is exactly what CONN-JST-PH2-2P provides.
+
+- sku: DISP-OLED-096-I2C
+  category: display
+  aliases:
+    - OLED 0.96
+    - 0.96 inch OLED
+    - SSD1306 display
+    - I2C OLED screen
+    - 128x64 OLED
+  description: >
+    0.96-inch monochrome OLED display module with 128×64 pixel resolution, driven by an
+    SSD1306 controller over I2C. Self-illuminating (no backlight), high contrast,
+    wide viewing angle. Compact and power-efficient status display for IoT devices.
+  common_specs:
+    driver: SSD1306
+    resolution: 128 x 64 pixels
+    interface: I2C (default 0x3C, some modules 0x3D)
+    display_size: 0.96 inch diagonal
+    supply_voltage: 3.3–5V
+    power_consumption: ~20 mA active
+  typical_use:
+    - Status and diagnostic displays for IoT nodes
+    - Small embedded device UI
+    - Debug output screens
+    - Wearable device displays
+  suppliers:
+    - Various module OEMs (Adafruit-compatible SSD1306 breakouts)
+  substitutes:
+    - DISP-TFT-24-ILI9341 (larger 2.4-inch color display, more complex)
+  notes: >
+    Default I2C address is 0x3C. Some module variants can be reconfigured to 0x3D via solder bridge.
+    SSD1306 is supported by Adafruit GFX, u8g2, and most embedded display libraries.
+  qa:
+    - q: What driver does the 0.96-inch OLED use?
+      a: The SSD1306 controller, supported by virtually all embedded display libraries.
+    - q: What interface does DISP-OLED-096-I2C use?
+      a: I2C at address 0x3C (default) or 0x3D. SPI variants also exist but this SKU is I2C.
+    - q: Do we have an OLED display module?
+      a: Yes — DISP-OLED-096-I2C is a 0.96-inch 128x64 monochrome OLED with I2C interface.
+
+- sku: DISP-TFT-24-ILI9341
+  category: display
+  aliases:
+    - ILI9341 display
+    - TFT 2.4 inch
+    - 240x320 TFT
+    - SPI LCD display
+    - color TFT module
+  description: >
+    2.4-inch color TFT LCD display module with 240×320 resolution, ILI9341 driver,
+    and SPI interface. 65K colors (16-bit). Often includes an SD card slot and optional
+    resistive touch panel (XPT2046). Suitable for richer UI in IoT dashboards and
+    handheld instruments.
+  common_specs:
+    driver: ILI9341
+    resolution: 240 x 320 pixels
+    interface: SPI (up to 40 MHz)
+    colors: 65K (16-bit RGB565)
+    touch: optional resistive (XPT2046)
+    supply_voltage: 3.3V
+    display_size: 2.4 inch diagonal
+  typical_use:
+    - Handheld instrument displays
+    - Embedded dashboard screens
+    - Menu-driven IoT control panels
+    - Data visualization on field devices
+  suppliers:
+    - Various module OEMs (ILI9341-based)
+  substitutes:
+    - DISP-OLED-096-I2C (simpler, lower power, monochrome, no touch)
+  notes: >
+    SPI clock up to 40 MHz. Some modules share SPI bus with onboard SD card — use separate CS pins.
+    Touch input requires XPT2046 driver (separate from ILI9341 display driver).
+  qa:
+    - q: What driver does the 2.4-inch TFT use?
+      a: ILI9341 display driver with SPI interface, supporting 65K colors at 240x320 resolution.
+    - q: Does DISP-TFT-24-ILI9341 support color?
+      a: Yes — 65K colors (16-bit RGB565), unlike the monochrome OLED module.
+    - q: Does this display have touchscreen support?
+      a: Some module variants include a resistive touch panel (XPT2046). Confirm with the specific module variant ordered.
+
+- sku: PASS-RES-0402-1K5K
+  category: passive
+  aliases:
+    - 0402 resistor
+    - 1k ohm SMD resistor
+    - 1kΩ 0402
+    - R0402 1K
+    - SMD resistor 1k
+  description: >
+    Thick-film SMD resistor, 0402 package (1.0×0.5 mm), 1 kΩ resistance, ±1% tolerance,
+    63 mW rated power. Supplied on a reel of 5,000 units. Standard passive component
+    for pull-up/pull-down, current limiting, and signal conditioning.
+  common_specs:
+    package: 0402 (1.0 x 0.5 mm)
+    resistance: 1 kΩ
+    tolerance: ±1%
+    power_rating: 63 mW
+    temp_coefficient: 100 ppm/°C
+    reel_quantity: 5,000 units
+  typical_use:
+    - I2C / UART pull-up resistors
+    - LED current-limiting resistors
+    - Voltage dividers
+    - GPIO pull-down networks
+    - EMI suppression networks
+  suppliers:
+    - Yageo, Vishay, Samsung, or compatible 0402 reel stock
+  substitutes:
+    - 0603 package resistors (easier to hand-solder, same electrical value)
+  notes: >
+    0402 package requires SMD reflow or fine-tip iron technique for hand soldering.
+    Sold per reel of 5,000 — track reel quantity separately when planning batch production runs.
+  qa:
+    - q: What package size is the 0402 resistor?
+      a: 0402 (imperial), which is 1.0 x 0.5 mm. It's a common SMD size suitable for reflow soldering.
+    - q: What is the rated power of an 0402 resistor?
+      a: 63 mW. For higher power applications, use an 0603 (100 mW) or larger package.
+
+- sku: PASS-CAP-0402-100N4K
+  category: passive
+  aliases:
+    - 0402 capacitor
+    - 100nF cap
+    - 0.1uF bypass cap
+    - decoupling cap 0402
+    - 100nF MLCC
+  description: >
+    Multilayer ceramic capacitor (MLCC), 0402 package, 100 nF (0.1 µF) capacitance,
+    10V rated voltage, X7R dielectric, ±10% tolerance. Primary use is IC power supply
+    bypass/decoupling. Supplied on a reel of 4,000 units.
+  common_specs:
+    package: 0402 (1.0 x 0.5 mm)
+    capacitance: 100 nF (0.1 µF)
+    voltage_rating: 10V
+    dielectric: X7R
+    tolerance: ±10%
+    reel_quantity: 4,000 units
+  typical_use:
+    - MCU and IC VCC pin bypass decoupling
+    - Power rail noise filtering
+    - RF interference suppression
+    - Sensor supply stabilization
+  suppliers:
+    - Murata, TDK, Samsung Electro-Mechanics, or compatible
+  substitutes:
+    - 0603 package 100nF (easier to solder, larger footprint)
+    - 1µF 0402 (for bulk decoupling closer to regulators)
+  notes: >
+    Place as close as possible to IC VCC pins for effective high-frequency decoupling.
+    X7R dielectric is temperature-stable (±15% over -55 to +125°C) — preferred over Y5V/Z5U.
+    Reel of 4,000; track reel inventory for batch production planning.
+  qa:
+    - q: What is a bypass capacitor used for?
+      a: To filter high-frequency noise on IC power supply pins, preventing voltage spikes from causing logic errors or resets.
+    - q: What is X7R in MLCC capacitors?
+      a: X7R is a dielectric class indicating ±15% capacitance variation from -55°C to +125°C — more stable than Y5V, which degrades severely with temperature and DC bias.
+
+- sku: LED-WS2812B-5050R100
+  category: led
+  aliases:
+    - WS2812B
+    - addressable LED
+    - NeoPixel
+    - RGB LED smart
+    - chainable RGB LED
+    - WS2812
+  description: >
+    WS2812B integrated RGB LED with built-in driver IC in a 5050 SMD package.
+    Single-wire NZR data protocol at 800 kbps. Chainable — each LED in a strip
+    controlled independently with 24-bit color (8 bits per channel).
+    Supplied on a reel of 100 units.
+  common_specs:
+    package: 5050 SMD (5 x 5 mm)
+    interface: single-wire NZR (800 kbps)
+    supply_voltage: 5V (4.5–5.5V)
+    current_max: 60 mA per LED at full white
+    color_depth: 8-bit per channel (16.7M colors)
+    reel_quantity: 100 units
+  typical_use:
+    - LED matrix status displays
+    - Decorative lighting in IoT enclosures
+    - Individual addressable indicator lights
+    - Lighting effects for product demos
+  suppliers:
+    - WorldSemi (OEM WS2812B)
+    - Adafruit NeoPixel compatible
+  substitutes:
+    - SK6812 (similar protocol, RGBW variant available)
+  notes: >
+    Requires 5V supply — not compatible with 3.3V direct drive.
+    Add a 300–500 Ω series resistor on the data line to reduce ringing.
+    Logic level shifting recommended when driven from 3.3V MCUs (e.g. STM32, ESP32).
+  qa:
+    - q: How are WS2812B LEDs controlled?
+      a: Via a single-wire NZR serial protocol at 800 kbps. Each LED shifts its 24-bit color data and passes the remainder to the next LED in the chain.
+    - q: Can WS2812B be driven from a 3.3V MCU?
+      a: The data input requires a logic-high voltage near 5V for reliable operation. Use a level shifter (e.g. 74AHCT125) between the 3.3V MCU GPIO and the 5V LED data line.
+    - q: Do we have addressable RGB LEDs in stock?
+      a: Yes — LED-WS2812B-5050R100 is a reel of 100 WS2812B addressable RGB LEDs.
+
+- sku: RLAY-SRD-05VDC-SPDT
+  category: relay
+  aliases:
+    - SRD relay
+    - 5V relay
+    - SPDT relay
+    - signal relay 5V
+    - SRD-05VDC-SL-C
+  description: >
+    SONGLE SRD-05VDC-SL-C miniature PCB relay, SPDT (single-pole double-throw) configuration.
+    5V DC coil, 70 mA coil current, 10A / 250VAC or 10A / 30VDC contact rating.
+    Standard choice for MCU-controlled AC load switching in IoT control boards.
+  common_specs:
+    type: SPDT (Single Pole Double Throw)
+    coil_voltage: 5V DC
+    coil_current: ~70 mA
+    contact_rating_ac: 10A / 250VAC
+    contact_rating_dc: 10A / 30VDC
+    package: Through-hole SRD (19 x 15 x 15 mm)
+  typical_use:
+    - AC appliance switching from IoT MCU
+    - 230V lighting / load control
+    - Motor on/off control boards
+    - Industrial relay panel boards
+  suppliers:
+    - SONGLE Relay (OEM)
+    - Compatible miniature PCB relays
+  substitutes:
+    - Solid-state relay (SSR) — silent, no wear, higher cost, better for high-cycle use
+    - N-channel MOSFET — for DC loads only, no mechanical switching
+  notes: >
+    Always include a flyback diode (e.g. 1N4007) across the coil to protect the driving transistor.
+    Do NOT drive the relay coil directly from MCU GPIO — coil draws 70 mA, exceeding GPIO limits.
+    Use a NPN transistor driver (e.g. 2N2222, S8050) between GPIO and relay coil.
+  qa:
+    - q: What load can the SRD relay switch?
+      a: Up to 10A at 250VAC or 10A at 30VDC via its SPDT contacts.
+    - q: Does the SRD relay need a driver transistor?
+      a: Yes — the coil requires 70 mA at 5V, which exceeds MCU GPIO drive capability. Use a NPN transistor (e.g. 2N2222) and a flyback diode across the coil.
+
+- sku: FAN-40X10-12V-DC
+  category: cooling
+  aliases:
+    - 40mm fan
+    - 12V cooling fan
+    - brushless fan 40mm
+    - DC fan 40x10
+    - axial fan 40mm
+  description: >
+    40×40×10mm brushless DC axial fan, 12V supply, 2-pin or 3-pin (tachometer feedback).
+    Standard form factor for PCB enclosure and heat sink cooling.
+    Quiet operation and long service life suitable for electronic enclosures.
+  common_specs:
+    size: 40 x 40 x 10 mm
+    voltage: 12V DC
+    bearing: sleeve or ball bearing
+    speed: approx 4,000–7,000 RPM
+    airflow: approx 6–12 CFM
+    noise: < 30 dBA
+    connector: 2-pin or 3-pin (3-pin includes tachometer)
+  typical_use:
+    - PCB enclosure ventilation
+    - Heat sink assisted cooling
+    - Industrial controller thermal management
+    - Cooling for power electronics inside ABS enclosures
+  suppliers:
+    - Delta Electronics, Sunon, or compatible generic
+  substitutes:
+    - 60mm or 80mm fan (quieter, for larger enclosures)
+  notes: >
+    Pairs with ENCL-ABS-200X120-IP54. Cut a 40mm round hole + 4× M3 mounting holes at 32mm pitch.
+    Requires 12V supply rail — use a separate buck converter if system runs on 5V.
+  qa:
+    - q: What voltage does the 40mm fan require?
+      a: 12V DC. Ensure a 12V rail is available in the system design.
+    - q: What size enclosure is this fan designed for?
+      a: It fits the ENCL-ABS-200X120-IP54 enclosure (200x120x75mm). Cut a 40mm aperture + M3 mounting holes.
+
+- sku: ENCL-ABS-200X120-IP54
+  category: enclosure
+  aliases:
+    - IP54 project box
+    - ABS enclosure 200x120
+    - IP54 enclosure
+    - project box 200mm
+    - industrial IoT enclosure
+  description: >
+    ABS plastic project enclosure, 200×120×75mm external dimensions, IP54-rated
+    (splash-proof, dust-protected). Includes pre-marked cable entry knockouts and
+    supports DIN rail mounting. Standard housing for industrial IoT nodes and
+    outdoor control panels.
+  common_specs:
+    material: ABS plastic
+    external_dimensions: 200 x 120 x 75 mm
+    ip_rating: IP54 (dust-protected, splash-resistant)
+    color: light grey
+    includes: 4× M3 screws, lid, cable knockouts
+    mounting: DIN rail optional / surface mount
+  typical_use:
+    - Industrial sensor node enclosures
+    - Field-deployed IoT controller housings
+    - PCB project boxes for DIN rail mounting
+    - Control panel assemblies
+  suppliers:
+    - Hammond Manufacturing, Takachi, or compatible ABS enclosure OEMs
+  substitutes:
+    - IP65 rated enclosure (for outdoor / wet environments — not currently stocked)
+    - Custom 3D-printed housing (for very small or non-standard PCB shapes)
+  notes: >
+    IP54 = dust-protected (no complete seal) and splash-resistant from any direction.
+    For outdoor installation or direct rain exposure, IP65+ is required.
+    Fan cutout: 40mm aperture + 4× M3 holes at 32mm pitch for FAN-40X10-12V-DC.
+  qa:
+    - q: What is the IP54 rating?
+      a: IP54 means the enclosure is dust-protected (no complete ingress seal) and splash-resistant from any direction — suitable for indoor industrial use but not outdoor rain exposure.
+    - q: Does this enclosure support DIN rail mounting?
+      a: Yes, it includes or supports a DIN rail clip for standard 35mm DIN rail mounting.
+    - q: What PCB fits inside the enclosure?
+      a: The internal cavity is approximately 185×105×60mm, accommodating PCBs up to ~180x100mm with component clearance.
+
+- sku: PCB-FR4-2L-100X100
+  category: pcb
+  aliases:
+    - FR4 PCB blank
+    - 100x100 PCB
+    - 2-layer PCB
+    - prototype PCB 100mm
+    - FR4 substrate
+  description: >
+    Standard FR-4 fiberglass PCB substrate, 100×100mm, 2-layer copper, 1.6mm board thickness,
+    HASL lead-free surface finish, 1oz (35µm) copper weight.
+    The 100×100mm size matches the most cost-effective pricing tier at major Chinese PCB fabs
+    (JLCPCB, PCBWay, Seeed). Typical small-run prototype dimension.
+  common_specs:
+    material: FR-4 fiberglass
+    size: 100 x 100 mm
+    layers: 2
+    thickness: 1.6 mm
+    surface_finish: HASL lead-free
+    copper_weight: 1oz (35µm)
+    min_track_width: 6 mil typical
+  typical_use:
+    - Custom MCU carrier boards
+    - Sensor breakout and adapter boards
+    - IoT node PCB prototypes
+    - Small production run circuit boards
+  suppliers:
+    - JLCPCB, PCBWay, Seeed Fusion, or equivalent PCB fab
+  substitutes:
+    - Larger PCB formats for more complex designs
+    - 4-layer PCB for mixed-signal or RF applications
+  notes: >
+    This is a raw PCB substrate (blank or customer-Gerber design).
+    Confirm with customer whether Gerber files need to be supplied or if the customer provides their own.
+    100×100mm is the minimum-cost tier at most Chinese PCB fabs — efficient for prototypes.
+  qa:
+    - q: What is FR-4 PCB material?
+      a: FR-4 is a flame-retardant fiberglass-epoxy laminate — the standard substrate for PCB manufacturing, offering good mechanical strength and electrical insulation.
+    - q: Why is 100x100mm a common prototype PCB size?
+      a: Major PCB fabs (JLCPCB, PCBWay) price 100×100mm as the smallest tier — it's the most cost-effective standard size for prototype orders.
+
+- sku: CONN-HDR-254-40P
+  category: connector
+  aliases:
+    - 40-pin header
+    - 2.54mm pin header
+    - 40P breakaway header
+    - pin header strip
+    - 0.1 inch header
+  description: >
+    Standard 2.54mm (0.1-inch) pitch single-row 40-pin breakaway male pin header.
+    Can be snapped to any desired length from 1 to 40 pins. Universal component
+    for PCB prototyping, Arduino shield connections, and sensor module mounting.
+  common_specs:
+    pitch: 2.54mm (0.1 inch)
+    pins: 40 (breakable to any length)
+    type: male (straight)
+    material: brass pins, black nylon housing
+    current_rating: 3A per contact
+  typical_use:
+    - MCU development board pin connections
+    - Sensor module mounting headers
+    - Breadboard prototyping wiring
+    - Arduino-compatible shield connections
+    - PCB-to-PCB stackable connections
+  suppliers:
+    - Generic OEM (widely available commodity component)
+  substitutes:
+    - Female 40P header (not stocked — order separately if required)
+    - 2mm pitch headers for compact designs
+  notes: >
+    Sold as strips of 40 — snap to required length.
+    Female counterpart not stocked; order female headers separately if mating connectors are needed.
+  qa:
+    - q: What pitch are these standard pin headers?
+      a: 2.54mm (0.1 inch) — the universal breadboard and Arduino-compatible pitch.
+    - q: Can the 40P header be broken to a shorter length?
+      a: Yes — it is a breakaway strip. Score with a hobby knife or snap directly at any pin position to get the desired pin count.

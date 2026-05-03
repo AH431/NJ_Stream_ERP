@@ -1048,6 +1048,37 @@ class SyncProvider extends ChangeNotifier {
   }
 
   // ----------------------------------------------------------------------------
+  // Force Full Sync（DB 重建後使用）
+  // ----------------------------------------------------------------------------
+
+  /// 清除本地所有 entity 快照與 pending operations，重置 last_sync_at，
+  /// 然後從頭全量 pull。用於後端 DB 重建後 ID 全部重置的情境。
+  Future<void> forceFullSync() async {
+    _emit(_state.copyWith(status: SyncStatus.syncing, errorMessage: null));
+    try {
+      await _db.transaction(() async {
+        await _db.delete(_db.customers).go();
+        await _db.delete(_db.products).go();
+        await _db.delete(_db.quotations).go();
+        await _db.delete(_db.salesOrders).go();
+        await _db.delete(_db.orderItems).go();
+        await _db.delete(_db.inventoryItems).go();
+        await _db.delete(_db.inventoryDeltas).go();
+        await _db.delete(_db.customerInteractions).go();
+        await _db.delete(_db.pendingOperations).go();
+      });
+      await _storage.delete(key: 'last_sync_at');
+      await pullData();
+    } catch (e) {
+      debugPrint('[SyncProvider] ForceFullSync error: $e');
+      _emit(_state.copyWith(
+        status: SyncStatus.failed,
+        errorMessage: 'Force sync failed: $e',
+      ));
+    }
+  }
+
+  // ----------------------------------------------------------------------------
   // Stale-state cleanup
   // ----------------------------------------------------------------------------
 

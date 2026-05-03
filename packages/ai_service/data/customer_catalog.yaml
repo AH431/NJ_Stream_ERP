@@ -1,0 +1,272 @@
+# Customer Catalog — Static Metadata for Rich Knowledge Cards
+# Contains: segment, preferred_products, account_notes, common_asks.
+# Sensitive fields (email, tax_id) are NOT here — excluded at card-gen layer.
+# Payment terms and contact name come from DB at card-gen time.
+
+- name: TechNova Devices Inc.
+  segment: >
+    Consumer and industrial IoT device manufacturer. Designs and produces connected sensor
+    nodes, gateways, and smart home endpoint hardware. Mid-size OEM with in-house PCB assembly.
+  preferred_products:
+    - MCU-ESP32-WROOM32U (WiFi-connected IoT nodes)
+    - SENS-BME280-3IN1 (environmental sensor modules)
+    - SENS-MPU6050-6AX (motion tracking devices)
+    - DISP-OLED-096-I2C (status display modules)
+    - CONN-USBC-16P-SMD (device USB charging ports)
+    - PASS-CAP-0402-100N4K (bulk decoupling caps for PCB assembly)
+  account_notes: >
+    Established account with consistent repeat orders. Frequently orders ESP32 and sensor modules
+    in quantities of 100–500 units. Often requests fast-track delivery on MCUs.
+    Prefers net-30 payment and has maintained good payment history.
+  common_asks:
+    - q: What is TechNova's payment terms?
+      a: Net 30 days.
+    - q: What products does TechNova typically order?
+      a: Primarily ESP32 WiFi modules, BME280 environmental sensors, OLED displays, and passive components for their PCB assembly runs.
+
+- name: Luminary IoT Systems LLC
+  segment: >
+    IoT systems integrator specializing in industrial monitoring and building automation.
+    Designs custom sensor networks and gateway solutions for commercial and industrial facilities.
+    Places regular orders for connectivity modules and sensors.
+  preferred_products:
+    - COMM-NRF52840-MOD (BLE mesh sensor networks)
+    - MCU-STM32F103C8 (industrial sensor node firmware)
+    - SENS-BME280-3IN1 (climate monitoring nodes)
+    - RLAY-SRD-05VDC-SPDT (relay control boards)
+    - ENCL-ABS-200X120-IP54 (industrial sensor enclosures)
+    - FAN-40X10-12V-DC (enclosure cooling)
+  account_notes: >
+    Net-45 payment terms. Orders typically include enclosures and communication modules together.
+    Has requested IP54 or higher enclosures consistently. Values technical documentation
+    and will ask for application notes or wiring diagrams.
+  common_asks:
+    - q: What are Luminary IoT Systems' payment terms?
+      a: Net 45 days.
+    - q: What does Luminary IoT typically order?
+      a: BLE modules, STM32 MCUs, environmental sensors, relay boards, and IP54 enclosures for industrial deployments.
+
+- name: PinPoint Electronics Corp.
+  segment: >
+    Electronics contract manufacturer (EMS) providing PCB assembly, prototyping, and
+    small-volume production runs for third-party clients. High passive component volume.
+    Buys reels of SMD passives, connectors, and discrete components.
+  preferred_products:
+    - PASS-RES-0402-1K5K (bulk SMD resistors — high volume)
+    - PASS-CAP-0402-100N4K (bulk SMD capacitors — high volume)
+    - CONN-HDR-254-40P (prototype board connectors)
+    - CONN-JST-PH2-2P (JST harness assemblies)
+    - PCB-FR4-2L-100X100 (prototype PCB substrates)
+    - PMIC-LDO-AMS1117-33 (common LDO regs for client designs)
+  account_notes: >
+    Net-30 payment terms. Typically orders in large quantities (full reels of passives).
+    Procurement is spec-driven — will accept equivalent parts if original specified part is OOS.
+    Tends to consolidate orders monthly. Key account for passive component volume.
+  common_asks:
+    - q: What are PinPoint Electronics' payment terms?
+      a: Net 30 days.
+    - q: What does PinPoint Electronics typically order?
+      a: High-volume SMD passives (0402 resistors and caps by the reel), connectors, and PCB substrates for their EMS / assembly operations.
+
+- name: Horizon Wearables Ltd.
+  segment: >
+    Wearable technology company designing health monitoring bands, smart watches,
+    and fitness trackers. Prioritizes low-power BLE, compact sensors, and small battery systems.
+  preferred_products:
+    - COMM-NRF52840-MOD (BLE 5.0 for wearable radio)
+    - SENS-MPU6050-6AX (motion and step-count sensing)
+    - SENS-BME280-3IN1 (ambient environment sensing)
+    - BATT-LIPO-3V7-1800 (wearable battery packs)
+    - CONN-JST-PH2-2P (battery harness)
+    - DISP-OLED-096-I2C (compact wearable displays)
+  account_notes: >
+    Net-60 payment terms. Very quality-sensitive — often requests lot traceability and
+    certificates of conformance. Concerned about LiPo battery availability and stock levels.
+    Frequently asks for substitutes when BLE modules are out of stock.
+  common_asks:
+    - q: What are Horizon Wearables' payment terms?
+      a: Net 60 days.
+    - q: What does Horizon Wearables typically buy?
+      a: nRF52840 BLE modules, IMU sensors, LiPo batteries, JST connectors, and OLED displays for wearable device production.
+    - q: Does Horizon Wearables care about stock levels?
+      a: Yes — they are a key buyer of COMM-NRF52840-MOD and BATT-LIPO-3V7-1800, both of which are near safety stock. Notify them proactively if stock is constrained.
+
+- name: Nexus PCB Assembly Co.
+  segment: >
+    PCB assembly house (EMS) providing turnkey SMT and through-hole assembly services.
+    Manages component procurement for client bills of materials. High-mix, low-to-medium volume.
+    Strong demand for passive reels, connector strips, and standard discrete components.
+  preferred_products:
+    - PASS-RES-0402-1K5K (bulk passives for assembly BOM)
+    - PASS-CAP-0402-100N4K (bulk passives for assembly BOM)
+    - CONN-USBC-16P-SMD (USB-C placement on client PCBs)
+    - LED-WS2812B-5050R100 (addressable LED placements)
+    - PMIC-BUCK-LM2596S (power management ICs for assembly)
+    - PCB-FR4-2L-100X100 (bare boards for small prototype runs)
+  account_notes: >
+    Net-30 payment terms. Orders driven by client BOM releases — quantities vary significantly
+    between orders. Provides advance PO forecasts when possible. Accepts compatible equivalents
+    for passives if original part is on allocation.
+  common_asks:
+    - q: What are Nexus PCB Assembly's payment terms?
+      a: Net 30 days.
+    - q: What does Nexus PCB Assembly typically order?
+      a: Passive component reels, USB-C connectors, SMD LEDs, and power management ICs for client PCB assembly BOMs.
+
+- name: SkyEdge Robotics Inc.
+  segment: >
+    Robotics startup developing autonomous mobile robots and industrial robotic arms.
+    Heavy users of IMU sensors, motor drivers, and high-current power components.
+    Prototype-intensive development cycle with small batch production runs.
+  preferred_products:
+    - SENS-MPU6050-6AX (robot attitude and motion sensing)
+    - MCU-STM32F103C8 (real-time motor control firmware)
+    - PMIC-BUCK-LM2596S (high-current regulated power for motors)
+    - RLAY-SRD-05VDC-SPDT (motor enable / direction relay boards)
+    - FAN-40X10-12V-DC (motor controller thermal management)
+    - ENCL-ABS-200X120-IP54 (robot controller enclosures)
+  account_notes: >
+    Net-45 payment terms. Technically sophisticated purchasing team — often asks detailed
+    application questions about component specs before ordering. Rapid prototype cycles
+    mean frequent small orders. Long-term contract potential as product matures.
+  common_asks:
+    - q: What are SkyEdge Robotics' payment terms?
+      a: Net 45 days.
+    - q: What does SkyEdge Robotics typically order?
+      a: IMU sensors, STM32 MCUs for real-time control, buck converters, relays, and cooling/enclosure components for robotic systems.
+
+- name: Greenfield Smart Home Co.
+  segment: >
+    Smart home product company designing WiFi and BLE-connected home automation devices
+    including smart switches, sensors, and hub controllers.
+    Consumer-grade electronics with moderate production volumes.
+  preferred_products:
+    - MCU-ESP32-WROOM32U (WiFi hub and smart switch firmware)
+    - COMM-NRF52840-MOD (BLE smart home sensors)
+    - SENS-BME280-3IN1 (indoor climate and air quality sensing)
+    - RLAY-SRD-05VDC-SPDT (smart switch relay boards)
+    - DISP-OLED-096-I2C (thermostat and status displays)
+    - PMIC-LDO-AMS1117-33 (3.3V regulation from USB supply)
+  account_notes: >
+    Net-30 payment terms. Focuses on WiFi and BLE devices. Seasonal ordering patterns —
+    typically increases orders Q3–Q4 for holiday production runs.
+    Has shown interest in compact OLED displays for thermostat products.
+  common_asks:
+    - q: What are Greenfield Smart Home's payment terms?
+      a: Net 30 days.
+    - q: What does Greenfield Smart Home typically buy?
+      a: ESP32 WiFi modules, BLE sensors, relay boards for smart switches, and display components for smart home consumer devices.
+
+- name: Meridian Test Equipment Ltd.
+  segment: >
+    Test and measurement equipment manufacturer producing bench instruments, data loggers,
+    and calibration tools. High-quality, precision component requirements.
+    Longer development cycles, low-to-medium production volumes.
+  preferred_products:
+    - DISP-TFT-24-ILI9341 (instrument front-panel displays)
+    - MCU-STM32F103C8 (precision measurement firmware)
+    - SENS-BME280-3IN1 (environmental calibration references)
+    - PCB-FR4-2L-100X100 (custom instrument PCBs)
+    - ENCL-ABS-200X120-IP54 (bench instrument housings)
+    - PMIC-BUCK-LM2596S (stable regulated power for precision circuits)
+  account_notes: >
+    Net-60 payment terms. Very quality-sensitive — requests component certifications and
+    lot traceability for critical measurement components. Long lead times acceptable.
+    Tends to evaluate substitute components rigorously before approving them.
+  common_asks:
+    - q: What are Meridian Test Equipment's payment terms?
+      a: Net 60 days.
+    - q: What does Meridian Test Equipment typically order?
+      a: TFT displays for instrument panels, STM32 MCUs, precision sensors, custom PCBs, and ABS enclosures for bench test equipment.
+
+- name: CoreSync Industrial LLC
+  segment: >
+    Industrial automation integrator designing PLCs, industrial gateways, and
+    condition monitoring systems for manufacturing plants.
+    Robust, industrial-grade component requirements. High-reliability focus.
+  preferred_products:
+    - MCU-STM32F103C8 (industrial PLC and gateway firmware)
+    - RLAY-SRD-05VDC-SPDT (I/O relay modules)
+    - ENCL-ABS-200X120-IP54 (IP-rated industrial enclosures)
+    - FAN-40X10-12V-DC (panel cooling)
+    - PMIC-BUCK-LM2596S (wide-input industrial power supply)
+    - SENS-BME280-3IN1 (ambient condition monitoring)
+  account_notes: >
+    Net-30 payment terms. Requires components rated for industrial temperature range.
+    Often specifies IPC-grade assembly requirements. Values long-term supply continuity
+    — prefers established component families over latest releases.
+  common_asks:
+    - q: What are CoreSync Industrial's payment terms?
+      a: Net 30 days.
+    - q: What does CoreSync Industrial typically order?
+      a: STM32 MCUs, relay modules, industrial enclosures, fans, and buck converters for PLC and condition monitoring system builds.
+
+- name: BlueWave Medical Devices
+  segment: >
+    Medical device company developing patient monitoring, wearable health sensors,
+    and point-of-care diagnostic tools. Strict quality, regulatory, and traceability requirements.
+    Premium component sourcing with full documentation requirements.
+  preferred_products:
+    - COMM-NRF52840-MOD (BLE health sensor radio)
+    - SENS-BME280-3IN1 (environmental + SpO2-adjacent sensing)
+    - BATT-LIPO-3V7-1800 (rechargeable patient-worn device batteries)
+    - CONN-JST-PH2-2P (medical wearable battery connectors)
+    - PCB-FR4-2L-100X100 (medical device prototype PCBs)
+  account_notes: >
+    Net-45 payment terms. Highest compliance requirements of all customers.
+    Requires full lot traceability, certificates of conformance, and component datasheets
+    for every order line. Will not accept substitutes without written approval.
+    Regulatory audit trails must be maintained.
+  common_asks:
+    - q: What are BlueWave Medical's payment terms?
+      a: Net 45 days.
+    - q: What does BlueWave Medical typically order?
+      a: BLE modules, environmental sensors, LiPo batteries, and prototype PCBs for medical wearable device development — all with strict lot traceability requirements.
+    - q: Does BlueWave Medical accept component substitutes?
+      a: No — they require written approval before any substitute component is shipped. Always confirm original part availability before accepting their orders.
+
+- name: Apex Automation Systems
+  segment: >
+    Industrial automation and SCADA integrator. Builds custom control panels, HMI interfaces,
+    and remote monitoring systems for process industries (oil & gas, water treatment, manufacturing).
+  preferred_products:
+    - MCU-ESP32-WROOM32U (WiFi-connected SCADA nodes)
+    - DISP-TFT-24-ILI9341 (HMI touchscreen panels)
+    - RLAY-SRD-05VDC-SPDT (process control relay outputs)
+    - ENCL-ABS-200X120-IP54 (industrial panel enclosures)
+    - PMIC-BUCK-LM2596S (wide-input DIN rail power supplies)
+    - FAN-40X10-12V-DC (panel ventilation)
+  account_notes: >
+    Net-30 payment terms. Orders tend to align with project timelines — large consolidated
+    orders rather than frequent small ones. Has asked about IP65 enclosure options (not stocked).
+    Technically capable purchasing team comfortable with component substitutions.
+  common_asks:
+    - q: What are Apex Automation's payment terms?
+      a: Net 30 days.
+    - q: What does Apex Automation typically order?
+      a: ESP32 WiFi modules, TFT displays, relay modules, industrial enclosures, and power components for SCADA and HMI panel builds.
+
+- name: Trident Marine Electronics
+  segment: >
+    Marine electronics manufacturer designing navigation aids, vessel monitoring systems,
+    and offshore communication equipment. Salt-spray resistant and vibration-tolerant
+    component selection required. Low production volumes, high unit value.
+  preferred_products:
+    - MCU-STM32F103C8 (navigation system firmware)
+    - COMM-NRF52840-MOD (BLE instrument pairing)
+    - DISP-TFT-24-ILI9341 (chart plotter and instrument displays)
+    - ENCL-ABS-200X120-IP54 (marine instrument housings — minimum IP54)
+    - PMIC-BUCK-LM2596S (12V/24V marine power regulation)
+    - CONN-USBC-16P-SMD (waterproof-port USB charging integration)
+  account_notes: >
+    Net-60 payment terms. Strict environmental specification requirements — inquires
+    about operating temperature range and salt-spray resistance for all components.
+    Small order quantities (10–50 units) but high-margin applications.
+    Has requested IP65+ enclosures in the past; currently making do with IP54.
+  common_asks:
+    - q: What are Trident Marine Electronics' payment terms?
+      a: Net 60 days.
+    - q: What does Trident Marine typically order?
+      a: STM32 MCUs, BLE modules, TFT displays, IP54 enclosures, and buck converters for marine navigation and monitoring instruments.
+    - q: Has Trident Marine asked about IP65 enclosures?
+      a: Yes — they have requested IP65+ enclosures previously. Currently using IP54; flag this if higher-rated enclosures become available.

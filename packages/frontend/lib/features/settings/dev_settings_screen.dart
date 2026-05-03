@@ -35,6 +35,7 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
   bool _isCleaning = false;
+  bool _isForceFullSyncing = false;
 
   @override
   void initState() {
@@ -137,6 +138,47 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _isCleaning = false);
+    }
+  }
+
+  Future<void> _forceFullSync() async {
+    final s = context.read<AppStrings>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(s.devForceFullSyncConfirmTitle),
+        content: Text(s.devForceFullSyncConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(s.btnCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(s.btnForceFullSync),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _isForceFullSyncing = true);
+    try {
+      await context.read<SyncProvider>().forceFullSync();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.devForceFullSyncSuccess), backgroundColor: Colors.green),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(s.isEnglish ? 'Full sync failed: $e' : '全量同步失敗：$e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isForceFullSyncing = false);
     }
   }
 
@@ -363,6 +405,37 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
                       label: Text(s.btnDelete),
                       style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // ── DB 重建全量同步 ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s.devForceFullSyncTitle,
+                              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.red)),
+                          Text(
+                            s.devForceFullSyncDesc,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _isForceFullSyncing
+                        ? const SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: _forceFullSync,
+                            icon: const Icon(Icons.sync_problem_outlined, size: 16),
+                            label: Text(s.btnForceFullSync),
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                          ),
                   ],
                 ),
               ],

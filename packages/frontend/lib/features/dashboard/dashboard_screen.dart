@@ -116,9 +116,12 @@ class _AnalyticsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. 月度營收折線圖
+        // 1. 月度營收 Combo Chart
         if (analytics.revenueData != null && analytics.revenueData!.isNotEmpty) ...[
-          _RevenueLineChart(data: analytics.revenueData!),
+          _RevenueComboChart(
+            revenueData: analytics.revenueData!,
+            profitData: analytics.profitData,
+          ),
           const SizedBox(height: 16),
         ],
 
@@ -324,20 +327,53 @@ class _LastUpdatedLabel extends StatelessWidget {
 }
 
 // ==============================================================================
-// 圖表 1：月度營收折線圖
+// 圖表 1：月度營收 Combo Chart（Column = 營收 / Line = 毛利率%）
 // ==============================================================================
 
-class _RevenueLineChart extends StatelessWidget {
-  final List<RevenuePoint> data;
-  const _RevenueLineChart({required this.data});
+class _RevenueComboChart extends StatelessWidget {
+  final List<RevenuePoint> revenueData;
+  final List<ProfitPoint>? profitData; // admin-only; null → show bars only
+  const _RevenueComboChart({required this.revenueData, this.profitData});
+
+  static const double _leftRes   = 44;
+  static const double _rightRes  = 38;
+  static const double _botRes    = 20;
 
   @override
   Widget build(BuildContext context) {
-    final s       = AppStrings.of(context);
-    final maxY    = data.map((p) => p.revenue).fold(0.0, (a, b) => a > b ? a : b);
-    final spots   = data.asMap().entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value.revenue))
-        .toList();
+    final s           = AppStrings.of(context);
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final outlineColor = Theme.of(context).colorScheme.outlineVariant;
+
+    final maxRev = revenueData.map((p) => p.revenue).fold(0.0, (a, b) => a > b ? a : b);
+    final maxY   = maxRev * 1.25 < 1 ? 1000.0 : maxRev * 1.25;
+
+    // gross margin map: month → pct
+    final marginMap = <String, double>{};
+    for (final p in profitData ?? []) {
+      if (p.grossMarginPct != null) marginMap[p.month] = p.grossMarginPct!;
+    }
+    final hasMargin = marginMap.isNotEmpty;
+
+    final barGroups = revenueData.asMap().entries.map((e) => BarChartGroupData(
+      x: e.key,
+      barRods: [
+        BarChartRodData(
+          toY: e.value.revenue,
+          color: Colors.orange,
+          width: 14,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+        ),
+      ],
+    )).toList();
+
+    // normalize grossMarginPct (0-100%) → [0, maxY]
+    final lineSpots = hasMargin
+        ? revenueData.asMap().entries.map((e) {
+            final pct = marginMap[e.value.month] ?? 0.0;
+            return FlSpot(e.key.toDouble(), pct / 100.0 * maxY);
+          }).toList()
+        : <FlSpot>[];
 
     return Card(
       child: Padding(
@@ -345,92 +381,137 @@ class _RevenueLineChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              s.isEnglish ? 'Monthly Revenue (6M)' : '月度營收（近 6 個月）',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
+            Row(children: [
+              Expanded(
+                child: Text(
+                  s.isEnglish ? 'Monthly Revenue (6M)' : '月度營收（近 6 個月）',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (hasMargin)
+                _ComboLegend(
+                  barColor: Colors.orange,
+                  lineColor: primaryColor,
+                  barLabel: s.isEnglish ? 'Revenue' : '營收',
+                  lineLabel: s.isEnglish ? 'Gross Margin' : '毛利率',
+                ),
+            ]),
             const SizedBox(height: 12),
             SizedBox(
-              height: 140,
-              child: LineChart(
-                LineChartData(
-                  minY: 0,
-                  maxY: maxY * 1.2 == 0 ? 1000 : maxY * 1.2,
+              height: 150,
+              child: Stack(children: [
+                // ── Layer 1: Column bars ──────────────────────────────
+                BarChart(BarChartData(
+                  maxY: maxY,
+                  barGroups: barGroups,
                   gridData: FlGridData(
                     drawVerticalLine: false,
-                    getDrawingHorizontalLine: (_) => FlLine(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      strokeWidth: 0.5,
-                    ),
+                    getDrawingHorizontalLine: (_) =>
+                        FlLine(color: outlineColor, strokeWidth: 0.5),
                   ),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 44,
-                        getTitlesWidget: (val, _) => Text(
-                          _formatK(val),
-                          style: const TextStyle(fontSize: 9),
-                        ),
+                        reservedSize: _leftRes,
+                        getTitlesWidget: (val, _) =>
+                            Text(_formatK(val), style: const TextStyle(fontSize: 9)),
+                      ),
+                    ),
+                    rightTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: false,
+                        reservedSize: hasMargin ? _rightRes : 4,
                       ),
                     ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        interval: 1,
+                        reservedSize: _botRes,
                         getTitlesWidget: (val, _) {
                           final idx = val.toInt();
-                          if (idx < 0 || idx >= data.length) return const SizedBox.shrink();
-                          final parts = data[idx].month.split('-');
+                          if (idx < 0 || idx >= revenueData.length) return const SizedBox.shrink();
+                          final parts = revenueData[idx].month.split('-');
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              '${parts[1]}月',
+                              s.isEnglish ? _monthAbbr(int.parse(parts[1])) : '${parts[1]}月',
                               style: const TextStyle(fontSize: 9),
                             ),
                           );
                         },
                       ),
                     ),
-                    rightTitles:  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles:    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: Theme.of(context).colorScheme.primary,
-                      barWidth: 2.5,
-                      dotData: FlDotData(
-                        getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                          radius: 3,
-                          color: Theme.of(context).colorScheme.primary,
-                          strokeWidth: 0,
-                        ),
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: Theme.of(context).colorScheme.primary.withAlpha(30),
-                      ),
-                    ),
-                  ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipItems: (spots) => spots.map((s) {
-                        final idx = s.x.toInt();
-                        final month = idx < data.length ? data[idx].month : '';
-                        return LineTooltipItem(
-                          '$month\nNT\$${_formatMoney(s.y)}',
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => Colors.black87,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final idx = group.x;
+                        if (idx < 0 || idx >= revenueData.length) return null;
+                        final pt = revenueData[idx];
+                        final marginStr = marginMap.containsKey(pt.month)
+                            ? '\n${s.isEnglish ? "Margin" : "毛利率"}: ${marginMap[pt.month]!.toStringAsFixed(1)}%'
+                            : '';
+                        return BarTooltipItem(
+                          '${pt.month}\nNT\$ ${_formatMoney(pt.revenue)}$marginStr',
                           const TextStyle(fontSize: 10, color: Colors.white),
                         );
-                      }).toList(),
+                      },
                     ),
                   ),
-                ),
-              ),
+                )),
+
+                // ── Layer 2: Line overlay（gross margin %）──────────
+                if (hasMargin)
+                  IgnorePointer(
+                    child: LineChart(LineChartData(
+                      minY: 0,
+                      maxY: maxY,
+                      gridData: const FlGridData(show: false),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false, reservedSize: _leftRes),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: _rightRes,
+                            interval: maxY / 4,
+                            getTitlesWidget: (val, _) {
+                              final pct = maxY > 0 ? val / maxY * 100 : 0.0;
+                              return Text(
+                                '${pct.toStringAsFixed(0)}%',
+                                style: TextStyle(fontSize: 9, color: primaryColor),
+                              );
+                            },
+                          ),
+                        ),
+                        bottomTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false, reservedSize: _botRes),
+                        ),
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: lineSpots,
+                          isCurved: true,
+                          color: primaryColor,
+                          barWidth: 2.5,
+                          dotData: FlDotData(
+                            getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                              radius: 3, color: primaryColor, strokeWidth: 0),
+                          ),
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                      ],
+                      lineTouchData: const LineTouchData(enabled: false),
+                    )),
+                  ),
+              ]),
             ),
           ],
         ),
@@ -448,6 +529,45 @@ class _RevenueLineChart extends StatelessWidget {
     if (val >= 1000000) return '${(val / 1000000).toStringAsFixed(1)}M';
     if (val >= 1000)    return '${(val / 1000).toStringAsFixed(0)}K';
     return val.toStringAsFixed(0);
+  }
+
+  static String _monthAbbr(int m) {
+    const abbrs = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return m >= 1 && m <= 12 ? abbrs[m] : '';
+  }
+}
+
+// ── Combo chart 圖例 ──────────────────────────────────────
+
+class _ComboLegend extends StatelessWidget {
+  final Color  barColor;
+  final Color  lineColor;
+  final String barLabel;
+  final String lineLabel;
+  const _ComboLegend({
+    required this.barColor,
+    required this.lineColor,
+    required this.barLabel,
+    required this.lineLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 9,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 10, height: 10,
+          decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(2))),
+      const SizedBox(width: 3),
+      Text(barLabel, style: style),
+      const SizedBox(width: 8),
+      Container(width: 16, height: 2, color: lineColor),
+      const SizedBox(width: 3),
+      Text(lineLabel, style: style),
+    ]);
   }
 }
 
@@ -729,13 +849,38 @@ class _InventoryTrendChart extends StatelessWidget {
   final List<InventoryTrendPoint> data;
   const _InventoryTrendChart({required this.data});
 
+  static const double _leftRes  = 36;
+  static const double _rightRes = 38;
+  static const double _botRes   = 20;
+
   @override
   Widget build(BuildContext context) {
-    final strings = AppStrings.of(context);
-    final maxY  = data.map((p) => p.totalOutbound.toDouble()).fold(0.0, (a, b) => a > b ? a : b);
-    final spots = data.asMap().entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value.totalOutbound.toDouble()))
-        .toList();
+    final strings      = AppStrings.of(context);
+    final outlineColor = Theme.of(context).colorScheme.outlineVariant;
+
+    final maxOutbound = data.map((p) => p.totalOutbound.toDouble()).fold(0.0, (a, b) => a > b ? a : b);
+    final maxActive   = data.map((p) => p.activeProducts.toDouble()).fold(0.0, (a, b) => a > b ? a : b);
+    final maxY        = maxOutbound * 1.25 < 1 ? 10.0 : maxOutbound * 1.25;
+
+    final barGroups = data.asMap().entries.map((e) => BarChartGroupData(
+      x: e.key,
+      barRods: [
+        BarChartRodData(
+          toY: e.value.totalOutbound.toDouble(),
+          color: Colors.orange,
+          width: 14,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+        ),
+      ],
+    )).toList();
+
+    // normalize activeProducts → [0, maxY]
+    final lineSpots = data.asMap().entries.map((e) {
+      final normalized = maxActive > 0
+          ? e.value.activeProducts / maxActive * maxY
+          : 0.0;
+      return FlSpot(e.key.toDouble(), normalized);
+    }).toList();
 
     return Card(
       child: Padding(
@@ -746,80 +891,123 @@ class _InventoryTrendChart extends StatelessWidget {
             Row(children: [
               const Icon(Icons.inventory_2_outlined, size: 18),
               const SizedBox(width: 6),
-              Text(strings.dashShipmentTrendTitle,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(strings.dashShipmentTrendTitle,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+              _ComboLegend(
+                barColor: Colors.orange,
+                lineColor: Colors.teal,
+                barLabel: strings.isEnglish ? 'Outbound' : '出貨量',
+                lineLabel: strings.isEnglish ? 'Active SKU' : '活躍品項',
+              ),
             ]),
             const SizedBox(height: 12),
             SizedBox(
-              height: 130,
-              child: LineChart(
-                LineChartData(
-                  minY: 0,
-                  maxY: maxY * 1.2 == 0 ? 10 : maxY * 1.2,
+              height: 140,
+              child: Stack(children: [
+                // ── Layer 1: Column bars (totalOutbound) ─────────────
+                BarChart(BarChartData(
+                  maxY: maxY,
+                  barGroups: barGroups,
                   gridData: FlGridData(
                     drawVerticalLine: false,
-                    getDrawingHorizontalLine: (_) => FlLine(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      strokeWidth: 0.5,
-                    ),
+                    getDrawingHorizontalLine: (_) =>
+                        FlLine(color: outlineColor, strokeWidth: 0.5),
                   ),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 36,
+                        reservedSize: _leftRes,
                         getTitlesWidget: (val, _) =>
                             Text(val.toInt().toString(), style: const TextStyle(fontSize: 9)),
                       ),
                     ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false, reservedSize: _rightRes),
+                    ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        interval: 1,
+                        reservedSize: _botRes,
                         getTitlesWidget: (val, _) {
                           final idx = val.toInt();
                           if (idx < 0 || idx >= data.length) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text(strings.monthLabel(data[idx].month), style: const TextStyle(fontSize: 9)),
+                            child: Text(strings.monthLabel(data[idx].month),
+                                style: const TextStyle(fontSize: 9)),
                           );
                         },
                       ),
                     ),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles:   const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: Colors.teal,
-                      barWidth: 2.5,
-                      dotData: FlDotData(
-                        getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                          radius: 3, color: Colors.teal, strokeWidth: 0),
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: Colors.teal.withAlpha(30),
-                      ),
-                    ),
-                  ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipItems: (spots) => spots.map((s) {
-                        final idx = s.x.toInt();
-                        final pt  = idx < data.length ? data[idx] : null;
-                        return LineTooltipItem(
-                          pt != null ? strings.dashShipmentTooltip(pt.month, pt.totalOutbound, pt.activeProducts) : '',
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => Colors.black87,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final idx = group.x;
+                        if (idx < 0 || idx >= data.length) return null;
+                        final pt = data[idx];
+                        return BarTooltipItem(
+                          strings.dashShipmentTooltip(pt.month, pt.totalOutbound, pt.activeProducts),
                           const TextStyle(fontSize: 10, color: Colors.white),
                         );
-                      }).toList(),
+                      },
                     ),
                   ),
+                )),
+
+                // ── Layer 2: Line overlay（activeProducts）────────────
+                IgnorePointer(
+                  child: LineChart(LineChartData(
+                    minY: 0,
+                    maxY: maxY,
+                    gridData: const FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    titlesData: FlTitlesData(
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false, reservedSize: _leftRes),
+                      ),
+                      rightTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: _rightRes,
+                          interval: maxY / 4,
+                          getTitlesWidget: (val, _) {
+                            final actual = maxY > 0 ? (val / maxY * maxActive).round() : 0;
+                            return Text(
+                              actual.toString(),
+                              style: const TextStyle(fontSize: 9, color: Colors.teal),
+                            );
+                          },
+                        ),
+                      ),
+                      bottomTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false, reservedSize: _botRes),
+                      ),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: lineSpots,
+                        isCurved: true,
+                        color: Colors.teal,
+                        barWidth: 2.5,
+                        dotData: FlDotData(
+                          getDotPainter: (_, __, ___, ____) =>
+                              FlDotCirclePainter(radius: 3, color: Colors.teal, strokeWidth: 0),
+                        ),
+                        belowBarData: BarAreaData(show: false),
+                      ),
+                    ],
+                    lineTouchData: const LineTouchData(enabled: false),
+                  )),
                 ),
-              ),
+              ]),
             ),
           ],
         ),

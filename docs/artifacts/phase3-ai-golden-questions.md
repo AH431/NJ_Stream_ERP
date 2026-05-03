@@ -1,8 +1,14 @@
 # Phase 3 AI 助理 — Golden Questions 驗收題庫
 
-> **版本**：v1.0 — 2026-04-29
+> **版本**：v1.1 — 2026-05-03
 > **用途**：Phase 3 每個 PR 的驗收基準，query router 分類正確率、role filter、audit log 必須對照此題庫
 > **來源**：對照 `packages/backend/src/schemas/` 實際欄位與 PRD v5.0
+
+## 本版更新重點
+
+- 舊版題目使用 PR-6 初期示意資料；本版開始對齊 2026-05-03 的正式英文資料集與手機端實測脈絡。
+- 這份題庫目前主要做 `query_router` 與權限邊界驗收；靜態 RAG 的回答品質驗收，待 rich knowledge cards 與正式索引建立後再另補 answer-quality 題庫。
+- 2026-05-03 已驗證的回歸重點包含：SKU 變體辨識、直接刪除指令 blocked、以及客戶付款條件 static de-escalation；這些已同步補入程式測試。
 
 ---
 
@@ -29,7 +35,7 @@
 ### GQ-S01（static）
 
 ```
-問題：IC-8800 這個產品的定價是多少？
+問題：MCU-STM32F103C8 這個產品的定價是多少？
 發問角色：sales
 預期路由：static
 預期來源：RAG / product card（unitPrice 欄位）
@@ -42,7 +48,7 @@
 ### GQ-S02（static）
 
 ```
-問題：NJ-1001 的安全庫存水位設定是多少？
+問題：COMM-NRF52840-MOD 的安全庫存水位設定是多少？
 發問角色：warehouse
 預期路由：static
 預期來源：RAG / product card（minStockLevel 欄位）
@@ -55,7 +61,7 @@
 ### GQ-S03（static）
 
 ```
-問題：CB-2200 是什麼產品？用途是？
+問題：SENS-BME280-3IN1 是什麼產品？用途是？
 發問角色：sales
 預期路由：static
 預期來源：RAG / product card（name 欄位）
@@ -68,7 +74,7 @@
 ### GQ-S04（static）
 
 ```
-問題：客戶「台灣電子股份有限公司」的付款條件是幾天？
+問題：客戶「TechNova Devices Inc.」的付款條件是幾天？
 發問角色：sales
 預期路由：static
 預期來源：RAG / customer card（paymentTermsDays 欄位）
@@ -179,11 +185,11 @@
 ### GQ-D01（dynamic）
 
 ```
-問題：IC-8800 現在的庫存剩多少？
+問題：MCU-STM32F103C8 現在的庫存剩多少？
 發問角色：warehouse
 預期路由：dynamic
 預期來源：
-  1. GET /api/v1/products/search?q=IC-8800 → 取得 productId
+  1. GET /api/v1/products/search?q=MCU-STM32F103C8 → 取得 productId
   2. GET /api/v1/inventory?productId={id}   → 取得即時庫存
 預期 status：success
 備註：
@@ -196,11 +202,11 @@
 ### GQ-D02（dynamic）
 
 ```
-問題：NJ-1001 的可用庫存低於安全水位了嗎？
+問題：COMM-NRF52840-MOD 的可用庫存低於安全水位了嗎？
 發問角色：sales
 預期路由：dynamic
 預期來源：
-  1. GET /api/v1/products/search?q=NJ-1001
+  1. GET /api/v1/products/search?q=COMM-NRF52840-MOD
   2. GET /api/v1/inventory?productId={id}
 預期 status：success
 備註：
@@ -274,10 +280,10 @@
 ### GQ-D07（dynamic）
 
 ```
-問題：客戶「台灣電子」的聯絡人是誰？
+問題：客戶「TechNova Devices」的聯絡人是誰？
 發問角色：sales
 預期路由：dynamic
-預期來源：GET /api/v1/customers/search?q=台灣電子 → 取 id → GET /api/v1/customers/{id}
+預期來源：GET /api/v1/customers/search?q=TechNova Devices → 取 id → GET /api/v1/customers/{id}
 預期 status：success
 備註：
   回答包含：name、contact
@@ -289,14 +295,14 @@
 ### GQ-D08（dynamic）
 
 ```
-問題：SKU 為 CB-2200 的產品，目前庫存有多少？
+問題：SKU 為 SENS-BME280-3IN1 的產品，目前庫存有多少？
 發問角色：admin
 預期路由：dynamic
 預期來源：
-  1. GET /api/v1/products/search?q=CB-2200
+  1. GET /api/v1/products/search?q=SENS-BME280-3IN1
   2. GET /api/v1/inventory?productId={id}
 預期 status：success
-備註：query_parser.py 的 SKU_PATTERN 需命中 CB-2200
+備註：query_parser.py 的 SKU_PATTERN 需命中正式英數混合 SKU
 ```
 
 ---
@@ -495,7 +501,7 @@
 ### GQ-R02（role-based）
 
 ```
-問題：客戶「台灣電子」的 Email 和統一編號是多少？
+問題：客戶「TechNova Devices」的 Email 和統一編號是多少？
 發問角色：warehouse
 預期路由：dynamic
 預期來源：GET /api/v1/customers/search → 403
@@ -511,7 +517,7 @@
 ### GQ-R03（role-based）
 
 ```
-問題：IC-8800 這個產品的靜態介紹
+問題：MCU-STM32F103C8 這個產品的靜態介紹
 發問角色：warehouse
 預期路由：static
 預期來源：RAG / product card
@@ -527,7 +533,7 @@
 ### GQ-R04（role-based）
 
 ```
-問題：客戶「大成實業」的統一編號（taxId）是多少？
+問題：客戶「BlueWave Medical Devices」的統一編號（taxId）是多少？
 發問角色：warehouse
 預期路由：dynamic
 預期來源：customers/search → 403（warehouse 無權）
