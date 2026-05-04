@@ -1,0 +1,1116 @@
+[
+  {
+    "id": "AQ-P01",
+    "group": "P",
+    "question": "What is MCU-STM32F103C8?",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "A 32-bit ARM Cortex-M3 microcontroller by STMicroelectronics running at 72 MHz with 64 KB Flash and 20 KB RAM, featuring UART, SPI, I2C, USB, and CAN peripherals.\n\n[MCU-STM32F103C8.md]\n[Card: MCU-STM32F103C8 | Inventory: OK (250 avail / 200 safety) | Unit Price: $4.50]",
+    "leakage_found": [],
+    "keywords_present": [
+      "ARM Cortex-M3",
+      "72 MHz",
+      "microcontroller",
+      "STM32",
+      "STMicroelectronics"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P02",
+    "group": "P",
+    "question": "What are the wireless capabilities of MCU-ESP32-WROOM32U?",
+    "role": "sales",
+    "expected_card": "MCU-ESP32-WROOM32U.md",
+    "retrieved_cards": [
+      "MCU-ESP32-WROOM32U.md",
+      "MCU-ESP32-WROOM32U.md",
+      "MCU-ESP32-WROOM32U.md"
+    ],
+    "hit": true,
+    "answer": "The MCU-ESP32-WROOM32U supports 802.11 b/g/n 2.4 GHz WiFi and Bluetooth 4.2/BLE built-in.\n\nSource card: [MCU-ESP32-WROOM32U.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "WiFi",
+      "Bluetooth"
+    ],
+    "keywords_missing": [
+      "dual-core",
+      "Xtensa"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-P03",
+    "group": "P",
+    "question": "What wireless protocols does COMM-NRF52840-MOD support?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "The COMM-NRF52840-MOD supports Bluetooth 5.0 LE, Thread, Zigbee, and IEEE 802.15.4.\n\nSource card: [COMM-NRF52840-MOD.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "Bluetooth 5.0",
+      "Thread",
+      "Zigbee",
+      "IEEE 802.15.4"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P04",
+    "group": "P",
+    "question": "What does SENS-BME280-3IN1 measure?",
+    "role": "warehouse",
+    "expected_card": "SENS-BME280-3IN1.md",
+    "retrieved_cards": [
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md"
+    ],
+    "hit": true,
+    "answer": "SENS-BME280-3IN1 measures temperature (±1°C), relative humidity (±3% RH), and barometric pressure (±1 hPa) simultaneously.\n\n**Source card:** [Card: SENS-BME280-3IN1 | Inventory: OK (180 avail / 150 safety) | Unit Price: $3.20]",
+    "leakage_found": [],
+    "keywords_present": [
+      "temperature",
+      "humidity",
+      "pressure"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P05",
+    "group": "P",
+    "question": "What connector type does the LiPo battery BATT-LIPO-3V7-1800 use?",
+    "role": "sales",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "The LiPo battery BATT-LIPO-3V7-1800 uses a JST-PH 2P (2.0mm pitch) connector.\n\n[Card: BATT-LIPO-3V7-1800 | Inventory: LOW — below safety level (34 avail / 80 safety) | Unit Price: $5.20]\n[BATT-LIPO-3V7-1800.md]\n[Card: BATT-LIPO-3V7-1800 | Inventory: LOW — below safety level (34 avail / 80 safety) | Unit Price: $5.20]\n\n## Q&A\n**Q: What connector does the LiPo battery use?**\nA: JST-PH 2P (2.0mm pitch), which pairs with CONN-JST-PH2-2P connectors stocked in the catalog.",
+    "leakage_found": [],
+    "keywords_present": [
+      "JST-PH 2P",
+      "2.0mm"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P06",
+    "group": "P",
+    "question": "What is the output voltage of PMIC-LDO-AMS1117-33?",
+    "role": "sales",
+    "expected_card": "PMIC-LDO-AMS1117-33.md",
+    "retrieved_cards": [
+      "PMIC-LDO-AMS1117-33.md",
+      "PMIC-LDO-AMS1117-33.md",
+      "PMIC-LDO-AMS1117-33.md"
+    ],
+    "hit": true,
+    "answer": "The output voltage of PMIC-LDO-AMS1117-33 is 3.3V fixed.\n\n[PMIC-LDO-AMS1117-33.md]\n## Specifications\n- **output_voltage**: 3.3V fixed",
+    "leakage_found": [],
+    "keywords_present": [
+      "3.3V",
+      "LDO",
+      "voltage regulator"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P07",
+    "group": "P",
+    "question": "What resolution does DISP-OLED-096-I2C support?",
+    "role": "sales",
+    "expected_card": "DISP-OLED-096-I2C.md",
+    "retrieved_cards": [
+      "DISP-OLED-096-I2C.md",
+      "DISP-OLED-096-I2C.md",
+      "DISP-OLED-096-I2C.md"
+    ],
+    "hit": true,
+    "answer": "The DISP-OLED-096-I2C supports a 128x64 pixel resolution.\n\nSource: [DISP-OLED-096-I2C.md]\n\nCard: DISP-OLED-096-I2C | Inventory: OK (320 avail / 120 safety) | Unit Price: $3.50",
+    "leakage_found": [],
+    "keywords_present": [
+      "128x64",
+      "OLED",
+      "I2C"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P08",
+    "group": "P",
+    "question": "What display driver does DISP-TFT-24-ILI9341 use?",
+    "role": "sales",
+    "expected_card": "DISP-TFT-24-ILI9341.md",
+    "retrieved_cards": [
+      "DISP-TFT-24-ILI9341.md",
+      "DISP-TFT-24-ILI9341.md",
+      "DISP-TFT-24-ILI9341.md"
+    ],
+    "hit": true,
+    "answer": "The 2.4-inch TFT uses an ILI9341 display driver with SPI interface, supporting 65K colors at 240x320 resolution.\n\nSource card: DISP-TFT-24-ILI9341 | [Card: DISP-TFT-24-ILI9341 | Inventory: OK (150 avail / 60 safety) | Unit Price: $7.80]",
+    "leakage_found": [],
+    "keywords_present": [
+      "ILI9341",
+      "SPI",
+      "TFT",
+      "2.4 inch"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P09",
+    "group": "P",
+    "question": "What makes LED-WS2812B-5050R100 unique?",
+    "role": "sales",
+    "expected_card": "LED-WS2812B-5050R100.md",
+    "retrieved_cards": [
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md"
+    ],
+    "hit": true,
+    "answer": "1. Direct answer: The LED-WS2812B-5050R100 is a WS2812B RGB LED SMD 5050, which is an addressable LED with built-in driver IC in a 5050 SMD package.\n\n2. Source card(s): [LED-WS2812B-5050R100.md]\n\n3. Substitutes or stock risk: None mentioned explicitly",
+    "leakage_found": [],
+    "keywords_present": [
+      "addressable",
+      "RGB",
+      "WS2812B"
+    ],
+    "keywords_missing": [
+      "individually controlled"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-P10",
+    "group": "P",
+    "question": "What is RLAY-SRD-05VDC-SPDT used for?",
+    "role": "sales",
+    "expected_card": "RLAY-SRD-05VDC-SPDT.md",
+    "retrieved_cards": [
+      "RLAY-SRD-05VDC-SPDT.md",
+      "RLAY-SRD-05VDC-SPDT.md",
+      "RLAY-SRD-05VDC-SPDT.md"
+    ],
+    "hit": true,
+    "answer": "RLAY-SRD-05VDC-SPDT is used for typical applications such as:\n- AC appliance switching from IoT MCU\n- 230V lighting / load control\n- Motor on/off control boards\n- Industrial relay panel boards.\n\nSource card: [RLAY-SRD-05VDC-SPDT.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "relay",
+      "SPDT",
+      "switching",
+      "5V"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P11",
+    "group": "P",
+    "question": "What is the unit price of MCU-STM32F103C8?",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "1. $4.50\n2. [MCU-STM32F103C8.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "$4.50"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P12",
+    "group": "P",
+    "question": "What is PCB-FR4-2L-100X100?",
+    "role": "warehouse",
+    "expected_card": "PCB-FR4-2L-100X100.md",
+    "retrieved_cards": [
+      "PCB-FR4-2L-100X100.md",
+      "PCB-FR4-2L-100X100.md",
+      "PCB-FR4-2L-100X100.md"
+    ],
+    "hit": true,
+    "answer": "PCB-FR4-2L-100X100 refers to a FR-4 PCB 100x100mm 2-Layer (PCB-FR4-2L-100X100) product.\n\nSource card:\n[PCB-FR4-2L-100X100.md]\n[Card: PCB-FR4-2L-100X100 | Inventory: OK (300 avail / 100 safety) | Unit Price: $2.20]",
+    "leakage_found": [],
+    "keywords_present": [
+      "FR-4",
+      "PCB",
+      "two-layer"
+    ],
+    "keywords_missing": [
+      "prototype"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-P13",
+    "group": "P",
+    "question": "What are the substitutes for MCU-STM32F103C8 if wireless is needed?",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-ESP32-WROOM32U.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "If wireless is needed, the substitutes for MCU-STM32F103C8 are:\n\n1. MCU-ESP32-WROOM32U (if WiFi or Bluetooth required)\n2. COMM-NRF52840-MOD (if BLE-only and ultra-low power required)\n\nSource card:\n[MCU-STM32F103C8.md]\n[Card: MCU-STM32F103C8 | Inventory: OK (250 avail / 200 safety) | Unit Price: $4.50]\n\n[MCU-ESP32-WROOM32U.md]\n[Card: MCU-ESP32-WROOM32U | Inventory: OK (540 avail / 100 safety) | Unit Price: $5.80]\n\n[COMM-NRF52840-MOD.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "ESP32",
+      "nRF52840",
+      "WiFi",
+      "BLE"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P14",
+    "group": "P",
+    "question": "What is SENS-MPU6050-6AX used for?",
+    "role": "sales",
+    "expected_card": "SENS-MPU6050-6AX.md",
+    "retrieved_cards": [
+      "SENS-MPU6050-6AX.md",
+      "SENS-MPU6050-6AX.md",
+      "SENS-MPU6050-6AX.md"
+    ],
+    "hit": true,
+    "answer": "The SENS-MPU6050-6AX is used for typical applications including:\n\n* Drone and UAV flight controllers\n* Self-balancing robots\n* Fall detection systems\n* Gesture recognition devices\n* Motion capture and logging.\n\nSource card: [SENS-MPU6050-6AX.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "motion"
+    ],
+    "keywords_missing": [
+      "gyroscope",
+      "accelerometer",
+      "IMU"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-P15",
+    "group": "P",
+    "question": "What is the LiPo battery capacity in BATT-LIPO-3V7-1800?",
+    "role": "sales",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "The LiPo battery capacity in BATT-LIPO-3V7-1800 is 1800 mAh.\n\nSource card: [BATT-LIPO-3V7-1800.md]\n\n## Specifications\n- **capacity**: 1800 mAh (6.66 Wh)",
+    "leakage_found": [],
+    "keywords_present": [
+      "1800 mAh"
+    ],
+    "keywords_missing": [
+      "3.7V",
+      "lithium polymer"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-C01",
+    "group": "C",
+    "question": "What are TechNova Devices Inc. payment terms?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "TechNova Devices Inc.'s payment terms are Net 30 days.\n\nSource: [customer_001.md] - **Q: What is TechNova's payment terms?**\nA: Net 30 days.",
+    "leakage_found": [],
+    "keywords_present": [
+      "Net 30",
+      "30 days"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C02",
+    "group": "C",
+    "question": "What are Horizon Wearables payment terms?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "The payment terms for Horizon Wearables Ltd. are Net 60 days.\n\nSource: [customer_004.md](#customer_004.md)\n\n**Q: What are Horizon Wearables' payment terms?**\nA: Net 60 days.  \nSource: [customer_004.md](#customer_004.md)",
+    "leakage_found": [],
+    "keywords_present": [
+      "Net 60",
+      "60 days"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C03",
+    "group": "C",
+    "question": "What are BlueWave Medical Devices payment terms?",
+    "role": "sales",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "BlueWave Medical Devices' payment terms are Net 45 days.\n\n[customer_010.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "Net 45",
+      "45 days"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C04",
+    "group": "C",
+    "question": "Does BlueWave Medical accept component substitutes?",
+    "role": "sales",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "No — they require written approval before any substitute component is shipped.\n\nSource: [customer_010.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "no",
+      "written approval",
+      "will not accept"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C05",
+    "group": "C",
+    "question": "What products does Horizon Wearables typically order?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "Horizon Wearables typically orders the following products:\n\n1. nRF52840 BLE modules\n2. IMU sensors (SENS-MPU6050-6AX)\n3. LiPo batteries (BATT-LIPO-3V7-1800)\n4. JST connectors (CONN-JST-PH2-2P)\n5. OLED displays (DISP-OLED-096-I2C)\n\nSource: [customer_004.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "nRF52840",
+      "LiPo",
+      "OLED",
+      "IMU",
+      "BLE"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C06",
+    "group": "C",
+    "question": "What industry segment is TechNova Devices in?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "TechNova Devices Inc. operates in the Consumer and industrial IoT device manufacturer industry segment.\n\nSource: [customer_001.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "IoT"
+    ],
+    "keywords_missing": [
+      "sensor",
+      "OEM",
+      "connected",
+      "PCB assembly"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-C07",
+    "group": "C",
+    "question": "Who is TechNova Devices' primary contact?",
+    "role": "admin",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "Sarah Chen.\n\n[customer_001.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "Sarah Chen"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C08",
+    "group": "C",
+    "question": "What compliance requirements does BlueWave Medical have?",
+    "role": "sales",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "BlueWave Medical requires full lot traceability, certificates of conformance, and component datasheets for every order line.\n\nSource: [customer_010.md] # Account Notes",
+    "leakage_found": [],
+    "keywords_present": [
+      "traceability",
+      "certificates of conformance",
+      "datasheets"
+    ],
+    "keywords_missing": [
+      "regulatory"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-C09",
+    "group": "C",
+    "question": "Why should we proactively notify Horizon Wearables about stock issues?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "Horizon Wearables are a key buyer of certain products, with near safety stock levels for COMM-NRF52840-MOD and BATT-LIPO-3V7-1800. Proactive notification is recommended to ensure that they can meet their needs.\n\nSource card: [customer_004.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "nRF52840",
+      "LiPo",
+      "safety stock",
+      "key buyer"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C10",
+    "group": "C",
+    "question": "What is the segment of BlueWave Medical Devices?",
+    "role": "admin",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "BlueWave Medical Devices is a medical device company.\n\nSource: [customer_010.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "medical"
+    ],
+    "keywords_missing": [
+      "patient monitoring",
+      "wearable health",
+      "diagnostic"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-A01",
+    "group": "A",
+    "question": "Do we carry the nRF52840 BLE module?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "Yes, we do carry the nRF52840 BLE 5.0 SoC Module.\n\nSource: [COMM-NRF52840-MOD.md]\n\nPlease note that our current inventory level is LOW — below safety level (50 avail / 80 safety), and the unit price is $9.50.\n\nSource: [COMM-NRF52840-MOD.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "COMM-NRF52840-MOD",
+      "Bluetooth 5.0",
+      "BLE"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A02",
+    "group": "A",
+    "question": "Do we have LiPo 1800 mAh batteries in stock?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "No, we do not have LiPo 1800 mAh batteries in stock due to an inventory level below safety threshold of 80. \n\nSource card: [BATT-LIPO-3V7-1800.md] | Inventory: LOW — below safety level (34 avail / 80 safety)",
+    "leakage_found": [],
+    "keywords_present": [
+      "BATT-LIPO-3V7-1800",
+      "1800 mAh"
+    ],
+    "keywords_missing": [
+      "3.7V"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-A03",
+    "group": "A",
+    "question": "Tell me about the Blue Pill MCU we carry.",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "Here are the details about the Blue Pill MCU:\n\n1. The Blue Pill MCU is a microcontroller model known as STM32F103C8T6.\n2. It has an inventory level of 250 units available, with 200 units marked as safe for use.\n3. The unit price of this microcontroller is $4.50.\n\nSource card: MCU-STM32F103C8.md\n\nNote that the Blue Pill MCU does not have built-in wireless connectivity and is recommended to be used in conjunction with other modules like ESP32 or nRF52840 for connected designs.",
+    "leakage_found": [],
+    "keywords_present": [
+      "STM32F103C8",
+      "Blue Pill"
+    ],
+    "keywords_missing": [
+      "ARM Cortex-M3"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-A04",
+    "group": "A",
+    "question": "Do we have an OLED display module in our catalog?",
+    "role": "sales",
+    "expected_card": "DISP-OLED-096-I2C.md",
+    "retrieved_cards": [
+      "DISP-OLED-096-I2C.md",
+      "DISP-OLED-096-I2C.md",
+      "DISP-OLED-096-I2C.md"
+    ],
+    "hit": true,
+    "answer": "Yes — DISP-OLED-096-I2C is a 0.96-inch 128x64 monochrome OLED with I2C interface.\n\n[DISP-OLED-096-I2C.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "DISP-OLED-096-I2C",
+      "0.96 inch",
+      "128x64"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A05",
+    "group": "A",
+    "question": "What is the BME280 environmental sensor?",
+    "role": "sales",
+    "expected_card": "SENS-BME280-3IN1.md",
+    "retrieved_cards": [
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md"
+    ],
+    "hit": true,
+    "answer": "The BME280 environmental sensor measures temperature (±1°C), relative humidity (±3% RH), and barometric pressure (±1 hPa) simultaneously.\n\nSource card: [SENS-BME280-3IN1.md]\n\nNote: The card also mentions that it is also known as the Bosch BME280, but this information is not directly related to its functionality.",
+    "leakage_found": [],
+    "keywords_present": [
+      "temperature",
+      "humidity",
+      "pressure",
+      "BME280"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A06",
+    "group": "A",
+    "question": "Do we sell addressable RGB LEDs?",
+    "role": "sales",
+    "expected_card": "LED-WS2812B-5050R100.md",
+    "retrieved_cards": [
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md"
+    ],
+    "hit": true,
+    "answer": "Yes — LED-WS2812B-5050R100 is a reel of 100 WS2812B addressable RGB LEDs.\n\nSource card: [LED-WS2812B-5050R100.md]\n\n(Note: The card explicitly mentions that it's an addressable RGB LED, and provides details about its specifications.)",
+    "leakage_found": [],
+    "keywords_present": [
+      "WS2812B",
+      "addressable",
+      "RGB"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A07",
+    "group": "A",
+    "question": "Do we have any BLE 5.0 modules?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "Yes, we have the nRF52840 BLE 5.0 SoC Module.\n\n1. Direct answer: Yes, we have the nRF52840 BLE 5.0 SoC Module (COMM-NRF52840-MOD).\n2. Source card(s): [COMM-NRF52840-MOD.md]\n3. Substitutes or stock risk: The current stock is near safety level — below safety level (50 avail / 80 safety).",
+    "leakage_found": [],
+    "keywords_present": [
+      "nRF52840",
+      "Bluetooth 5.0",
+      "COMM-NRF52840-MOD"
+    ],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A08",
+    "group": "A",
+    "question": "What Nordic Semiconductor module do we stock?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "We stock the COMM-NRF52840-MOD.\n\nSource: [COMM-NRF52840-MOD.md]\n\nNote: The inventory level of this module is LOW, indicating that there are less than 50 units available in stock.",
+    "leakage_found": [],
+    "keywords_present": [
+      "nRF52840",
+      "COMM-NRF52840-MOD"
+    ],
+    "keywords_missing": [
+      "Nordic"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-I01",
+    "group": "I",
+    "question": "Is COMM-NRF52840-MOD below its safety stock level based on the knowledge card?",
+    "role": "warehouse",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "1. Yes, it is below its safety stock level with 50 avail / 80 safety.\n2. Source card: [COMM-NRF52840-MOD.md]\n3. No substitutes or stock risk are mentioned in the cards.",
+    "leakage_found": [],
+    "keywords_present": [
+      "LOW",
+      "below safety level",
+      "80 safety"
+    ],
+    "keywords_missing": [
+      "50 available"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-I02",
+    "group": "I",
+    "question": "What is the inventory status of BATT-LIPO-3V7-1800 in the product card?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "The inventory status of BATT-LIPO-3V7-1800 is LOW — below safety level, with 34 available units out of a total safety stock level of 80.\n\n[Card: BATT-LIPO-3V7-1800 | Inventory: LOW — below safety level (34 avail / 80 safety)]\n\nSource card:\n[BATT-LIPO-3V7-1800.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "LOW",
+      "34 available",
+      "below safety"
+    ],
+    "keywords_missing": [
+      "reorder"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-I03",
+    "group": "I",
+    "question": "What is the safety stock level for COMM-NRF52840-MOD?",
+    "role": "warehouse",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "1. The safety stock level for COMM-NRF52840-MOD is 80 units.\n2. Source card: [COMM-NRF52840-MOD.md]\n\nNote that there are only 50 units available, which is below the safety stock level of 80 units.",
+    "leakage_found": [],
+    "keywords_present": [
+      "80 units",
+      "safety level"
+    ],
+    "keywords_missing": [],
+    "note": "使用完整 SKU 確保 embedding 能精準定位；若用 nRF52840 別名查詢 safety level 可能失敗（已知限制：alias 在 Identity chunk，inventory data 在另一 chunk，跨 chunk 語意可能斷裂）"
+  },
+  {
+    "id": "AQ-I04",
+    "group": "I",
+    "question": "What is the critical stock level for BATT-LIPO-3V7-1800?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "The critical stock level for BATT-LIPO-3V7-1800 is below 34 units, as indicated by the inventory status \"LOW — below safety level (34 avail / 80 safety)\". \n\nSource card: [BATT-LIPO-3V7-1800.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "critical"
+    ],
+    "keywords_missing": [
+      "24 units",
+      "urgent"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-I05",
+    "group": "I",
+    "question": "Which products in our catalog are flagged as stock risk?",
+    "role": "warehouse",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "SENS-BME280-3IN1.md",
+      "PCB-FR4-2L-100X100.md"
+    ],
+    "hit": true,
+    "answer": "Based on the provided knowledge cards:\n\n1. The COMM-NRF52840-MOD is not explicitly marked as a stock risk.\n2. The SENS-BME280-3IN1 has a \"Critical\" safety level of 45 units, which indicates it's at a higher risk but not explicitly stated as a stock risk.\n3. The PCB-FR4-2L-100X100 does have a \"Critical\" safety level of 30 units, indicating it is flagged as a stock risk.\n\nSource card: [PCB-FR4-2L-100X100.md]\n\nSubstitute or stock risk: None explicitly mentioned for the SENS-BME280-3IN1.",
+    "leakage_found": [],
+    "keywords_present": [
+      "nRF52840"
+    ],
+    "keywords_missing": [
+      "LiPo",
+      "LOW",
+      "below safety"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-I06",
+    "group": "I",
+    "question": "Should we reorder BATT-LIPO-3V7-1800 based on the knowledge card?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "Yes, you should reorder BATT-LIPO-3V7-1800 as the current stock is below safety level (34 avail / 80 safety), indicating a low inventory level that requires urgent reordering.\n\nSource card: [BATT-LIPO-3V7-1800.md]\n\nNote: The unit price of $5.20 is not relevant to the decision to reorder based on the safety level.",
+    "leakage_found": [],
+    "keywords_present": [
+      "reorder",
+      "below safety"
+    ],
+    "keywords_missing": [
+      "urgently"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-I07",
+    "group": "I",
+    "question": "What are the three stock threshold levels used in our inventory system?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "PCB-FR4-2L-100X100.md",
+      "CONN-USBC-16P-SMD.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "The three stock threshold levels used in our inventory system are:\n\n1. **Alert**: 50 units\n2. **Critical**: 30 units\n3. **Safety Level**: 100 units\n\nSource card: [PCB-FR4-2L-100X100.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "safety level"
+    ],
+    "keywords_missing": [
+      "alert level",
+      "critical level"
+    ],
+    "note": "通用系統知識問題；任何含庫存狀態的產品卡皆可回答（safety/alert/critical 三層）；expected card 設 LiPo 卡因 retrieval 實測命中"
+  },
+  {
+    "id": "AQ-I08",
+    "group": "I",
+    "question": "Does Horizon Wearables depend on any products that are currently low in stock?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "Yes — they are a key buyer of COMM-NRF52840-MOD and BATT-LIPO-3V7-1800, both of which are near safety stock. Notify them proactively if stock is constrained.\n\n[customer_004.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "nRF52840",
+      "LiPo",
+      "safety stock"
+    ],
+    "keywords_missing": [
+      "proactively notify"
+    ],
+    "note": ""
+  },
+  {
+    "id": "AQ-N01",
+    "group": "N",
+    "question": "What is TechNova Devices' email address?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "I don't have that information. The provided knowledge cards only mention contact details via \"Contact: Sarah Chen\", but do not specify an email address.\n\nSource card:\n[customer_001.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "not available",
+      "email not in card"
+    ],
+    "keywords_missing": [],
+    "note": "email 欄位不在 customer card，AI 不可編造任何 email 地址"
+  },
+  {
+    "id": "AQ-N02",
+    "group": "N",
+    "question": "What is BlueWave Medical's tax ID number?",
+    "role": "admin",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "I don't have information on BlueWave Medical's tax ID number.\n\nSource card: [customer_010.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "not available",
+      "not in card"
+    ],
+    "keywords_missing": [
+      "sensitive"
+    ],
+    "note": "taxId 不進 customer card，AI 不可捏造數字"
+  },
+  {
+    "id": "AQ-N03",
+    "group": "N",
+    "question": "What is the cost price of MCU-STM32F103C8?",
+    "role": "admin",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "1. The unit price of MCU-STM32F103C8 is $4.50.\n2. Source card: [MCU-STM32F103C8.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "unit price $4.50"
+    ],
+    "keywords_missing": [
+      "cost price not available"
+    ],
+    "note": "cost_price 不在卡片中；unit_price($4.50)可回答"
+  },
+  {
+    "id": "AQ-N04",
+    "group": "N",
+    "question": "What is the TUBE-A001 product?",
+    "role": "sales",
+    "expected_card": "",
+    "retrieved_cards": [
+      "SENS-MPU6050-6AX.md",
+      "ENCL-ABS-200X120-IP54.md",
+      "PASS-RES-0402-1K5K.md"
+    ],
+    "hit": true,
+    "answer": "I don't have information about a \"TUBE-A001\" product.",
+    "leakage_found": [],
+    "keywords_present": [
+      "not found",
+      "not in catalog",
+      "cannot confirm"
+    ],
+    "keywords_missing": [],
+    "note": "TUBE-A001 不在 product catalog，AI 不可編造此 SKU 的資料"
+  },
+  {
+    "id": "AQ-N05",
+    "group": "N",
+    "question": "Does the nRF52840 support WiFi?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "MCU-ESP32-WROOM32U.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "No, it does not.\n\nSource: [COMM-NRF52840-MOD.md]\n\nNote that this is a repeat of information from the same card, as there are two identical questions for the same product.",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [
+      "no WiFi",
+      "BLE only",
+      "Bluetooth 5.0",
+      "Thread",
+      "Zigbee"
+    ],
+    "note": "nRF52840 不支援 WiFi，AI 不可混淆 BLE 與 WiFi 協定"
+  },
+  {
+    "id": "AQ-N06",
+    "group": "N",
+    "question": "What is the complete order history for TechNova Devices?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "I don't have access to TechNova's complete order history.\n\nSource: [customer_001.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "order history"
+    ],
+    "keywords_missing": [
+      "not in static card",
+      "dynamic"
+    ],
+    "note": "訂單歷史是動態資料，knowledge card 不含；AI 應說明需用 dynamic 查詢"
+  },
+  {
+    "id": "AQ-N07",
+    "group": "N",
+    "question": "What is the contact email of Horizon Wearables' primary contact David Liu?",
+    "role": "admin",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "I don't have information on David Liu's contact email.\n\nSource card: [customer_004.md]",
+    "leakage_found": [],
+    "keywords_present": [
+      "not available",
+      "David Liu"
+    ],
+    "keywords_missing": [
+      "email not in card"
+    ],
+    "note": "email 不在 customer card，AI 不可推測或捏造"
+  },
+  {
+    "id": "AQ-N08",
+    "group": "N",
+    "question": "What is the internal purchase cost for BATT-LIPO-3V7-1800?",
+    "role": "admin",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "1. The unit price of BATT-LIPO-3V7-1800 is $5.20.\n2. Source card: [BATT-LIPO-3V7-1800.md]\n\nNote: There is no information about internal purchase cost in the provided knowledge cards.",
+    "leakage_found": [],
+    "keywords_present": [
+      "not available"
+    ],
+    "keywords_missing": [
+      "unit price is $5.20",
+      "cost price excluded"
+    ],
+    "note": "cost_price 刻意從卡片排除，AI 僅可回答 unit_price = $5.20"
+  }
+]

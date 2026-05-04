@@ -1,0 +1,884 @@
+[
+  {
+    "id": "AQ-P01",
+    "group": "P",
+    "question": "What is MCU-STM32F103C8?",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P02",
+    "group": "P",
+    "question": "What are the wireless capabilities of MCU-ESP32-WROOM32U?",
+    "role": "sales",
+    "expected_card": "MCU-ESP32-WROOM32U.md",
+    "retrieved_cards": [
+      "MCU-ESP32-WROOM32U.md",
+      "COMM-NRF52840-MOD.md",
+      "MCU-ESP32-WROOM32U.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P03",
+    "group": "P",
+    "question": "What wireless protocols does COMM-NRF52840-MOD support?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P04",
+    "group": "P",
+    "question": "What does SENS-BME280-3IN1 measure?",
+    "role": "warehouse",
+    "expected_card": "SENS-BME280-3IN1.md",
+    "retrieved_cards": [
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P05",
+    "group": "P",
+    "question": "What connector type does the LiPo battery BATT-LIPO-3V7-1800 use?",
+    "role": "sales",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md",
+      "CONN-JST-PH2-2P.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P06",
+    "group": "P",
+    "question": "What is the output voltage of PMIC-LDO-AMS1117-33?",
+    "role": "sales",
+    "expected_card": "PMIC-LDO-AMS1117-33.md",
+    "retrieved_cards": [
+      "PMIC-LDO-AMS1117-33.md",
+      "PMIC-BUCK-LM2596S.md",
+      "PMIC-LDO-AMS1117-33.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P07",
+    "group": "P",
+    "question": "What resolution does DISP-OLED-096-I2C support?",
+    "role": "sales",
+    "expected_card": "DISP-OLED-096-I2C.md",
+    "retrieved_cards": [
+      "DISP-OLED-096-I2C.md",
+      "DISP-OLED-096-I2C.md",
+      "DISP-TFT-24-ILI9341.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P08",
+    "group": "P",
+    "question": "What display driver does DISP-TFT-24-ILI9341 use?",
+    "role": "sales",
+    "expected_card": "DISP-TFT-24-ILI9341.md",
+    "retrieved_cards": [
+      "DISP-TFT-24-ILI9341.md",
+      "DISP-TFT-24-ILI9341.md",
+      "DISP-OLED-096-I2C.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P09",
+    "group": "P",
+    "question": "What makes LED-WS2812B-5050R100 unique?",
+    "role": "sales",
+    "expected_card": "LED-WS2812B-5050R100.md",
+    "retrieved_cards": [
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P10",
+    "group": "P",
+    "question": "What is RLAY-SRD-05VDC-SPDT used for?",
+    "role": "sales",
+    "expected_card": "RLAY-SRD-05VDC-SPDT.md",
+    "retrieved_cards": [
+      "RLAY-SRD-05VDC-SPDT.md",
+      "RLAY-SRD-05VDC-SPDT.md",
+      "RLAY-SRD-05VDC-SPDT.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P11",
+    "group": "P",
+    "question": "What is the unit price of MCU-STM32F103C8?",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P12",
+    "group": "P",
+    "question": "What is PCB-FR4-2L-100X100?",
+    "role": "warehouse",
+    "expected_card": "PCB-FR4-2L-100X100.md",
+    "retrieved_cards": [
+      "PCB-FR4-2L-100X100.md",
+      "PCB-FR4-2L-100X100.md",
+      "PCB-FR4-2L-100X100.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P13",
+    "group": "P",
+    "question": "What are the substitutes for MCU-STM32F103C8 if wireless is needed?",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-ESP32-WROOM32U.md",
+      "COMM-NRF52840-MOD.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P14",
+    "group": "P",
+    "question": "What is SENS-MPU6050-6AX used for?",
+    "role": "sales",
+    "expected_card": "SENS-MPU6050-6AX.md",
+    "retrieved_cards": [
+      "SENS-MPU6050-6AX.md",
+      "SENS-MPU6050-6AX.md",
+      "SENS-MPU6050-6AX.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-P15",
+    "group": "P",
+    "question": "What is the LiPo battery capacity in BATT-LIPO-3V7-1800?",
+    "role": "sales",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C01",
+    "group": "C",
+    "question": "What are TechNova Devices Inc. payment terms?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_006.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C02",
+    "group": "C",
+    "question": "What are Horizon Wearables payment terms?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_006.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C03",
+    "group": "C",
+    "question": "What are BlueWave Medical Devices payment terms?",
+    "role": "sales",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C04",
+    "group": "C",
+    "question": "Does BlueWave Medical accept component substitutes?",
+    "role": "sales",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C05",
+    "group": "C",
+    "question": "What products does Horizon Wearables typically order?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C06",
+    "group": "C",
+    "question": "What industry segment is TechNova Devices in?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_007.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C07",
+    "group": "C",
+    "question": "Who is TechNova Devices' primary contact?",
+    "role": "admin",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C08",
+    "group": "C",
+    "question": "What compliance requirements does BlueWave Medical have?",
+    "role": "sales",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C09",
+    "group": "C",
+    "question": "Why should we proactively notify Horizon Wearables about stock issues?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-C10",
+    "group": "C",
+    "question": "What is the segment of BlueWave Medical Devices?",
+    "role": "admin",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A01",
+    "group": "A",
+    "question": "Do we carry the nRF52840 BLE module?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A02",
+    "group": "A",
+    "question": "Do we have LiPo 1800 mAh batteries in stock?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A03",
+    "group": "A",
+    "question": "Tell me about the Blue Pill MCU we carry.",
+    "role": "sales",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A04",
+    "group": "A",
+    "question": "Do we have an OLED display module in our catalog?",
+    "role": "sales",
+    "expected_card": "DISP-OLED-096-I2C.md",
+    "retrieved_cards": [
+      "DISP-OLED-096-I2C.md",
+      "DISP-OLED-096-I2C.md",
+      "DISP-TFT-24-ILI9341.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A05",
+    "group": "A",
+    "question": "What is the BME280 environmental sensor?",
+    "role": "sales",
+    "expected_card": "SENS-BME280-3IN1.md",
+    "retrieved_cards": [
+      "SENS-BME280-3IN1.md",
+      "SENS-BME280-3IN1.md",
+      "customer_002.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A06",
+    "group": "A",
+    "question": "Do we sell addressable RGB LEDs?",
+    "role": "sales",
+    "expected_card": "LED-WS2812B-5050R100.md",
+    "retrieved_cards": [
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md",
+      "LED-WS2812B-5050R100.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A07",
+    "group": "A",
+    "question": "Do we have any BLE 5.0 modules?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-A08",
+    "group": "A",
+    "question": "What Nordic Semiconductor module do we stock?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "customer_005.md",
+      "COMM-NRF52840-MOD.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-I01",
+    "group": "I",
+    "question": "Is COMM-NRF52840-MOD below its safety stock level based on the knowledge card?",
+    "role": "warehouse",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "COMM-NRF52840-MOD.md",
+      "SENS-MPU6050-6AX.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-I02",
+    "group": "I",
+    "question": "What is the inventory status of BATT-LIPO-3V7-1800 in the product card?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md",
+      "SENS-MPU6050-6AX.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-I03",
+    "group": "I",
+    "question": "What is the safety stock level for COMM-NRF52840-MOD?",
+    "role": "warehouse",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "MCU-ESP32-WROOM32U.md",
+      "SENS-MPU6050-6AX.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "使用完整 SKU 確保 embedding 能精準定位；若用 nRF52840 別名查詢 safety level 可能失敗（已知限制：alias 在 Identity chunk，inventory data 在另一 chunk，跨 chunk 語意可能斷裂）"
+  },
+  {
+    "id": "AQ-I04",
+    "group": "I",
+    "question": "What is the critical stock level for BATT-LIPO-3V7-1800?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-I05",
+    "group": "I",
+    "question": "Which products in our catalog are flagged as stock risk?",
+    "role": "warehouse",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "SENS-BME280-3IN1.md",
+      "PCB-FR4-2L-100X100.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-I06",
+    "group": "I",
+    "question": "Should we reorder BATT-LIPO-3V7-1800 based on the knowledge card?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-I07",
+    "group": "I",
+    "question": "What are the three stock threshold levels used in our inventory system?",
+    "role": "warehouse",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "PCB-FR4-2L-100X100.md",
+      "CONN-USBC-16P-SMD.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "通用系統知識問題；任何含庫存狀態的產品卡皆可回答（safety/alert/critical 三層）；expected card 設 LiPo 卡因 retrieval 實測命中"
+  },
+  {
+    "id": "AQ-I08",
+    "group": "I",
+    "question": "Does Horizon Wearables depend on any products that are currently low in stock?",
+    "role": "sales",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": ""
+  },
+  {
+    "id": "AQ-N01",
+    "group": "N",
+    "question": "What is TechNova Devices' email address?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_010.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "email 欄位不在 customer card，AI 不可編造任何 email 地址"
+  },
+  {
+    "id": "AQ-N02",
+    "group": "N",
+    "question": "What is BlueWave Medical's tax ID number?",
+    "role": "admin",
+    "expected_card": "customer_010.md",
+    "retrieved_cards": [
+      "customer_010.md",
+      "customer_010.md",
+      "customer_002.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "taxId 不進 customer card，AI 不可捏造數字"
+  },
+  {
+    "id": "AQ-N03",
+    "group": "N",
+    "question": "What is the cost price of MCU-STM32F103C8?",
+    "role": "admin",
+    "expected_card": "MCU-STM32F103C8.md",
+    "retrieved_cards": [
+      "MCU-STM32F103C8.md",
+      "MCU-STM32F103C8.md",
+      "MCU-ESP32-WROOM32U.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "cost_price 不在卡片中；unit_price($4.50)可回答"
+  },
+  {
+    "id": "AQ-N04",
+    "group": "N",
+    "question": "What is the TUBE-A001 product?",
+    "role": "sales",
+    "expected_card": "",
+    "retrieved_cards": [
+      "PASS-RES-0402-1K5K.md",
+      "PASS-CAP-0402-100N4K.md",
+      "PCB-FR4-2L-100X100.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "TUBE-A001 不在 product catalog，AI 不可編造此 SKU 的資料"
+  },
+  {
+    "id": "AQ-N05",
+    "group": "N",
+    "question": "Does the nRF52840 support WiFi?",
+    "role": "sales",
+    "expected_card": "COMM-NRF52840-MOD.md",
+    "retrieved_cards": [
+      "COMM-NRF52840-MOD.md",
+      "MCU-ESP32-WROOM32U.md",
+      "MCU-STM32F103C8.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "nRF52840 不支援 WiFi，AI 不可混淆 BLE 與 WiFi 協定"
+  },
+  {
+    "id": "AQ-N06",
+    "group": "N",
+    "question": "What is the complete order history for TechNova Devices?",
+    "role": "sales",
+    "expected_card": "customer_001.md",
+    "retrieved_cards": [
+      "customer_001.md",
+      "customer_001.md",
+      "customer_001.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "訂單歷史是動態資料，knowledge card 不含；AI 應說明需用 dynamic 查詢"
+  },
+  {
+    "id": "AQ-N07",
+    "group": "N",
+    "question": "What is the contact email of Horizon Wearables' primary contact David Liu?",
+    "role": "admin",
+    "expected_card": "customer_004.md",
+    "retrieved_cards": [
+      "customer_004.md",
+      "customer_004.md",
+      "customer_004.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "email 不在 customer card，AI 不可推測或捏造"
+  },
+  {
+    "id": "AQ-N08",
+    "group": "N",
+    "question": "What is the internal purchase cost for BATT-LIPO-3V7-1800?",
+    "role": "admin",
+    "expected_card": "BATT-LIPO-3V7-1800.md",
+    "retrieved_cards": [
+      "BATT-LIPO-3V7-1800.md",
+      "CONN-JST-PH2-2P.md",
+      "BATT-LIPO-3V7-1800.md"
+    ],
+    "hit": true,
+    "answer": "",
+    "leakage_found": [],
+    "keywords_present": [],
+    "keywords_missing": [],
+    "note": "cost_price 刻意從卡片排除，AI 僅可回答 unit_price = $5.20"
+  }
+]

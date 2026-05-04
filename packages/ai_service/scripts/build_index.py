@@ -9,7 +9,9 @@ Incremental update (add/update changed files only):
 """
 import argparse
 import os
+import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -35,6 +37,92 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _inject_card_context(chunks: list) -> list:
+    """Two-pass: collect per-card inventory/price/contact, then prepend a summary
+    header to every non-summary chunk so the LLM can read key facts from any chunk.
+    """
+    # Pass 1 — collect context facts per card
+    card_ctx: dict = defaultdict(lambda: {
+        "sku": "", "status": "", "price": "", "contact": "", "customer": "", "payment": "",
+    })
+
+    for chunk in chunks:
+        meta = chunk.metadata
+        src = meta.get("filename") or meta.get("source", "")
+        section = meta.get("h2", "")
+        text = chunk.page_content
+
+        if meta.get("sku"):
+            card_ctx[src]["sku"] = meta["sku"]
+
+        if section == "Inventory Status":
+            m_status = re.search(r'\*\*Status\*\*:\s*(.+)', text)
+            m_avail  = re.search(r'\*\*Available\*\*:\s*(\d+)', text)
+            m_safety = re.search(r'\*\*Safety Level\*\*:\s*(\d+)', text)
+            if m_status:
+                status = m_status.group(1).strip()
+                if m_avail and m_safety:
+                    status = f"{status} ({m_avail.group(1)} avail / {m_safety.group(1)} safety)"
+                card_ctx[src]["status"] = status
+
+        if section == "Pricing":
+            m = re.search(r'\*\*Unit Price\*\*:\s*(\S+)', text)
+            if m:
+                card_ctx[src]["price"] = m.group(1).strip()
+
+        if section == "Customer Identity":
+            m = re.search(r'\*\*Name\*\*:\s*(.+)', text)
+            if m:
+                card_ctx[src]["customer"] = m.group(1).strip()
+
+        if section == "Contact Summary":
+            m = re.search(r'\*\*Primary Contact\*\*:\s*(.+)', text)
+            if m:
+                card_ctx[src]["contact"] = m.group(1).strip()
+
+        if section == "Payment Terms":
+            m = re.search(r'\*\*Net Days\*\*:\s*(.+)', text)
+            if m:
+                card_ctx[src]["payment"] = f"Net {m.group(1).strip()}"
+
+    # Sections whose content already carries the relevant fact — skip injection
+    _SKIP = {"Inventory Status", "Pricing", "Contact Summary"}
+
+    # Pass 2 — prepend header line to every eligible chunk
+    enriched = []
+    for chunk in chunks:
+        meta = chunk.metadata
+        src = meta.get("filename") or meta.get("source", "")
+        section = meta.get("h2", "")
+        ctx = card_ctx.get(src, {})
+
+        if section in _SKIP or not any(ctx.values()):
+            enriched.append(chunk)
+            continue
+
+        sku = ctx.get("sku") or meta.get("sku", "")
+        if sku:
+            parts = [f"Card: {sku}"]
+            if ctx.get("status"):
+                parts.append(f"Inventory: {ctx['status']}")
+            if ctx.get("price"):
+                parts.append(f"Unit Price: {ctx['price']}")
+        else:
+            parts = [f"Card: {ctx.get('customer') or src}"]
+            if ctx.get("contact"):
+                parts.append(f"Contact: {ctx['contact']}")
+            if ctx.get("payment"):
+                parts.append(f"Payment: {ctx['payment']}")
+
+        header = "[" + " | ".join(parts) + "]"
+        enriched.append(Document(
+            page_content=header + "\n\n" + chunk.page_content,
+            metadata=chunk.metadata,
+        ))
+
+    return enriched
+
+
 def _prepare_chunks(
     docs: list,
     chunk_size: int,
@@ -46,8 +134,10 @@ def _prepare_chunks(
     ]
     cleaned = [d for d in cleaned if d.page_content.strip()]
     chunks = split_documents(cleaned, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    # Drop chunks too short to carry semantic meaning (e.g. "## Last Updated\n2026-05-03")
-    return [c for c in chunks if len(c.page_content.strip()) >= 60]
+    chunks = _inject_card_context(chunks)
+    # Keep minimum 30 chars — preserves short sections (Pricing ~34, Contact ~54)
+    # while still dropping near-empty chunks (e.g. "## Last Updated\n2026-05-03" ~23 chars)
+    return [c for c in chunks if len(c.page_content.strip()) >= 30]
 
 
 def build_index(

@@ -8,7 +8,7 @@ RAG_PROMPT = ChatPromptTemplate.from_messages([
         "Do not add any information not present in the cards.\n\n"
         "Knowledge cards:\n{context}\n\n"
         "Answer format:\n"
-        "1. Direct answer (one sentence)\n"
+        "1. Direct answer (cite all relevant values, specs, and status from the card)\n"
         "2. Source card(s)\n"
         "3. Substitutes or stock risk (only if explicitly mentioned in the cards)",
     ),
