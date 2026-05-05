@@ -12,7 +12,7 @@ dependencies:
     sdk: flutter
 
   # Local database (offline-first)
-  drift: ^2.29.0
+  drift: ^2.33.0
   sqlite3_flutter_libs: ^0.5.0
   path_provider: ^2.1.5
   path: ^1.9.1
