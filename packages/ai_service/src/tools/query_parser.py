@@ -14,11 +14,28 @@ from typing import Literal, Optional
 
 # SKU matching — case-insensitive, normalized to UPPER-CASE with hyphen (see parse_question)
 # Group 1+2: with separator  — TUBE-A001 / tube a001
+#   Prefix capped at 8 chars (abbreviation, not a sentence word).
+#   Suffix must contain at least one digit — real SKUs always do (IC-8800, NJ-1001, TUBE-A001).
+#   This prevents "Is that", "How much", "Total amount" from matching.
 # Group 3+4: no separator    — tubea001 (non-greedy split at letter+digit boundary)
 SKU_PATTERN = re.compile(
-    r'\b([A-Za-z]{2,})[\s\-]([A-Za-z0-9]+)\b'
+    r'\b([A-Za-z]{2,8})[\s\-]([A-Za-z0-9]*\d[A-Za-z0-9]*)\b'
     r'|\b([A-Za-z]{2,}?)([A-Za-z]\d[A-Za-z0-9]*|\d[A-Za-z0-9]*)\b'
 )
+
+# Common sentence-opening words that are never SKU prefixes.
+# Second-layer guard after the regex: prevents "Model 5 庫存", "Total 5", "Order 5"
+# from routing to inventory lookup when they slip through the digit requirement.
+_SKU_PREFIX_STOPWORDS = frozenset({
+    'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'what', 'how', 'why', 'when', 'where', 'who', 'which',
+    'total', 'model', 'order', 'the', 'this', 'that', 'these', 'those',
+    'and', 'or', 'not', 'for', 'with', 'from', 'about',
+    'have', 'has', 'had', 'can', 'will', 'would', 'could', 'should',
+    'do', 'does', 'did', 'any', 'all', 'some', 'much', 'many',
+    'more', 'most', 'per', 'via', 'its', 'our', 'their',
+    'get', 'got', 'see', 'use', 'new', 'low', 'high',
+})
 
 # Numeric entity ID: #42, ＃42, or "訂單/報價/order/quotation 42"
 NUMERIC_ID_PATTERN = re.compile(
@@ -114,12 +131,12 @@ def parse_question(question: str) -> ParsedQuery:
 
     # 2. Extract identifiers
     sku_match = SKU_PATTERN.search(question)
+    sku: Optional[str] = None
     if sku_match:
         prefix = sku_match.group(1) or sku_match.group(3)
         suffix = sku_match.group(2) or sku_match.group(4)
-        sku = f"{prefix}-{suffix}".upper()
-    else:
-        sku = None
+        if prefix.lower() not in _SKU_PREFIX_STOPWORDS:
+            sku = f"{prefix}-{suffix}".upper()
 
     id_match = NUMERIC_ID_PATTERN.search(question)
     entity_id: Optional[int] = None

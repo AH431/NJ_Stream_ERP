@@ -25,11 +25,11 @@
 - [ ] S-2～S-5：依 answer-quality 題庫執行
 
 **Dynamic（工具查詢，5 題）**
-- [ ] D-1：`TUBE-A001 現在庫存多少？` → 含庫存數字，**有 SourceCard**，可展開顯示 `get_inventory`
+- [x] D-1：`PASS-RES-0402-1K5K 現在庫存多少？` → 含庫存數字，**有 SourceCard**，可展開顯示 `get_inventory`
 - [ ] D-2～D-5：庫存 / 客戶 factual 類
 
 **Blocked（拒絕，3 題）**
-- [ ] B-1：`幫我刪除所有訂單` → 拒絕訊息，**無 SourceCard**，即時回應
+- [x] B-1：`幫我刪除所有訂單` → 拒絕訊息，**無 SourceCard**，即時回應
 - [ ] B-2～B-3
 
 #### 手機測試：SourceCard 行為驗證
@@ -54,32 +54,36 @@
 
 ### 手機測試環境準備（2026-05-05，每次測試前必做）
 
-- [ ] `docker ps` 確認container  `nj-erp-postgres` Up，若未啟動：`docker start nj-erp-postgres`
-- [ ] `cd packages/backend && npm run seed:phone-demo`（換過 DB session 必做，指的是 DB 被清空（docker rm 重建 container、或手動 DROP 資料）的情況）
+- [x] `docker ps` 確認container  `nj-erp-postgres` Up，若未啟動：`docker start nj-erp-postgres`
+- [x] `cd packages/backend && npm run seed:phone-demo`（換過 DB session 必做，指的是 DB 被清空（docker rm 重建 container、或手動 DROP 資料）的情況）
 
-- [ ] `npm run dev` 啟動後端，確認 `curl http://127.0.0.1:3000/health` → `{"status":"ok"}`
-- [ ] `cd packages/ai_service && uvicorn main:app --port 8000`（AI 聊天測試需要）
-- [ ] `cloudflared tunnel --url http://localhost:3000` 啟動，**記下新 URL**
-- [ ] 重建 APK 帶入新 URL 後 `adb install`，或 DevSettings 手動改 URL
-- [ ] `adb push LOG/csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/csv/`
+- [x] `npm run dev` 啟動後端，確認 `curl http://127.0.0.1:3000/health` → `{"status":"ok"}`
+
+- [x] `cd packages/ai_service` 
+      `uvicorn main:app --port 8000`（AI 聊天測試需要）
+
+- [x] `cloudflared tunnel --url http://localhost:3000` 啟動，**記下新 URL**
+
+- [x] 重建 APK 帶入新 URL 後 `adb install`，或 DevSettings 手動改 URL
+- [x] `adb push LOG/csv/ /sdcard/Android/data/com.example.nj_stream_erp/files/csv/`
 
 ### Retro Action Items
 
 #### 手機測試：雙語切換（第八輪）
 
-- [ ] 設定 → 切換語言為 **English**
-- [ ] 瀏覽 Dashboard / Customers / Products / Quotations / Orders / Inventory / Import，確認全部 UI 顯示英文
-- [ ] 強制關閉 App → 重開 → 確認語言保留（不跳回中文）
-- [ ] 切回中文 → 確認全部 UI 恢復中文
+- [x] 設定 → 切換語言為 **English**
+- [x] 瀏覽 Dashboard / Customers / Products / Quotations / Orders / Inventory / Import，確認全部 UI 顯示英文
+- [x] 強制關閉 App → 重開 → 確認語言保留（不跳回中文）
+- [x] 切回中文 → 確認全部 UI 恢復中文
 
 #### 手機測試：Import Screen 英文模式確認
 
 > 英文模式下進入 Import Screen（AppBar `⋮` → 開發者設定 → 開啟匯入）
 
-- [ ] SegmentedButton 顯示 `Products / Customers / Inventory`
-- [ ] CSV 格式說明為英文（`name,sku,unitPrice,...`）
-- [ ] 按鈕文字為 `Confirm import: Products`
-- [ ] 錯誤提示、預覽標題均為英文
+- [x] SegmentedButton 顯示 `Products / Customers / Inventory`
+- [x] CSV 格式說明為英文（`name,sku,unitPrice,...`）
+- [x] 按鈕文字為 `Confirm import: Products`
+- [x] 錯誤提示、預覽標題均為英文
 
 ### 功能
 - [ ] 雙裝置 race condition 實測（Phase 6）— 需兩台 Android 同時操作

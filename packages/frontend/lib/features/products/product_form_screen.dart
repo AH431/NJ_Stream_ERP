@@ -193,7 +193,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 labelText: s.prodFieldPrice,
                 hintText: 'e.g. 158000.00',
                 prefixIcon: const Icon(Icons.attach_money),
-                prefixText: 'NT\$ ',
+                prefixText: '\$ ',
                 border: const OutlineInputBorder(),
                 helperText: s.isEnglish ? 'Up to 2 decimal places' : '支援小數點後最多兩位',
               ),

@@ -104,7 +104,7 @@ class AppStrings extends ChangeNotifier {
   String get dashPendingShipments => _s('待出貨訂單', 'Pending Shipments');
   String get dashPendingUnit => _s('筆', 'orders');
   String get dashMonthlyQuotations => _s('月報價', 'Monthly Quotations');
-  String get dashCurrencyUnit => _s('元', 'NTD');
+  String get dashCurrencyUnit => 'USD';
   String get dashLowStockAlert => _s('低庫存警示', 'Low Stock Alert');
   String get dashNoLowStock => _s('目前無低庫存品項', 'No low stock items.');
   String dashAvailable(int qty) => _isEnglish ? 'Available: $qty' : '可出貨 $qty';
@@ -559,14 +559,14 @@ class AppStrings extends ChangeNotifier {
         final days = d['daysOverdue'] ?? '-';
         final total = moneyFmt(d['orderTotal']);
         return _isEnglish
-            ? 'Order #$orderId ($customerName) is $days days overdue (due $dueDate, unpaid amount NT\$$total).'
-            : '訂單 #$orderId（$customerName）應收帳款已逾期 $days 天（到期日 $dueDate，未收金額 $total 元）。';
+            ? 'Order #$orderId ($customerName) is $days days overdue (due $dueDate, unpaid amount \$$total).'
+            : '訂單 #$orderId（$customerName）應收帳款已逾期 $days 天（到期日 $dueDate，未收金額 \$$total）。';
       case 'HIGH_VALUE_CUSTOMER_CHURN_RISK':
         final customerName = d['customerName'] ?? '';
         final ltv = moneyFmt(d['ltv90d']);
         return _isEnglish
-            ? 'High-value customer "$customerName" has placed no orders in the last 30 days (90-day total NT\$$ltv, top 20%).'
-            : '高價值客戶「$customerName」近 30 天無訂單（近 90 天累積金額 NT\$$ltv，位於前 20%）。';
+            ? 'High-value customer "$customerName" has placed no orders in the last 30 days (90-day total \$$ltv, top 20%).'
+            : '高價值客戶「$customerName」近 30 天無訂單（近 90 天累積金額 \$$ltv，位於前 20%）。';
       case 'FREQUENT_CANCELLATION':
         final customerName = d['customerName'] ?? '';
         final count = d['cancelCount'] ?? '-';

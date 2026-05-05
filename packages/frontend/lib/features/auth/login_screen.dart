@@ -74,26 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // Settings icon — top right overlay
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 4, top: 4),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  color: AppTheme.primaryDark,
-                  tooltip: s.menuDevSettings,
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const DevSettingsScreen()),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
           // Main content
           if (context.watch<SyncProvider>().isInitializing)
             const Center(child: CircularProgressIndicator())
@@ -211,6 +191,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+
+          // Settings icon — top right overlay (must be last child to receive touches)
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4, top: 4),
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  color: AppTheme.primaryDark,
+                  tooltip: s.menuDevSettings,
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DevSettingsScreen()),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

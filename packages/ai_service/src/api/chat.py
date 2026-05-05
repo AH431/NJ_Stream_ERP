@@ -28,7 +28,7 @@ from src.tools.formatters import (
 INTERNAL_TOKEN = os.environ.get("AI_SERVICE_INTERNAL_TOKEN", "")
 FASTIFY_BASE_URL = os.environ.get("FASTIFY_INTERNAL_URL", "http://localhost:3000/api/v1")
 AI_FAKE_LLM = os.environ.get("AI_FAKE_LLM", "false").lower() == "true"
-CHROMA_PATH = os.environ.get("CHROMA_PATH", "./db")
+CHROMA_PATH = os.environ.get("CHROMA_DB_PATH", "./db")
 
 _rag_vs = None  # lazy-initialized Chroma vectorstore
 

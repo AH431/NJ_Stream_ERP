@@ -42,7 +42,7 @@ abstract class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          minimumSize: const Size(double.infinity, 52),
+          minimumSize: const Size(64, 52),
           textStyle:
               const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),

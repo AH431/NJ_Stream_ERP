@@ -110,17 +110,17 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Expanded(child: _KpiTile(
                   label: s.arTotalUnpaid,
-                  value: 'NT\$ ${_fmtAmount(summary.totalUnpaid)}',
+                  value: '\$ ${_fmtAmount(summary.totalUnpaid)}',
                   valueColor: colorScheme.primary,
                 )),
                 Expanded(child: _KpiTile(
                   label: s.arTotalOverdue,
-                  value: 'NT\$ ${_fmtAmount(summary.totalOverdue)}',
+                  value: '\$ ${_fmtAmount(summary.totalOverdue)}',
                   valueColor: summary.totalOverdue > 0 ? Colors.red : colorScheme.onSurface,
                 )),
                 Expanded(child: _KpiTile(
                   label: s.arTotalCurrent,
-                  value: 'NT\$ ${_fmtAmount(summary.totalCurrent)}',
+                  value: '\$ ${_fmtAmount(summary.totalCurrent)}',
                   valueColor: colorScheme.secondary,
                 )),
               ],
@@ -226,7 +226,7 @@ class _BucketRow extends StatelessWidget {
           children: [
             Text(label, style: Theme.of(context).textTheme.bodyMedium),
             Text(
-              'NT\$ ${_fmtAmount(amount)}',
+              '\$ ${_fmtAmount(amount)}',
               style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
@@ -327,7 +327,7 @@ class _OrderTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'NT\$ ${_fmtAmount(order.orderTotal)}',
+                  '\$ ${_fmtAmount(order.orderTotal)}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),

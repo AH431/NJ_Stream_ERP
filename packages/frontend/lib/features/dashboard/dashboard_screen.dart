@@ -116,11 +116,11 @@ class _AnalyticsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. 月度營收 Combo Chart
-        if (analytics.revenueData != null && analytics.revenueData!.isNotEmpty) ...[
-          _RevenueComboChart(
-            revenueData: analytics.revenueData!,
-            profitData: analytics.profitData,
+        // 1. 出貨＋營收合併 Combo Chart
+        if (analytics.inventoryTrendData != null && analytics.inventoryTrendData!.isNotEmpty) ...[
+          _ShipmentRevenueComboChart(
+            shipmentData: analytics.inventoryTrendData!,
+            revenueData: analytics.revenueData,
           ),
           const SizedBox(height: 16),
         ],
@@ -157,13 +157,7 @@ class _AnalyticsSection extends StatelessWidget {
           _FunnelCard(data: analytics.funnelData!),
         ],
 
-        // 5. 庫存出貨趨勢（admin + warehouse）
-        if (analytics.inventoryTrendData != null && analytics.inventoryTrendData!.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _InventoryTrendChart(data: analytics.inventoryTrendData!),
-        ],
-
-        // 6. 客戶熱力圖（admin + sales）
+        // 5. 客戶熱力圖（admin + sales）
         if (analytics.heatmapData != null && analytics.heatmapData!.isNotEmpty) ...[
           const SizedBox(height: 16),
           _CustomerHeatmapCard(
@@ -245,15 +239,15 @@ class _ProfitSummaryCard extends StatelessWidget {
               children: [
                 Expanded(child: _ProfitKpi(
                   label: s.dashProfitRevenue,
-                  value: 'NT\$ ${_fmt(latest.revenue)}',
+                  value: '\$ ${_fmt(latest.revenue)}',
                 )),
                 Expanded(child: _ProfitKpi(
                   label: s.dashProfitCogs,
-                  value: 'NT\$ ${_fmt(latest.cogs)}',
+                  value: '\$ ${_fmt(latest.cogs)}',
                 )),
                 Expanded(child: _ProfitKpi(
                   label: s.dashProfitGross,
-                  value: 'NT\$ ${_fmt(latest.grossProfit)}',
+                  value: '\$ ${_fmt(latest.grossProfit)}',
                   valueColor: latest.grossProfit >= 0 ? Colors.green.shade700 : Colors.red,
                 )),
                 if (hasMargin)
@@ -326,217 +320,6 @@ class _LastUpdatedLabel extends StatelessWidget {
   }
 }
 
-// ==============================================================================
-// 圖表 1：月度營收 Combo Chart（Column = 營收 / Line = 毛利率%）
-// ==============================================================================
-
-class _RevenueComboChart extends StatelessWidget {
-  final List<RevenuePoint> revenueData;
-  final List<ProfitPoint>? profitData; // admin-only; null → show bars only
-  const _RevenueComboChart({required this.revenueData, this.profitData});
-
-  static const double _leftRes   = 44;
-  static const double _rightRes  = 38;
-  static const double _botRes    = 20;
-
-  @override
-  Widget build(BuildContext context) {
-    final s           = AppStrings.of(context);
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final outlineColor = Theme.of(context).colorScheme.outlineVariant;
-
-    final maxRev = revenueData.map((p) => p.revenue).fold(0.0, (a, b) => a > b ? a : b);
-    final maxY   = maxRev * 1.25 < 1 ? 1000.0 : maxRev * 1.25;
-
-    // gross margin map: month → pct
-    final marginMap = <String, double>{};
-    for (final p in profitData ?? []) {
-      if (p.grossMarginPct != null) marginMap[p.month] = p.grossMarginPct!;
-    }
-    final hasMargin = marginMap.isNotEmpty;
-
-    final barGroups = revenueData.asMap().entries.map((e) => BarChartGroupData(
-      x: e.key,
-      barRods: [
-        BarChartRodData(
-          toY: e.value.revenue,
-          color: Colors.orange,
-          width: 14,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-        ),
-      ],
-    )).toList();
-
-    // normalize grossMarginPct (0-100%) → [0, maxY]
-    final lineSpots = hasMargin
-        ? revenueData.asMap().entries.map((e) {
-            final pct = marginMap[e.value.month] ?? 0.0;
-            return FlSpot(e.key.toDouble(), pct / 100.0 * maxY);
-          }).toList()
-        : <FlSpot>[];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 14, 16, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Expanded(
-                child: Text(
-                  s.isEnglish ? 'Monthly Revenue (6M)' : '月度營收（近 6 個月）',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-              if (hasMargin)
-                _ComboLegend(
-                  barColor: Colors.orange,
-                  lineColor: primaryColor,
-                  barLabel: s.isEnglish ? 'Revenue' : '營收',
-                  lineLabel: s.isEnglish ? 'Gross Margin' : '毛利率',
-                ),
-            ]),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 150,
-              child: Stack(children: [
-                // ── Layer 1: Column bars ──────────────────────────────
-                BarChart(BarChartData(
-                  maxY: maxY,
-                  barGroups: barGroups,
-                  gridData: FlGridData(
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (_) =>
-                        FlLine(color: outlineColor, strokeWidth: 0.5),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: _leftRes,
-                        getTitlesWidget: (val, _) =>
-                            Text(_formatK(val), style: const TextStyle(fontSize: 9)),
-                      ),
-                    ),
-                    rightTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: false,
-                        reservedSize: hasMargin ? _rightRes : 4,
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: _botRes,
-                        getTitlesWidget: (val, _) {
-                          final idx = val.toInt();
-                          if (idx < 0 || idx >= revenueData.length) return const SizedBox.shrink();
-                          final parts = revenueData[idx].month.split('-');
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              s.isEnglish ? _monthAbbr(int.parse(parts[1])) : '${parts[1]}月',
-                              style: const TextStyle(fontSize: 9),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (_) => Colors.black87,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final idx = group.x;
-                        if (idx < 0 || idx >= revenueData.length) return null;
-                        final pt = revenueData[idx];
-                        final marginStr = marginMap.containsKey(pt.month)
-                            ? '\n${s.isEnglish ? "Margin" : "毛利率"}: ${marginMap[pt.month]!.toStringAsFixed(1)}%'
-                            : '';
-                        return BarTooltipItem(
-                          '${pt.month}\nNT\$ ${_formatMoney(pt.revenue)}$marginStr',
-                          const TextStyle(fontSize: 10, color: Colors.white),
-                        );
-                      },
-                    ),
-                  ),
-                )),
-
-                // ── Layer 2: Line overlay（gross margin %）──────────
-                if (hasMargin)
-                  IgnorePointer(
-                    child: LineChart(LineChartData(
-                      minY: 0,
-                      maxY: maxY,
-                      gridData: const FlGridData(show: false),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false, reservedSize: _leftRes),
-                        ),
-                        rightTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: _rightRes,
-                            interval: maxY / 4,
-                            getTitlesWidget: (val, _) {
-                              final pct = maxY > 0 ? val / maxY * 100 : 0.0;
-                              return Text(
-                                '${pct.toStringAsFixed(0)}%',
-                                style: TextStyle(fontSize: 9, color: primaryColor),
-                              );
-                            },
-                          ),
-                        ),
-                        bottomTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false, reservedSize: _botRes),
-                        ),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: lineSpots,
-                          isCurved: true,
-                          color: primaryColor,
-                          barWidth: 2.5,
-                          dotData: FlDotData(
-                            getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                              radius: 3, color: primaryColor, strokeWidth: 0),
-                          ),
-                          belowBarData: BarAreaData(show: false),
-                        ),
-                      ],
-                      lineTouchData: const LineTouchData(enabled: false),
-                    )),
-                  ),
-              ]),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatK(double val) {
-    if (val >= 1000000) return '${(val / 1000000).toStringAsFixed(1)}M';
-    if (val >= 1000)    return '${(val / 1000).toStringAsFixed(0)}K';
-    return val.toStringAsFixed(0);
-  }
-
-  String _formatMoney(double val) {
-    if (val >= 1000000) return '${(val / 1000000).toStringAsFixed(1)}M';
-    if (val >= 1000)    return '${(val / 1000).toStringAsFixed(0)}K';
-    return val.toStringAsFixed(0);
-  }
-
-  static String _monthAbbr(int m) {
-    const abbrs = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return m >= 1 && m <= 12 ? abbrs[m] : '';
-  }
-}
 
 // ── Combo chart 圖例 ──────────────────────────────────────
 
@@ -842,27 +625,43 @@ class _FunnelKpi extends StatelessWidget {
 }
 
 // ==============================================================================
-// 圖表 5：庫存月度出貨趨勢
+// Combo Chart：月度出貨量（Column / 左 Y 軸）＋ 月度營收（Line / 右 Y 軸）
 // ==============================================================================
 
-class _InventoryTrendChart extends StatelessWidget {
-  final List<InventoryTrendPoint> data;
-  const _InventoryTrendChart({required this.data});
+class _ShipmentRevenueComboChart extends StatelessWidget {
+  final List<InventoryTrendPoint> shipmentData;
+  final List<RevenuePoint>?       revenueData;
 
-  static const double _leftRes  = 36;
-  static const double _rightRes = 38;
+  const _ShipmentRevenueComboChart({
+    required this.shipmentData,
+    this.revenueData,
+  });
+
+  static const double _leftRes  = 40;
+  static const double _rightRes = 44;
   static const double _botRes   = 20;
 
   @override
   Widget build(BuildContext context) {
-    final strings      = AppStrings.of(context);
+    final s            = AppStrings.of(context);
     final outlineColor = Theme.of(context).colorScheme.outlineVariant;
 
-    final maxOutbound = data.map((p) => p.totalOutbound.toDouble()).fold(0.0, (a, b) => a > b ? a : b);
-    final maxActive   = data.map((p) => p.activeProducts.toDouble()).fold(0.0, (a, b) => a > b ? a : b);
-    final maxY        = maxOutbound * 1.25 < 1 ? 10.0 : maxOutbound * 1.25;
+    final revMap = <String, double>{};
+    for (final p in revenueData ?? []) {
+      revMap[p.month] = p.revenue;
+    }
+    final hasRevenue = revMap.isNotEmpty;
 
-    final barGroups = data.asMap().entries.map((e) => BarChartGroupData(
+    final maxOut = shipmentData
+        .map((p) => p.totalOutbound.toDouble())
+        .fold(0.0, (a, b) => a > b ? a : b);
+    final maxY = maxOut * 1.25 < 1 ? 10.0 : maxOut * 1.25;
+
+    final maxRev = hasRevenue
+        ? revenueData!.map((p) => p.revenue).fold(0.0, (a, b) => a > b ? a : b)
+        : 0.0;
+
+    final barGroups = shipmentData.asMap().entries.map((e) => BarChartGroupData(
       x: e.key,
       barRods: [
         BarChartRodData(
@@ -874,13 +673,13 @@ class _InventoryTrendChart extends StatelessWidget {
       ],
     )).toList();
 
-    // normalize activeProducts → [0, maxY]
-    final lineSpots = data.asMap().entries.map((e) {
-      final normalized = maxActive > 0
-          ? e.value.activeProducts / maxActive * maxY
-          : 0.0;
-      return FlSpot(e.key.toDouble(), normalized);
-    }).toList();
+    // normalize revenue → [0, maxY] for overlay
+    final lineSpots = hasRevenue
+        ? shipmentData.asMap().entries.map((e) {
+            final rev = revMap[e.value.month] ?? 0.0;
+            return FlSpot(e.key.toDouble(), maxRev > 0 ? rev / maxRev * maxY : 0.0);
+          }).toList()
+        : <FlSpot>[];
 
     return Card(
       child: Padding(
@@ -892,21 +691,26 @@ class _InventoryTrendChart extends StatelessWidget {
               const Icon(Icons.inventory_2_outlined, size: 18),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(strings.dashShipmentTrendTitle,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                child: Text(
+                  s.isEnglish
+                      ? 'Monthly Shipment & Revenue (6M)'
+                      : '月度出貨與營收（近 6 個月）',
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
               ),
               _ComboLegend(
                 barColor: Colors.orange,
                 lineColor: Colors.teal,
-                barLabel: strings.isEnglish ? 'Outbound' : '出貨量',
-                lineLabel: strings.isEnglish ? 'Active SKU' : '活躍品項',
+                barLabel: s.isEnglish ? 'Outbound' : '出貨量',
+                lineLabel: s.isEnglish ? 'Revenue' : '營收',
               ),
             ]),
             const SizedBox(height: 12),
             SizedBox(
-              height: 140,
+              height: 150,
               child: Stack(children: [
-                // ── Layer 1: Column bars (totalOutbound) ─────────────
+                // ── Layer 1: Column bars (totalOutbound, left Y) ──────
                 BarChart(BarChartData(
                   maxY: maxY,
                   barGroups: barGroups,
@@ -921,12 +725,18 @@ class _InventoryTrendChart extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: _leftRes,
-                        getTitlesWidget: (val, _) =>
-                            Text(val.toInt().toString(), style: const TextStyle(fontSize: 9)),
+                        getTitlesWidget: (val, _) => Text(
+                          val.toInt().toString(),
+                          style: const TextStyle(fontSize: 9),
+                        ),
                       ),
                     ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false, reservedSize: _rightRes),
+                    rightTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: hasRevenue ? _rightRes : 4,
+                        getTitlesWidget: (_, __) => const SizedBox.shrink(),
+                      ),
                     ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
@@ -934,26 +744,36 @@ class _InventoryTrendChart extends StatelessWidget {
                         reservedSize: _botRes,
                         getTitlesWidget: (val, _) {
                           final idx = val.toInt();
-                          if (idx < 0 || idx >= data.length) return const SizedBox.shrink();
+                          if (idx < 0 || idx >= shipmentData.length) {
+                            return const SizedBox.shrink();
+                          }
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text(strings.monthLabel(data[idx].month),
-                                style: const TextStyle(fontSize: 9)),
+                            child: Text(
+                              s.monthLabel(shipmentData[idx].month),
+                              style: const TextStyle(fontSize: 9),
+                            ),
                           );
                         },
                       ),
                     ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                   ),
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (_) => Colors.black87,
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         final idx = group.x;
-                        if (idx < 0 || idx >= data.length) return null;
-                        final pt = data[idx];
+                        if (idx < 0 || idx >= shipmentData.length) return null;
+                        final pt  = shipmentData[idx];
+                        final rev = revMap[pt.month];
+                        final revStr = rev != null
+                            ? '\n${s.isEnglish ? "Revenue" : "營收"}: ${_fmtK(rev)}'
+                            : '';
                         return BarTooltipItem(
-                          strings.dashShipmentTooltip(pt.month, pt.totalOutbound, pt.activeProducts),
+                          '${pt.month}\n${s.isEnglish ? "Outbound" : "出貨量"}: ${pt.totalOutbound}$revStr',
                           const TextStyle(fontSize: 10, color: Colors.white),
                         );
                       },
@@ -961,58 +781,83 @@ class _InventoryTrendChart extends StatelessWidget {
                   ),
                 )),
 
-                // ── Layer 2: Line overlay（activeProducts）────────────
-                IgnorePointer(
-                  child: LineChart(LineChartData(
-                    minY: 0,
-                    maxY: maxY,
-                    gridData: const FlGridData(show: false),
-                    borderData: FlBorderData(show: false),
-                    titlesData: FlTitlesData(
-                      leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false, reservedSize: _leftRes),
-                      ),
-                      rightTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: _rightRes,
-                          interval: maxY / 4,
-                          getTitlesWidget: (val, _) {
-                            final actual = maxY > 0 ? (val / maxY * maxActive).round() : 0;
-                            return Text(
-                              actual.toString(),
-                              style: const TextStyle(fontSize: 9, color: Colors.teal),
-                            );
-                          },
+                // ── Layer 2: Line overlay (revenue, right Y) ──────────
+                // minX/maxX match BarChart's bar span so dots align with bars
+                if (hasRevenue)
+                  IgnorePointer(
+                    child: LineChart(LineChartData(
+                      minX: -0.5,
+                      maxX: shipmentData.length.toDouble() - 0.5,
+                      minY: 0,
+                      maxY: maxY,
+                      gridData: const FlGridData(show: false),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: _leftRes,
+                            getTitlesWidget: (_, __) => const SizedBox.shrink(),
+                          ),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: _rightRes,
+                            interval: maxY / 4,
+                            getTitlesWidget: (val, _) {
+                              final actual =
+                                  maxRev > 0 ? val / maxY * maxRev : 0.0;
+                              return Text(
+                                _fmtK(actual),
+                                style: const TextStyle(
+                                    fontSize: 9, color: Colors.teal),
+                              );
+                            },
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: _botRes,
+                            getTitlesWidget: (_, __) => const SizedBox.shrink(),
+                          ),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
                         ),
                       ),
-                      bottomTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false, reservedSize: _botRes),
-                      ),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: lineSpots,
-                        isCurved: true,
-                        color: Colors.teal,
-                        barWidth: 2.5,
-                        dotData: FlDotData(
-                          getDotPainter: (_, __, ___, ____) =>
-                              FlDotCirclePainter(radius: 3, color: Colors.teal, strokeWidth: 0),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: lineSpots,
+                          isCurved: true,
+                          color: Colors.teal,
+                          barWidth: 2.5,
+                          dotData: FlDotData(
+                            getDotPainter: (_, __, ___, ____) =>
+                                FlDotCirclePainter(
+                                    radius: 3,
+                                    color: Colors.teal,
+                                    strokeWidth: 0),
+                          ),
+                          belowBarData: BarAreaData(show: false),
                         ),
-                        belowBarData: BarAreaData(show: false),
-                      ),
-                    ],
-                    lineTouchData: const LineTouchData(enabled: false),
-                  )),
-                ),
+                      ],
+                      lineTouchData: const LineTouchData(enabled: false),
+                    )),
+                  ),
               ]),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _fmtK(double val) {
+    if (val >= 1000000) return '${(val / 1000000).toStringAsFixed(1)}M';
+    if (val >= 1000)    return '${(val / 1000).toStringAsFixed(0)}K';
+    return val.toStringAsFixed(0);
   }
 }
 

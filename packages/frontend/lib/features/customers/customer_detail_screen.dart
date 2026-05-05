@@ -44,7 +44,7 @@ class CustomerDetailScreen extends StatelessWidget {
       if (j > 0 && (s.length - j) % 3 == 0) buf.write(',');
       buf.write(s[j]);
     }
-    return 'NT\$ $buf';
+    return '\$ $buf';
   }
 
   // ── build ────────────────────────────────────────────────
