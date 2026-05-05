@@ -27,7 +27,7 @@ dependencies:
   uuid: ^4.0.0   # 用來產生 operation.id
   provider: ^6.1.0
   file_picker: ^11.0.2
-  csv: ^6.0.0
+  csv: ^8.0.0
   open_filex: ^4.4.0
 
   # 圖表（Phase 2 P2-VIS）
