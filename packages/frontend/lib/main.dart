@@ -154,6 +154,12 @@ class NjStreamErpApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
       theme: AppTheme.light,
+      builder: (context, child) => Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+        ),
+        child: child!,
+      ),
       // 根據登入狀態決定起始畫面
       // isLoggedIn 由 SyncProvider 的 _loadTokens() 在啟動時讀取 SecureStorage 決定
       home: context.watch<SyncProvider>().isLoggedIn

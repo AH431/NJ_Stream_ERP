@@ -206,12 +206,21 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── 語言切換 ────────────────────────────────────────────────
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(s.devSectionLang),
-                subtitle: Text(s.devSwitchLang),
-                value: s.isEnglish,
-                onChanged: (v) async => context.read<AppStrings>().setEnglish(v),
+              Row(
+                children: [
+                  Text(s.devSectionLang, style: Theme.of(context).textTheme.bodyLarge),
+                  const Spacer(),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('中文')),
+                      ButtonSegment(value: true, label: Text('English')),
+                    ],
+                    selected: {s.isEnglish},
+                    onSelectionChanged: (v) async =>
+                        context.read<AppStrings>().setEnglish(v.first),
+                    showSelectedIcon: false,
+                  ),
+                ],
               ),
               const Divider(),
               const SizedBox(height: 12),

@@ -336,7 +336,6 @@ class AppStrings extends ChangeNotifier {
 
   // ── Dev Settings Extra ──────────────────────────────────────────────────
   String get devSectionLang => _s('語言切換', 'Language');
-  String get devSwitchLang => _s('切換為中文', 'Switch to Chinese');
   String get devResetApiTitle => _s('重置 API URL', 'Reset API URL');
   String devResetApiBody(String url) => _isEnglish
       ? 'Will restore to compile-time default:\n$url'

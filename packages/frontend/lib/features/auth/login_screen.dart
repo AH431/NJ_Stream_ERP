@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -20,12 +18,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _humanVerified = false;
 
   Future<void> _login() async {
     final s = context.read<AppStrings>();
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(s.errEmptyCredentials)),
+      );
+      return;
+    }
+    if (!_humanVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please verify you are human')),
       );
       return;
     }
@@ -57,8 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
-    final currentApiBaseUrl = context.watch<SyncProvider>().currentApiBaseUrl;
-    final isUsingLocalhost = currentApiBaseUrl.contains('localhost');
 
     return Scaffold(
       body: Stack(
@@ -66,11 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Background gradient
           Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.white, Color(0xFFDDF3FB)],
-              ),
+              gradient: AppTheme.backgroundGradient,
             ),
           ),
 
@@ -95,8 +94,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const SizedBox(height: 16),
 
-                        // Shield logo
-                        const Center(child: _PyStreamLogo(size: 90)),
+                        // App logo
+                        Center(
+                          child: Image.asset(
+                            'assets/images/cover.png',
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                         const SizedBox(height: 18),
 
                         // Brand name
@@ -125,15 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 36),
-
-                        // API server indicator
-                        _ApiServerCard(
-                          url: currentApiBaseUrl,
-                          isLocalhost: isUsingLocalhost,
-                          label: s.loginCurrentApiLabel,
-                          localhostWarning: s.loginLocalhostWarning,
-                        ),
-                        const SizedBox(height: 20),
 
                         // Username field
                         TextField(
@@ -165,7 +162,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 16),
+
+                        // Cloudflare human verification
+                        _HumanVerifyWidget(
+                          checked: _humanVerified,
+                          onTap: () => setState(
+                              () => _humanVerified = !_humanVerified),
+                        ),
+                        const SizedBox(height: 20),
 
                         // Login button / loading
                         if (_isLoading)
@@ -225,201 +230,140 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 // ==============================================================================
-// _PyStreamLogo — shield with circular-arrows icon
+// _HumanVerifyWidget — Cloudflare Turnstile-style checkbox
 // ==============================================================================
 
-class _PyStreamLogo extends StatelessWidget {
+class _HumanVerifyWidget extends StatelessWidget {
+  final bool checked;
+  final VoidCallback onTap;
+
+  const _HumanVerifyWidget({required this.checked, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFFD9D9D9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: checked ? const Color(0xFF009E60) : Colors.white,
+                border: Border.all(
+                  color: checked
+                      ? const Color(0xFF009E60)
+                      : const Color(0xFFBDBDBD),
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: checked
+                  ? const Icon(Icons.check, color: Colors.white, size: 20)
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Text(
+                'Verify you are human',
+                style: TextStyle(fontSize: 14, color: Color(0xFF3D3D3D)),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CloudflareIcon(size: 22),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Cloudflare',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF404040),
+                      ),
+                    ),
+                  ],
+                ),
+                const Text(
+                  'Privacy · Terms',
+                  style: TextStyle(fontSize: 9, color: Color(0xFF888888)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloudflareIcon extends StatelessWidget {
   final double size;
-  const _PyStreamLogo({this.size = 90});
+  const _CloudflareIcon({this.size = 22});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: size,
-      height: size * 1.12,
-      child: CustomPaint(
-        painter: _ShieldPainter(),
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.only(bottom: size * 0.06),
-            child: SizedBox(
-              width: size * 0.50,
-              height: size * 0.50,
-              child: CustomPaint(painter: _CircularArrowsPainter()),
-            ),
-          ),
-        ),
-      ),
+      height: size * 0.7,
+      child: CustomPaint(painter: _CloudPainter()),
     );
   }
 }
 
-class _ShieldPainter extends CustomPainter {
+class _CloudPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final path = _buildPath(w, h);
 
-    // Drop shadow
-    canvas.drawPath(
-      path.shift(const Offset(0, 4)),
-      Paint()
-        ..color = const Color(0xFF0077B6).withValues(alpha: 0.28)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
+    final paint = Paint()..style = PaintingStyle.fill;
 
-    // Gradient fill
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF48CAE4), Color(0xFF0077B6)],
-        ).createShader(Rect.fromLTWH(0, 0, w, h)),
-    );
-
-    // Subtle top highlight
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.center,
-          colors: [Color(0x30FFFFFF), Color(0x00FFFFFF)],
-        ).createShader(Rect.fromLTWH(0, 0, w, h * 0.55)),
-    );
-  }
-
-  Path _buildPath(double w, double h) {
-    return Path()
-      ..moveTo(w * 0.50, h * 0.01)
-      ..cubicTo(w * 0.68, h * 0.01, w * 0.97, h * 0.09, w * 0.97, h * 0.28)
-      ..lineTo(w * 0.97, h * 0.55)
-      ..cubicTo(w * 0.97, h * 0.79, w * 0.74, h * 0.93, w * 0.50, h * 0.99)
-      ..cubicTo(w * 0.26, h * 0.93, w * 0.03, h * 0.79, w * 0.03, h * 0.55)
-      ..lineTo(w * 0.03, h * 0.28)
-      ..cubicTo(w * 0.03, h * 0.09, w * 0.32, h * 0.01, w * 0.50, h * 0.01)
+    // Orange cloud body
+    paint.color = const Color(0xFFF6821F);
+    final path = Path()
+      ..moveTo(w * 0.18, h * 0.85)
+      ..lineTo(w * 0.82, h * 0.85)
+      ..quadraticBezierTo(w * 1.0, h * 0.85, w * 0.95, h * 0.6)
+      ..quadraticBezierTo(w * 0.92, h * 0.38, w * 0.74, h * 0.38)
+      ..quadraticBezierTo(w * 0.68, h * 0.05, w * 0.44, h * 0.10)
+      ..quadraticBezierTo(w * 0.28, h * 0.14, w * 0.26, h * 0.38)
+      ..quadraticBezierTo(w * 0.06, h * 0.36, w * 0.04, h * 0.60)
+      ..quadraticBezierTo(w * 0.01, h * 0.85, w * 0.18, h * 0.85)
       ..close();
+    canvas.drawPath(path, paint);
+
+    // White highlight strip at bottom
+    paint.color = Colors.white.withValues(alpha: 0.4);
+    final strip = Path()
+      ..moveTo(w * 0.20, h * 0.78)
+      ..lineTo(w * 0.80, h * 0.78)
+      ..quadraticBezierTo(w * 0.90, h * 0.78, w * 0.88, h * 0.68)
+      ..lineTo(w * 0.12, h * 0.68)
+      ..quadraticBezierTo(w * 0.10, h * 0.78, w * 0.20, h * 0.78)
+      ..close();
+    canvas.drawPath(strip, paint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-class _CircularArrowsPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r = size.width * 0.34;
-    const arcGap = 0.40; // radians gap between each of the 3 arcs
-
-    final strokeW = size.width * 0.115;
-    final arcPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.round;
-    final arrowPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW * 0.85
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < 3; i++) {
-      final base = (i * 2 * math.pi / 3) - math.pi / 2;
-      final start = base + arcGap / 2;
-      const sweep = (2 * math.pi / 3) - arcGap;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r),
-        start,
-        sweep,
-        false,
-        arcPaint,
-      );
-
-      // Arrowhead at arc tip
-      final tipAngle = start + sweep;
-      final tipX = cx + r * math.cos(tipAngle);
-      final tipY = cy + r * math.sin(tipAngle);
-      final tangent = tipAngle + math.pi / 2;
-      final arrowLen = size.width * 0.14;
-
-      canvas.drawLine(
-        Offset(tipX, tipY),
-        Offset(
-          tipX + arrowLen * math.cos(tangent + math.pi * 0.78),
-          tipY + arrowLen * math.sin(tangent + math.pi * 0.78),
-        ),
-        arrowPaint,
-      );
-      canvas.drawLine(
-        Offset(tipX, tipY),
-        Offset(
-          tipX + arrowLen * math.cos(tangent - math.pi * 0.78),
-          tipY + arrowLen * math.sin(tangent - math.pi * 0.78),
-        ),
-        arrowPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-// ==============================================================================
-// _ApiServerCard
-// ==============================================================================
-
-class _ApiServerCard extends StatelessWidget {
-  final String url;
-  final bool isLocalhost;
-  final String label;
-  final String localhostWarning;
-
-  const _ApiServerCard({
-    required this.url,
-    required this.isLocalhost,
-    required this.label,
-    required this.localhostWarning,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor =
-        isLocalhost ? Colors.orange.shade200 : const Color(0xFFCAE9F5);
-    final bgColor =
-        isLocalhost ? Colors.orange.shade50 : const Color(0xFFF0F9FF);
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: 6),
-          SelectableText(
-            url,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-          ),
-          if (isLocalhost) ...[
-            const SizedBox(height: 8),
-            Text(
-              localhostWarning,
-              style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }

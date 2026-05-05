@@ -362,17 +362,37 @@ class _OrderStatusDonut extends StatelessWidget {
   final List<OrderStatusCount> data;
   const _OrderStatusDonut({required this.data});
 
+  // Main ring colors — teal / sky-blue / amber palette
   static const _colors = {
-    'pending':   Color(0xFF9E9E9E),
-    'confirmed': Color(0xFF2196F3),
-    'shipped':   Color(0xFF4CAF50),
-    'cancelled': Color(0xFFF44336),
+    'pending':   Color(0xFFE8A94D),
+    'confirmed': Color(0xFF3A9DA8),
+    'shipped':   Color(0xFF87CEDC),
+    'cancelled': Color(0xFFB0C4CE),
+  };
+
+  // Lighter tones for outer decorative ring
+  static const _lightColors = {
+    'pending':   Color(0xFFF2CA80),
+    'confirmed': Color(0xFF72C0CB),
+    'shipped':   Color(0xFFB2E1ED),
+    'cancelled': Color(0xFFCDD9E0),
   };
 
   @override
   Widget build(BuildContext context) {
     final s     = AppStrings.of(context);
     final total = data.fold(0, (sum, d) => sum + d.count);
+
+    List<PieChartSectionData> buildSections(
+            Map<String, Color> colorMap, double radius) =>
+        data
+            .map((d) => PieChartSectionData(
+                  value: d.count.toDouble(),
+                  color: colorMap[d.status] ?? Colors.grey,
+                  radius: radius,
+                  showTitle: false,
+                ))
+            .toList();
 
     return Card(
       child: Padding(
@@ -388,53 +408,74 @@ class _OrderStatusDonut extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 120,
+              height: 140,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
+                  // Outer thin decorative ring
                   PieChart(
                     PieChartData(
                       sectionsSpace: 2,
-                      centerSpaceRadius: 30,
-                      sections: data.map((d) {
-                        final color = _colors[d.status] ?? Colors.grey;
-                        return PieChartSectionData(
-                          value: d.count.toDouble(),
-                          color: color,
-                          radius: 28,
-                          showTitle: false,
-                        );
-                      }).toList(),
+                      centerSpaceRadius: 60,
+                      sections: buildSections(_lightColors, 10),
                     ),
                   ),
-                  Text(
-                    '$total',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                  // Inner main ring
+                  SizedBox(
+                    width: 110,
+                    height: 110,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 33,
+                        sections: buildSections(_colors, 20),
+                      ),
+                    ),
+                  ),
+                  // Center label
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        s.isEnglish ? 'Total' : '總計',
+                        style: TextStyle(
+                            fontSize: 8,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                      ),
+                      Text(
+                        '$total',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 6),
-            // 圖例
-            ...data.map((d) {
-              final color = _colors[d.status] ?? Colors.grey;
-              final label = _statusLabel(d.status, s);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Row(
+            // 圖例 — horizontal wrap
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              children: data.map((d) {
+                final color = _colors[d.status] ?? Colors.grey;
+                final label = _statusLabel(d.status, s);
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 8, height: 8,
-                        decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                    Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                          color: color, shape: BoxShape.circle),
+                    ),
                     const SizedBox(width: 4),
-                    Expanded(child: Text(label, style: const TextStyle(fontSize: 10),
-                        overflow: TextOverflow.ellipsis)),
-                    Text('${d.count}', style: const TextStyle(fontSize: 10)),
+                    Text(label, style: const TextStyle(fontSize: 10)),
                   ],
-                ),
-              );
-            }),
+                );
+              }).toList(),
+            ),
           ],
         ),
       ),

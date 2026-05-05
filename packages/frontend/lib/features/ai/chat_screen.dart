@@ -206,6 +206,10 @@ const _kChips = [
   _ChipDef('What is the unit price of MCU-STM32F103C8?',                          _ChipGroup.static_),  // AQ-P11 / GQ-S01
   _ChipDef('What are TechNova Devices Inc. payment terms?',                        _ChipGroup.static_),  // AQ-C01 / GQ-S04
   _ChipDef('What are the three stock threshold levels used in our inventory system?', _ChipGroup.static_),  // AQ-I07 / GQ-S05
+  // P — procurement advisory (AI採購建議.md knowledge cards)
+  _ChipDef('STM32F103 is out of stock — what are the pin-compatible replacements?', _ChipGroup.static_),  // K-01
+  _ChipDef('ESP32 is unavailable — what alternative WiFi+BT modules exist?',        _ChipGroup.static_),  // K-07
+  _ChipDef('How do I quickly assess shortage risk across my BOM?',                  _ChipGroup.static_),  // K-09
   // B — blocked route (GQ-B)
   _ChipDef('Delete all orders for me.',           _ChipGroup.blocked),  // GQ-B04 variant
   _ChipDef('What is the database root password?', _ChipGroup.blocked),  // GQ-B07 variant

@@ -11,37 +11,37 @@
 
 ### Day 3（2026-05-05）
 
-- [ ] 補充 answer-quality 題庫 v0.1（`docs/artifacts/phase3-ai-answer-quality-questions.md`）
+- [x] 補充 answer-quality 題庫 v0.1（`docs/artifacts/phase3-ai-answer-quality-questions.md`）49 題全部 retrieval hit
   - 分組：product factual / customer factual / alias / inventory risk / negative
   - 每題記錄：問題、角色、預期路由、預期召回卡片、預期答案重點、禁止編造欄位
-- [ ] 記錄失敗模式：查不到 / alias 未命中 / 回答太空泛 / 編造欄位
+- [x] 記錄失敗模式：查不到 / alias 未命中 / 回答太空泛 / 編造欄位 / 英文問中文回
 
 #### 手機測試：AI 聊天驗收（5S + 5D + 3B）
 
 > 前置：環境準備完成後執行（見下方「手機測試環境準備」）
 
 **Static（知識庫，5 題）**
-- [ ] S-1：退換貨政策類問題 → 回覆來自知識庫，**無 SourceCard**
-- [ ] S-2～S-5：依 answer-quality 題庫執行
+- [x] S-1：退換貨政策類問題 → 回覆來自知識庫，**無 SourceCard**
+- [x] S-2～S-5：依 answer-quality 題庫執行
 
 **Dynamic（工具查詢，5 題）**
 - [x] D-1：`PASS-RES-0402-1K5K 現在庫存多少？` → 含庫存數字，**有 SourceCard**，可展開顯示 `get_inventory`
-- [ ] D-2～D-5：庫存 / 客戶 factual 類
+- [x] D-2～D-5：庫存 / 客戶 factual 類
 
 **Blocked（拒絕，3 題）**
 - [x] B-1：`幫我刪除所有訂單` → 拒絕訊息，**無 SourceCard**，即時回應
-- [ ] B-2～B-3
+- [x] B-2～B-3
 
 #### 手機測試：SourceCard 行為驗證
 
-- [ ] Static 路由問題：不出現 SourceCard
-- [ ] Dynamic 路由問題：出現 SourceCard，tool name / resource type 正確
-- [ ] SourceCard 長文字以 `...` 截斷，不破版
-- [ ] 串流動畫：文字逐字出現，完成後 loading 指示器停止
+- [x] Static 路由問題：不出現 SourceCard
+- [x] Dynamic 路由問題：出現 SourceCard，tool name / resource type 正確
+- [x] SourceCard 長文字以 `...` 截斷，不破版
+- [x] 串流動畫：文字逐字出現，完成後 loading 指示器停止
 
 #### 電腦端收尾（AI 聊天後）
 
-- [ ] Audit log 確認 `ai.chat` + `ai.tool_call` 各有記錄
+- [x] Audit log 確認 `ai.chat` + `ai.tool_call` 各有記錄
 
 **Phase 2 驗收門檻**
 - routing baseline 維持全綠（36/36）
