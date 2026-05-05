@@ -54,8 +54,9 @@
 
 ### 手機測試環境準備（2026-05-05，每次測試前必做）
 
-- [ ] `docker ps` 確認 `nj-erp-postgres` Up，若未啟動：`docker start nj-erp-postgres`
-- [ ] `cd packages/backend && npm run seed:phone-demo`（換過 DB session 必做）
+- [ ] `docker ps` 確認container  `nj-erp-postgres` Up，若未啟動：`docker start nj-erp-postgres`
+- [ ] `cd packages/backend && npm run seed:phone-demo`（換過 DB session 必做，指的是 DB 被清空（docker rm 重建 container、或手動 DROP 資料）的情況）
+
 - [ ] `npm run dev` 啟動後端，確認 `curl http://127.0.0.1:3000/health` → `{"status":"ok"}`
 - [ ] `cd packages/ai_service && uvicorn main:app --port 8000`（AI 聊天測試需要）
 - [ ] `cloudflared tunnel --url http://localhost:3000` 啟動，**記下新 URL**
@@ -88,7 +89,7 @@
 ## 下個 Sprint（待排）
 
 ### 部署準備
-- [ ] `npm run db:migrate` 執行（0004–0006）— 需 Docker + DB 連線
+- [x] `npm run db:migrate` 執行（0004–0007 全部完成，2026-05-04）
 - [ ] Cloudflare WAF 實際啟用 — 需購買網域（`verify_waf.ps1` 待網域後執行）
 
 ### 功能擴充

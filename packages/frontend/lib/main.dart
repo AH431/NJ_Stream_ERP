@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_strings.dart';
+import 'core/app_theme.dart';
 import 'database/database.dart';
 import 'features/customers/customer_form_screen.dart';
 import 'features/customers/customer_list_screen.dart';
@@ -152,10 +153,7 @@ class NjStreamErpApp extends StatelessWidget {
       title: 'NJ Stream ERP',
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
       // 根據登入狀態決定起始畫面
       // isLoggedIn 由 SyncProvider 的 _loadTokens() 在啟動時讀取 SecureStorage 決定
       home: context.watch<SyncProvider>().isLoggedIn
