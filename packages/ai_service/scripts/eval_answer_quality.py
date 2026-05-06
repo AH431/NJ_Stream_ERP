@@ -299,7 +299,7 @@ def evaluate_llm(
     k: int,
 ) -> None:
     from src.rag.retriever import build_hybrid_retriever
-    from src.retrieval.prompt import RAG_PROMPT  # English structured prompt for eval consistency
+    from src.rag.prompt import RAG_PROMPT
     from src.llm.ollama_client import get_llm
 
     llm = get_llm()

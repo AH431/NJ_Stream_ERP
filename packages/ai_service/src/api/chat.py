@@ -58,6 +58,12 @@ async def _text_stream(text: str):
     yield f'data: {json.dumps({"type": "done"})}\n\n'
 
 
+async def _blocked_stream():
+    yield f'data: {json.dumps({"type": "blocked"})}\n\n'
+    async for chunk in _text_stream(format_blocked_response()):
+        yield chunk
+
+
 async def _resolve_inventory(jwt: str, sku: str) -> str:
     try:
         search_result = await search_products(jwt, sku, FASTIFY_BASE_URL)
@@ -183,7 +189,7 @@ async def chat(
     parsed = route_question(body.question)
 
     if parsed.route == "blocked":
-        return _sse_response(_text_stream(format_blocked_response()))
+        return _sse_response(_blocked_stream())
 
     if parsed.route == "dynamic" and parsed.tool == "inventory" and parsed.sku:
         answer = await _resolve_inventory(body.userJwt, parsed.sku)

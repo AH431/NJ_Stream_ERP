@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
   createAuditLog,
@@ -14,6 +14,31 @@ const ChatBody = z.object({
 
 const UPSTREAM_TIMEOUT_MS = 60_000;
 
+// Per-user rate limit: 10 req/min.
+// Runs as preHandler AFTER verifyJwt so request.user.userId is available.
+// IP-based global limit (50/min in app.ts) continues to apply on top of this.
+const _aiWindows = new Map<number, { count: number; resetAt: number }>();
+
+async function aiRateLimit(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const userId = request.user.userId;
+  const now = Date.now();
+  let entry = _aiWindows.get(userId);
+  if (!entry || now >= entry.resetAt) {
+    entry = { count: 0, resetAt: now + 60_000 };
+    _aiWindows.set(userId, entry);
+  }
+  entry.count++;
+  if (entry.count > 10) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    reply.header('Retry-After', String(retryAfter));
+    await reply.status(429).send({
+      statusCode: 429,
+      code:       'RATE_LIMIT_EXCEEDED',
+      message:    `請求過於頻繁，請 ${retryAfter} 秒後重試。`,
+    });
+  }
+}
+
 export default async function aiRoutes(app: FastifyInstance) {
   const { db } = app;
 
@@ -21,8 +46,7 @@ export default async function aiRoutes(app: FastifyInstance) {
   // JWT required, rate-limited. Proxies SSE stream from ai_service.
   // Writes pending audit on entry; updates to success/error on exit.
   app.post('/chat', {
-    preHandler: [app.verifyJwt],
-    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    preHandler: [app.verifyJwt, aiRateLimit],
   }, async (request, reply) => {
     const parsed = ChatBody.safeParse(request.body);
     if (!parsed.success) {
@@ -100,6 +124,8 @@ export default async function aiRoutes(app: FastifyInstance) {
     // Client disconnect → abort upstream fetch body read
     request.raw.on('close', () => ac.abort());
 
+    let seenBlocked = false;
+
     try {
       const reader  = upstreamRes.body!.getReader();
       const decoder = new TextDecoder();
@@ -128,6 +154,12 @@ export default async function aiRoutes(app: FastifyInstance) {
             continue;
           }
 
+          if (payload.type === 'blocked') {
+            seenBlocked = true;
+            reply.raw.write(raw + '\n\n');
+            continue;
+          }
+
           if (payload.type === 'tool_call') {
             void logAuditEvent(db, {
               requestId,
@@ -151,7 +183,7 @@ export default async function aiRoutes(app: FastifyInstance) {
       }
 
       clearTimeout(timer);
-      await finishAuditLog(db, auditId, { status: 'success' });
+      await finishAuditLog(db, auditId, { status: seenBlocked ? 'blocked' : 'success' });
     } catch (err: any) {
       clearTimeout(timer);
       await finishAuditLog(db, auditId, {

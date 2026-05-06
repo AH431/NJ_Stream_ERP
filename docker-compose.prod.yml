@@ -47,6 +47,52 @@ services:
     profiles:
       - migrate
 
+  # ── AI Service (FastAPI / RAG) ────────────────────────────────────────────
+  ai_service:
+    build:
+      context: ./packages/ai_service
+      dockerfile: Dockerfile
+    container_name: nj-erp-ai-service
+    restart: unless-stopped
+    environment:
+      AI_SERVICE_INTERNAL_TOKEN: ${AI_SERVICE_INTERNAL_TOKEN:?AI_SERVICE_INTERNAL_TOKEN is required}
+      AI_FAKE_LLM:               ${AI_FAKE_LLM:-false}
+      FASTIFY_INTERNAL_URL:      ${FASTIFY_INTERNAL_URL:-http://backend:3000/api/v1}
+      OLLAMA_BASE_URL:           ${OLLAMA_BASE_URL:-http://localhost:11434}
+      OLLAMA_MODEL:              ${OLLAMA_MODEL:-llama3.2:3b}
+      OLLAMA_NUM_CTX:            ${OLLAMA_NUM_CTX:-8192}
+      OLLAMA_TEMPERATURE:        ${OLLAMA_TEMPERATURE:-0.3}
+      EMBEDDING_MODEL:           ${EMBEDDING_MODEL:-mxbai-embed-large}
+      CHROMA_DB_PATH:            /data/chroma
+      TOP_K:                     ${TOP_K:-3}
+      CHUNK_SIZE:                ${CHUNK_SIZE:-800}
+      CHUNK_OVERLAP:             ${CHUNK_OVERLAP:-100}
+      DB_READONLY_URL:           ${DB_READONLY_URL:?DB_READONLY_URL is required}
+    volumes:
+      - chroma_data:/data/chroma
+    networks:
+      - nj-erp-net
+    # ai_service 不對外暴露 port；僅 backend 透過 Docker 內部網路呼叫
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health 2>/dev/null | grep -q 'ok' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # ── Backend ────────────────────────────────────────────────────────────────
   backend:
     build:
@@ -67,13 +113,17 @@ services:
       COMPANY_PHONE:           ${COMPANY_PHONE:-}
       COMPANY_EMAIL:           ${COMPANY_EMAIL:-}
       COMPANY_TAX_ID:          ${COMPANY_TAX_ID:-}
-      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT:-}
+      FIREBASE_SERVICE_ACCOUNT:  ${FIREBASE_SERVICE_ACCOUNT:-}
+      AI_SERVICE_URL:            ${AI_SERVICE_URL:-http://ai_service:8000}
+      AI_SERVICE_INTERNAL_TOKEN: ${AI_SERVICE_INTERNAL_TOKEN:?AI_SERVICE_INTERNAL_TOKEN is required}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
     networks:
       - nj-erp-net
     depends_on:
       postgres:
+        condition: service_healthy
+      ai_service:
         condition: service_healthy
     deploy:
       resources:
@@ -101,4 +151,6 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  chroma_data:
     driver: local

@@ -13,8 +13,8 @@ import streamlit as st
 from src.indexing.embedder import get_embeddings
 from src.indexing.vectorstore import get_vectorstore
 from src.llm.ollama_client import get_llm
-from src.retrieval.prompt import RAG_PROMPT
-from src.retrieval.retriever import get_retriever
+from src.rag.prompt import RAG_PROMPT
+from src.rag.retriever import build_hybrid_retriever
 from src.utils.vram_monitor import get_vram_used_gb
 
 
@@ -23,7 +23,7 @@ def load_rag_components():
     db_path = os.getenv("CHROMA_DB_PATH", "./db")
     embeddings = get_embeddings()
     vectorstore = get_vectorstore(embeddings, db_path=db_path)
-    retriever = get_retriever(vectorstore)
+    retriever = build_hybrid_retriever(vectorstore, role="admin")
     llm = get_llm()
     chain = RAG_PROMPT | llm
     return retriever, chain

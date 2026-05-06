@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.indexing.embedder import get_embeddings
 from src.indexing.vectorstore import get_vectorstore
-from src.retrieval.retriever import get_retriever
+from src.rag.retriever import build_hybrid_retriever
 
 
 def main(test_query: str = "什麼是RAG?") -> None:
@@ -39,7 +39,7 @@ def main(test_query: str = "什麼是RAG?") -> None:
         print(f"\n[{i + 1}] metadata: {meta}")
         print(f"    content: {doc[:120]}...")
 
-    retriever = get_retriever(vectorstore, k=2)
+    retriever = build_hybrid_retriever(vectorstore, role="admin", top_k=2)
     results = retriever.invoke(test_query)
     print(f"\nTest query: '{test_query}'")
     for r in results:

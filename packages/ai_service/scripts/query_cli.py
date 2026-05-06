@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.indexing.embedder import get_embeddings
 from src.indexing.vectorstore import get_vectorstore
 from src.llm.ollama_client import get_llm
-from src.retrieval.prompt import RAG_PROMPT
-from src.retrieval.retriever import get_retriever
+from src.rag.prompt import RAG_PROMPT
+from src.rag.retriever import build_hybrid_retriever
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -30,12 +30,12 @@ def format_docs(docs) -> str:
     )
 
 
-def main(k: int = None) -> None:
+def main(k: int = None, role: str = "admin") -> None:
     db_path = os.getenv("CHROMA_DB_PATH", "./db")
     logger.info("Loading embeddings and vectorstore...")
     embeddings = get_embeddings()
     vectorstore = get_vectorstore(embeddings, db_path=db_path)
-    retriever = get_retriever(vectorstore, k=k)
+    retriever = build_hybrid_retriever(vectorstore, role=role, top_k=k)
     llm = get_llm()
     chain = RAG_PROMPT | llm
 
@@ -66,5 +66,7 @@ def main(k: int = None) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--k", type=int, default=None, help="Number of retrieved chunks")
+    parser.add_argument("--role", default="admin", choices=["admin", "sales", "warehouse"],
+                        help="User role for RAG filter (default: admin)")
     args = parser.parse_args()
-    main(k=args.k)
+    main(k=args.k, role=args.role)

@@ -166,7 +166,7 @@ services:
       - AI_FAKE_LLM=${AI_FAKE_LLM:-false}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
-      - CHROMA_PATH=/data/chroma
+      - CHROMA_DB_PATH=/data/chroma
       - FASTIFY_INTERNAL_URL=http://backend:3000
       - AI_SERVICE_INTERNAL_TOKEN=${AI_SERVICE_INTERNAL_TOKEN}
       - DB_READONLY_URL=${DB_READONLY_URL}
@@ -358,7 +358,7 @@ await finishAuditLog(auditId, { status: 'error', errorMessage: e.message });
 | `AI_SERVICE_INTERNAL_TOKEN` | 與 backend 共用同一個值 | — |
 | `OLLAMA_BASE_URL` | Ollama 服務位址 | `http://localhost:11434` |
 | `OLLAMA_MODEL` | 使用的模型名稱 | `llama3` |
-| `CHROMA_PATH` | ChromaDB 資料目錄 | `./data/chroma` |
+| `CHROMA_DB_PATH` | ChromaDB 資料目錄 | `./data/chroma` |
 | `DB_READONLY_URL` | card_generator.py 使用的唯讀 DB 連線 | — |
 
 ### 6.3 備份腳本變數
@@ -862,7 +862,7 @@ source: db
 | 項目 | 內容 |
 |---|---|
 | 目標 | 建立 ChromaDB index，支援重建 |
-| 檔案 | `packages/ai_service/src/indexing/build_index.py` |
+| 檔案 | `packages/ai_service/scripts/build_index.py` |
 | 驗收 | 可重建；metadata filter 生效；warehouse 查不到 customer card |
 
 #### M3.5 Hybrid retriever
