@@ -28,6 +28,7 @@ import '../../providers/sync_provider.dart';
 // ==============================================================================
 
 class _ItemRow {
+  final GlobalKey cardKey = GlobalKey();
   int? productId;
   String productName = '';
   final TextEditingController qtyCtrl;
@@ -75,6 +76,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   bool _masterDataLoaded = false;
 
   final _scrollController = ScrollController();
+  bool _isSaving = false;
 
   // --------------------------------------------------------------------------
   // 初始化
@@ -127,11 +129,16 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   void _addRow() {
     setState(() => _rows.add(_ItemRow()));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      final ctx = _rows.last.cardKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+          alignment: 0.0,
+        );
+      }
     });
   }
 
@@ -168,7 +175,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // - 不要用整頁 GestureDetector 包 Scaffold 來收鍵盤；它可能和底部按鈕 tap
   //   競爭。若要完成輸入，優先用欄位層級處理。
   Future<void> _save() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
 
     final db = Provider.of<AppDatabase>(context, listen: false);
     final sync = Provider.of<SyncProvider>(context, listen: false);
@@ -244,7 +254,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     final s = AppStrings.of(context);
     return Form(
       key: _formKey,
-      onChanged: () => setState(() {}), // 即時重算金額
+      onChanged: () { if (!_isSaving) setState(() {}); }, // 即時重算金額；save 期間跳過避免重建
       child: Column(
         children: [
           Expanded(
@@ -297,12 +307,18 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
-                    onPressed: _save,
+                    onPressed: _isSaving ? null : _save,
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       minimumSize: const Size(0, 44),
                     ),
-                    child: Text(s.btnSaveQuotation),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text(s.btnSaveQuotation),
                   ),
                 ),
               ],
@@ -341,6 +357,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     return List.generate(_rows.length, (i) {
       final row = _rows[i];
       return Card(
+        key: row.cardKey,
         margin: const EdgeInsets.only(bottom: 8),
         child: Padding(
           padding: const EdgeInsets.all(12),

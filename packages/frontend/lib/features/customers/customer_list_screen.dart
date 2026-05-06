@@ -81,6 +81,18 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     return list;
   }
 
+  // ── 排序切換（rfm 相依模式會自動補 fetch）───────────────
+
+  void _onSortChanged(_SortMode newMode) {
+    setState(() => _sortMode = newMode);
+    if (newMode != _SortMode.nameAsc && mounted) {
+      final rfmProv = context.read<RfmProvider>();
+      if (rfmProv.itemsById.isEmpty && !rfmProv.isLoading) {
+        rfmProv.fetchRfm(force: true);
+      }
+    }
+  }
+
   // ── 選取模式 ─────────────────────────────────────────────
 
   void _enterSelectionMode(int id) {
@@ -278,7 +290,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               _RfmControlBar(
                 sortMode:  _sortMode,
                 churnOnly: _churnOnly,
-                onSort:    (m) => setState(() => _sortMode  = m),
+                isLoading: rfmProvider?.isLoading ?? false,
+                onSort:    _onSortChanged,
                 onFilter:  (v) => setState(() => _churnOnly = v),
               ),
             // 篩選後無結果時提示
@@ -423,12 +436,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 class _RfmControlBar extends StatelessWidget {
   final _SortMode              sortMode;
   final bool                   churnOnly;
+  final bool                   isLoading;
   final ValueChanged<_SortMode> onSort;
   final ValueChanged<bool>      onFilter;
 
   const _RfmControlBar({
     required this.sortMode,
     required this.churnOnly,
+    required this.isLoading,
     required this.onSort,
     required this.onFilter,
   });
@@ -440,7 +455,13 @@ class _RfmControlBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.sort, size: 16, color: Colors.grey),
+          if (isLoading && sortMode != _SortMode.nameAsc)
+            const SizedBox(
+              width: 14, height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            const Icon(Icons.sort, size: 16, color: Colors.grey),
           const SizedBox(width: 4),
           DropdownButton<_SortMode>(
             value: sortMode,
