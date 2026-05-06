@@ -128,18 +128,18 @@ class _AnalyticsSection extends StatelessWidget {
         // 2. 訂單狀態環形圖 + Top 5 並排
         if (analytics.statusData != null || analytics.topProductData != null)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (analytics.statusData != null && analytics.statusData!.isNotEmpty)
                 Expanded(
-                  flex: 5,
+                  flex: 4,
                   child: _OrderStatusDonut(data: analytics.statusData!),
                 ),
               if (analytics.statusData != null && analytics.topProductData != null)
                 const SizedBox(width: 12),
               if (analytics.topProductData != null && analytics.topProductData!.isNotEmpty)
                 Expanded(
-                  flex: 4,
+                  flex: 6,
                   child: _TopProductsBar(data: analytics.topProductData!),
                 ),
             ],
@@ -383,36 +383,16 @@ class _OrderStatusDonut extends StatelessWidget {
     final s     = AppStrings.of(context);
     final total = data.fold(0, (sum, d) => sum + d.count);
 
-    List<PieChartSectionData> buildInnerSections(double radius) =>
-        data.map((d) {
-          final hide = total > 0 && d.count / total < 0.08;
-          return PieChartSectionData(
-            value: d.count.toDouble(),
-            color: _colors[d.status] ?? Colors.grey,
-            radius: radius,
-            showTitle: !hide,
-            title: '${d.count}',
-            titleStyle: const TextStyle(
-                fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
-            titlePositionPercentageOffset: 0.55,
-          );
-        }).toList();
-
-    List<PieChartSectionData> buildOuterSections(double radius) =>
-        data.map((d) {
-          final pct  = total == 0 ? 0.0 : d.count / total * 100;
-          final hide = total > 0 && d.count / total < 0.08;
-          return PieChartSectionData(
-            value: d.count.toDouble(),
-            color: _lightColors[d.status] ?? Colors.grey,
-            radius: radius,
-            showTitle: !hide,
-            title: '${pct.toStringAsFixed(0)}%',
-            titleStyle: const TextStyle(
-                fontSize: 8, fontWeight: FontWeight.w600, color: Colors.white),
-            titlePositionPercentageOffset: 0.5,
-          );
-        }).toList();
+    List<PieChartSectionData> buildSections(
+            Map<String, Color> colorMap, double radius) =>
+        data
+            .map((d) => PieChartSectionData(
+                  value: d.count.toDouble(),
+                  color: colorMap[d.status] ?? Colors.grey,
+                  radius: radius,
+                  showTitle: false,
+                ))
+            .toList();
 
     return Card(
       child: Padding(
@@ -428,27 +408,27 @@ class _OrderStatusDonut extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 200,
+              height: 140,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Outer ring — lighter colors + % labels
+                  // Outer thin decorative ring
                   PieChart(
                     PieChartData(
                       sectionsSpace: 2,
-                      centerSpaceRadius: 72,
-                      sections: buildOuterSections(18),
+                      centerSpaceRadius: 60,
+                      sections: buildSections(_lightColors, 10),
                     ),
                   ),
-                  // Inner main ring — count labels
+                  // Inner main ring
                   SizedBox(
-                    width: 140,
-                    height: 140,
+                    width: 110,
+                    height: 110,
                     child: PieChart(
                       PieChartData(
                         sectionsSpace: 2,
-                        centerSpaceRadius: 42,
-                        sections: buildInnerSections(26),
+                        centerSpaceRadius: 33,
+                        sections: buildSections(_colors, 20),
                       ),
                     ),
                   ),
@@ -522,19 +502,10 @@ class _TopProductsBar extends StatelessWidget {
   final List<TopProduct> data;
   const _TopProductsBar({required this.data});
 
-  static const _barColors = [
-    Color(0xFF3A9DA8),
-    Color(0xFF5BB8C3),
-    Color(0xFF72C9D3),
-    Color(0xFF87CEDC),
-    Color(0xFFA5DAE5),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final s      = AppStrings.of(context);
     final maxQty = data.map((p) => p.totalQty).fold(0, (a, b) => a > b ? a : b);
-    final bg     = Theme.of(context).colorScheme.surfaceContainerHighest;
 
     return Card(
       child: Padding(
@@ -550,10 +521,9 @@ class _TopProductsBar extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ...data.asMap().entries.map((entry) {
-              final idx      = entry.key;
-              final prod     = entry.value;
-              final frac     = maxQty == 0 ? 0.0 : prod.totalQty / maxQty;
-              final barColor = _barColors[idx % _barColors.length];
+              final idx  = entry.key;
+              final prod = entry.value;
+              final frac = maxQty == 0 ? 0.0 : prod.totalQty / maxQty;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
@@ -569,48 +539,25 @@ class _TopProductsBar extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(prod.name,
-                              style: const TextStyle(fontSize: 10),
+                              style: const TextStyle(fontSize: 11),
                               overflow: TextOverflow.ellipsis),
                         ),
+                        Text('${prod.totalQty}',
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Container(
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Stack(
-                        children: [
-                          FractionallySizedBox(
-                            widthFactor: frac,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: barColor,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                          Positioned.fill(
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: Text(
-                                  '${prod.totalQty}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: frac > 0.35
-                                        ? Colors.white
-                                        : Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: frac,
+                        minHeight: 6,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).colorScheme.primary.withAlpha(200),
+                        ),
                       ),
                     ),
                   ],
@@ -787,9 +734,9 @@ class _ShipmentRevenueComboChart extends StatelessWidget {
               Expanded(
                 child: Text(
                   s.isEnglish
-                      ? 'Monthly Shipment & Revenue'
-                      : '月度出貨與營收',
-                  style: Theme.of(context).textTheme.bodySmall
+                      ? 'Monthly Shipment & Revenue (6M)'
+                      : '月度出貨與營收（近 6 個月）',
+                  style: Theme.of(context).textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
