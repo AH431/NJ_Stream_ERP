@@ -158,21 +158,29 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
   // ─── 低庫存警示 badge ────────────────────────────────────────────────────────
 
-  Widget? _buildLowStockBadge(InventoryItem item, AppStrings s) {
-    if (item.quantityOnHand > item.minStockLevel) return null;
+  // critical = qty ≤ 10；high = 10 < qty ≤ minStockLevel
+  String? _lowStockSeverity(InventoryItem item) {
+    if (item.quantityOnHand <= 10) return 'critical';
+    if (item.quantityOnHand <= item.minStockLevel) return 'high';
+    return null;
+  }
+
+  Widget? _buildLowStockBadge(String? severity, AppStrings s) {
+    if (severity == null) return null;
+    final isCritical = severity == 'critical';
+    final bgColor  = isCritical ? Colors.red.shade50     : Colors.orange.shade50;
+    final bdColor  = isCritical ? Colors.red.shade300    : Colors.orange.shade300;
+    final txtColor = isCritical ? Colors.red.shade700    : Colors.orange.shade700;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: bgColor,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.red.shade300),
+        border: Border.all(color: bdColor),
       ),
       child: Text(
         s.invLowStockBadge,
-        style: TextStyle(
-            fontSize: 10,
-            color: Colors.red.shade700,
-            fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: 10, color: txtColor, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -198,8 +206,12 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     final productName = product?.name ??
         (s.isEnglish ? 'Product #${item.productId}' : '產品 #${item.productId}');
     final sku         = product?.sku ?? '—';
-    final available   = item.quantityOnHand - item.quantityReserved;
-    final lowStockBadge = _buildLowStockBadge(item, s);
+    final available       = item.quantityOnHand - item.quantityReserved;
+    final severity        = _lowStockSeverity(item);
+    final lowStockBadge   = _buildLowStockBadge(severity, s);
+    final thresholdColor  = severity == 'critical'
+        ? Colors.red.shade400
+        : Colors.orange.shade400;
     final isAdmin     = role == 'admin';
     final isSelected  = _selectedIds.contains(item.id);
 
@@ -266,7 +278,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
                 const SizedBox(height: 6),
                 Text(
                   s.invMinStock(item.minStockLevel),
-                  style: TextStyle(fontSize: 11, color: Colors.red.shade400),
+                  style: TextStyle(fontSize: 11, color: thresholdColor),
                 ),
               ],
             ],
@@ -292,7 +304,14 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final items = snapshot.data ?? [];
+        int severityOrder(InventoryItem i) {
+          if (i.quantityOnHand <= 10) return 0;
+          if (i.quantityOnHand <= i.minStockLevel) return 1;
+          return 2;
+        }
+
+        final items = (snapshot.data ?? [])
+          ..sort((a, b) => severityOrder(a).compareTo(severityOrder(b)));
 
         return Column(
           children: [

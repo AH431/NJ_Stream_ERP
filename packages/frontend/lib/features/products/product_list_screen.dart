@@ -263,7 +263,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        '\$ ${product.unitPrice.toStringAsFixed(0)}',
+                                        '\$ ${product.unitPrice.toStringAsFixed(1)}',
                                         style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.w700,
                                               color: Theme.of(ctx).colorScheme.primary,
