@@ -100,7 +100,7 @@ abstract class AppTheme {
           return const TextStyle(color: Color(0xFF6B7280), fontSize: 12);
         }),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

@@ -482,7 +482,7 @@ class _OrderStatusDonut extends StatelessWidget {
                         s.isEnglish ? 'Total' : '總計',
                         style: TextStyle(
                             fontSize: 9, // ← 中央小標題字型 9 sp；可調整 8–10
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                       ),
                       Text(
                         '$total',

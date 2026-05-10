@@ -284,7 +284,7 @@ class _HumanVerifyWidget extends StatelessWidget {
                 style: TextStyle(fontSize: 14, color: Color(0xFF3D3D3D)),
               ),
             ),
-            Column(
+            const Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -292,8 +292,8 @@ class _HumanVerifyWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _CloudflareIcon(size: 22),
-                    const SizedBox(width: 4),
-                    const Text(
+                    SizedBox(width: 4),
+                    Text(
                       'Cloudflare',
                       style: TextStyle(
                         fontSize: 11,
@@ -303,7 +303,7 @@ class _HumanVerifyWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                const Text(
+                Text(
                   'Privacy · Terms',
                   style: TextStyle(fontSize: 9, color: Color(0xFF888888)),
                 ),
