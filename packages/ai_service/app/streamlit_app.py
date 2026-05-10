@@ -66,7 +66,7 @@ with st.sidebar:
         st.warning(_s(f"VRAM 接近上限 ({threshold} GB)", f"VRAM near limit ({threshold} GB)"))
     st.divider()
     st.caption(f"LLM: {os.getenv('OLLAMA_MODEL', 'llama3.2:3b')}")
-    st.caption(f"Embedding: {os.getenv('EMBEDDING_MODEL', 'bge-m3')}")
+    st.caption(f"Embedding: {os.getenv('EMBEDDING_MODEL', 'mxbai-embed-large')}")
     st.caption(f"Top-K: {os.getenv('TOP_K', '3')}")
     if st.button(_s("重新整理 VRAM", "Refresh VRAM")):
         st.rerun()
