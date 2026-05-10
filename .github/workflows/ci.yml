@@ -79,12 +79,14 @@ jobs:
           POSTGRES_USER=postgres
           POSTGRES_PASSWORD=prod-test-password
           DATABASE_URL=postgresql://postgres:prod-test-password@postgres:5432/nj_erp_prod_test
+          DB_READONLY_URL=postgresql://postgres:prod-test-password@postgres:5432/nj_erp_prod_test
           JWT_SECRET=prod-test-jwt-secret-for-ci
           JWT_ACCESS_EXPIRES_IN=3600
           JWT_REFRESH_EXPIRES_IN=2592000
           COMPANY_NAME=NJ Stream
           PORT=3000
           BACKEND_BIND_ADDRESS=127.0.0.1
+          AI_SERVICE_INTERNAL_TOKEN=ci-test-internal-token
           EOF
 
       - name: Build prod compose
@@ -110,7 +112,7 @@ jobs:
         run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod --profile migrate run --rm migrate
 
       - name: Start backend
-        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod up -d backend
+        run: docker compose -f docker-compose.prod.yml --env-file .env.test-prod up -d --no-deps backend
 
       - name: Wait for health
         shell: bash
