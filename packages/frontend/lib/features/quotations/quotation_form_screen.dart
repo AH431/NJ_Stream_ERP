@@ -164,75 +164,112 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   // 儲存
   // --------------------------------------------------------------------------
 
-  // 高風險註記：
-  // - 不要在 onPressed/_save 事件流程中呼叫 AppStrings.of(context)。
-  //   AppStrings.of 內部使用 context.watch，會觸發 Provider assertion：
-  //   "Tried to listen to a value exposed with provider, from outside of the widget tree."
-  //   若事件流程需要文案，請使用 AppStrings.read(context) 或 context.read<AppStrings>()。
-  // - Save Quotation 保持舊版語意：只做本地 insert + enqueueCreate + pop。
-  //   不要在這裡 await pushPendingOperations；token refresh / tunnel / sync 失敗
-  //   會卡住 Navigator.pop，讓使用者感覺按鈕沒反應。
-  // - 不要用整頁 GestureDetector 包 Scaffold 來收鍵盤；它可能和底部按鈕 tap
-  //   競爭。若要完成輸入，優先用欄位層級處理。
+  // ⚠ 高風險註記（維護者必讀）：
+  //
+  // [1] 禁止在事件回呼內使用 AppStrings.of()（context.watch 路徑）
+  //     AppStrings.of() 呼叫 context.watch，在 build 以外觸發
+  //     "Tried to listen to a value exposed with provider, from outside of the widget tree."
+  //     → 事件流程統一用 context.read<AppStrings>()。
+  //
+  // [2] 禁止在此 await pushPendingOperations
+  //     語意：只做「本地 insert + enqueueCreate + pop」。
+  //     在這裡等待同步推送，token refresh / tunnel 失敗會使 Navigator.pop
+  //     長時間卡住，使用者看到按鈕無反應。
+  //
+  // [3] 畫面切換時序與閃爍根因（重要）：
+  //     t=0ms    : 點下儲存，_isSaving=true，按鈕切為 spinner（立即）。
+  //     t≈10–30ms: insertQuotation + enqueueCreate（兩次本地 SQLite 寫入）完成。
+  //     t≈30ms   : Navigator.pop() 呼叫；過場動畫開始（平台預設 ~300ms）。
+  //     ⚠ 關鍵：Navigator.pop() 不阻塞——它只「發起」動畫，widget 要等動畫
+  //       結束才真正 dispose。pop() 之後 mounted 持續為 true 約 300ms。
+  //     → 若在 finally 無條件 setState(() => _isSaving = false)，會在動畫
+  //       期間多觸發一次 rebuild：spinner 閃回 Save 文字 + Form.onChanged 守衛
+  //       解除，若 enqueueCreate 的 notifyListeners 排在同一 frame，再多疊一次。
+  //     → 修法：用 didPop flag；成功跳頁後不重設 _isSaving，讓 spinner
+  //       維持到 widget 被 dispose，動畫全程無多餘 rebuild。
+  //
+  // [4] 禁止用整頁 GestureDetector 包住 Scaffold 來收鍵盤
+  //     與底部按鈕 tap 事件競爭，導致偶發性點擊失效。
+  //     若需收鍵盤，在欄位層級（onEditingComplete / FocusScope.of(context).unfocus()）處理。
   Future<void> _save() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
 
-    final db = Provider.of<AppDatabase>(context, listen: false);
-    final sync = Provider.of<SyncProvider>(context, listen: false);
+    // didPop：標記是否已成功呼叫 Navigator.pop。
+    // finally 只在 !didPop（儲存失敗路徑）重設 _isSaving，
+    // 避免成功路徑在 pop 動畫期間多觸發一次 rebuild（spinner 閃回 Save 文字）。
+    var didPop = false;
 
-    final now = DateTime.now().toUtc();
-    final localId = SyncProvider.nextLocalId();
-    final userId = sync.userId!;
+    try {
+      final db = Provider.of<AppDatabase>(context, listen: false);
+      final sync = Provider.of<SyncProvider>(context, listen: false);
 
-    final subtotalSum = _subtotalSum;
-    final taxAmount = _taxAmount;
-    final totalAmount = _totalAmount;
+      final now = DateTime.now().toUtc();
+      final localId = SyncProvider.nextLocalId();
+      final userId = sync.userId!;
 
-    final items = _rows
-        .map((r) => QuotationItemModel(
-              productId: r.productId!,
-              quantity: int.parse(r.qtyCtrl.text),
-              unitPrice: r.price.toStringAsFixed(2),
-              subtotal: r.subtotal.toStringAsFixed(2),
-            ))
-        .toList();
+      final subtotalSum = _subtotalSum;
+      final taxAmount = _taxAmount;
+      final totalAmount = _totalAmount;
 
-    final itemsJson = QuotationItemModel.toJsonString(items);
+      final items = _rows
+          .map((r) => QuotationItemModel(
+                productId: r.productId!,
+                quantity: int.parse(r.qtyCtrl.text),
+                unitPrice: r.price.toStringAsFixed(2),
+                subtotal: r.subtotal.toStringAsFixed(2),
+              ))
+          .toList();
 
-    await db.insertQuotation(QuotationsCompanion(
-      id: Value(localId),
-      customerId: Value(_selectedCustomerId!),
-      createdBy: Value(userId),
-      items: Value(itemsJson),
-      totalAmount: Value(totalAmount),
-      taxAmount: Value(taxAmount),
-      status: const Value('draft'),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-    ));
+      final itemsJson = QuotationItemModel.toJsonString(items);
 
-    // Payload 的 items 為 List<Map>（後端格式）
-    await sync.enqueueCreate('quotation', {
-      'id': localId,
-      'customerId': _selectedCustomerId,
-      'createdBy': userId,
-      'items': items.map((i) => i.toJson()).toList(),
-      'totalAmount': totalAmount.toStringAsFixed(2),
-      'taxAmount': taxAmount.toStringAsFixed(2),
-      'subtotalSum': subtotalSum.toStringAsFixed(2),
-      'withTax': _withTax,
-      'status': 'draft',
-      'convertedToOrderId': null,
-      'createdAt': now.toIso8601String(),
-      'updatedAt': now.toIso8601String(),
-      'deletedAt': null,
-    });
+      await db.insertQuotation(QuotationsCompanion(
+        id: Value(localId),
+        customerId: Value(_selectedCustomerId!),
+        createdBy: Value(userId),
+        items: Value(itemsJson),
+        totalAmount: Value(totalAmount),
+        taxAmount: Value(taxAmount),
+        status: const Value('draft'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+      ));
 
-    if (!mounted) return;
-    Navigator.pop(context);
+      // Payload 的 items 為 List<Map>（後端格式）
+      await sync.enqueueCreate('quotation', {
+        'id': localId,
+        'customerId': _selectedCustomerId,
+        'createdBy': userId,
+        'items': items.map((i) => i.toJson()).toList(),
+        'totalAmount': totalAmount.toStringAsFixed(2),
+        'taxAmount': taxAmount.toStringAsFixed(2),
+        'subtotalSum': subtotalSum.toStringAsFixed(2),
+        'withTax': _withTax,
+        'status': 'draft',
+        'convertedToOrderId': null,
+        'createdAt': now.toIso8601String(),
+        'updatedAt': now.toIso8601String(),
+        'deletedAt': null,
+      });
+
+      if (!mounted) return;
+      didPop = true; // 設於 pop 之前，確保 finally 能正確判斷
+      Navigator.pop(context);
+      // _isSaving 刻意保持 true：pop 動畫期間 widget 仍 mounted，
+      // 不重設可防止 Form.onChanged 守衛解除造成額外 rebuild。
+      // widget dispose 後 _isSaving 狀態自動失效。
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('儲存失敗：$e')),
+      );
+    } finally {
+      // 僅錯誤路徑（!didPop）需要重設，讓使用者可以重試。
+      // 成功路徑已呼叫 pop，不重設以避免動畫中多餘 rebuild。
+      if (!didPop && mounted) setState(() => _isSaving = false);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -242,7 +279,11 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
+    // backgroundColor 必須設定：全域主題 scaffoldBackgroundColor=Colors.transparent
+    // （讓 gradient 穿透），若此處不明確指定實心色，pop 動畫期間 form Scaffold 透明，
+    // list 畫面從後方透出，造成鬼影重疊。Colors.white 對應 gradient 頂端色。
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(title: Text(s.quotFormTitle)),
       body: _masterDataLoaded
           ? _buildForm()
