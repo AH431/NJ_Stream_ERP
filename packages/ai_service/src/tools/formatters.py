@@ -26,13 +26,13 @@ def format_inventory_answer(product: dict, inventory: dict) -> str:
     ]
 
     if available <= critical_stock:
-        lines.append(f"🔴 Critical: Available ({available}) is below critical level ({critical_stock}). Immediate action required.")
+        lines.append(f"[CRITICAL] Available ({available}) is below critical level ({critical_stock}). Immediate action required.")
     elif available <= alert_stock:
-        lines.append(f"🟠 Alert: Available ({available}) is below alert level ({alert_stock}). Please source urgently.")
+        lines.append(f"[ALERT] Available ({available}) is below alert level ({alert_stock}). Please source urgently.")
     elif available <= min_stock:
-        lines.append(f"🟡 Warning: Available ({available}) is below minimum level ({min_stock}). Consider replenishing.")
+        lines.append(f"[WARNING] Available ({available}) is below minimum level ({min_stock}). Consider replenishing.")
     else:
-        lines.append(f"✅ Stock sufficient (available {available} units, above minimum {min_stock} units).")
+        lines.append(f"[OK] Stock sufficient (available {available} units, above minimum {min_stock} units).")
 
     return "\n".join(lines)
 

@@ -26,6 +26,15 @@ _STOCK_LEVEL_STATIC = re.compile(r'水位.{0,5}設定|安全庫存水位')
 # not per-customer live data, even when a customer name appears in the question.
 _PAYMENT_TERMS_STATIC = re.compile(r'付款條件|付款天數|付款期限|payment\s*term', re.IGNORECASE)
 
+# "STM32F103C8 is out of stock. What are the alternatives?" is a procurement
+# knowledge question (answered from static knowledge cards), not a live inventory
+# lookup — even though "stock" triggers the bare inventory keyword.
+_OUT_OF_STOCK_ALT_STATIC = re.compile(
+    r'out\s+of\s+stock.{0,80}(?:alternative|substitut|replace|instead)'
+    r'|(?:alternative|substitut|replace).{0,80}out\s+of\s+stock',
+    re.IGNORECASE,
+)
+
 
 def route(question: str) -> ParsedQuery:
     """Return the routing decision for a user question."""
@@ -39,6 +48,11 @@ def route(question: str) -> ParsedQuery:
     # De-escalate: payment terms are static policy, not per-customer live data
     if (parsed.route == 'dynamic' and parsed.tool == 'customer'
             and _PAYMENT_TERMS_STATIC.search(question)):
+        return ParsedQuery(route='static')
+
+    # De-escalate: "X is out of stock, what are the alternatives?" is a static
+    # procurement knowledge question, not a live inventory lookup.
+    if parsed.route == 'dynamic' and _OUT_OF_STOCK_ALT_STATIC.search(question):
         return ParsedQuery(route='static')
 
     # Upgrade: customer detail questions still need a search term before using live lookup.

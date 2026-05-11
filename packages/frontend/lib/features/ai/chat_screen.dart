@@ -151,14 +151,13 @@ class _MessageTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              message.content.isEmpty && message.isStreaming
-                  ? '▌'
-                  : message.content,
-              style: TextStyle(
-                color: isUser ? cs.onPrimaryContainer : cs.onSurface,
+            if (message.content.isEmpty && message.isStreaming)
+              Text('▌', style: TextStyle(color: cs.onSurface))
+            else
+              _StyledMessageContent(
+                content: message.content,
+                baseColor: isUser ? cs.onPrimaryContainer : cs.onSurface,
               ),
-            ),
             if (message.isStreaming && message.content.isNotEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 4),
@@ -181,6 +180,54 @@ class _MessageTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// 將 [CRITICAL]/[ALERT]/[WARNING]/[OK] 轉為 icon + 文字行
+class _StyledMessageContent extends StatelessWidget {
+  final String content;
+  final Color baseColor;
+
+  const _StyledMessageContent({required this.content, required this.baseColor});
+
+  static const _kTags = {
+    '[CRITICAL]': (Icons.error,          Colors.red),
+    '[ALERT]':    (Icons.warning_rounded, Colors.orange),
+    '[WARNING]':  (Icons.warning_amber_outlined, Colors.amber),
+    '[OK]':       (Icons.check_circle_outline,   Colors.green),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = content.split('\n');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lines.map((line) {
+        for (final entry in _kTags.entries) {
+          if (line.startsWith(entry.key)) {
+            final (icon, color) = entry.value;
+            final rest = line.substring(entry.key.length).trimLeft();
+            return Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 16, color: color),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      rest,
+                      style: TextStyle(color: baseColor, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+        return Text(line, style: TextStyle(color: baseColor));
+      }).toList(),
     );
   }
 }
