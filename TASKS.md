@@ -21,8 +21,8 @@
 > 前置：環境準備完成後執行（見下方「手機測試環境準備」）
 
 **Static（知識庫，5 題）**
-- [x] S-1：退換貨政策類問題 → 回覆來自知識庫，**無 SourceCard**
-- [x] S-2～S-5：依 answer-quality 題庫執行
+- [ ] S-1：退換貨政策類問題 → 回覆來自知識庫，**無 SourceCard** — ⚠️ 僅 Python CLI 驗過，手機 App E2E 尚未完成（見 2026-05-10 log）
+- [ ] S-2～S-5：依 answer-quality 題庫執行
 
 **Dynamic（工具查詢，5 題）**
 - [x] D-1：`PASS-RES-0402-1K5K 現在庫存多少？` → 含庫存數字，**有 SourceCard**，可展開顯示 `get_inventory`
@@ -34,10 +34,10 @@
 
 #### 手機測試：SourceCard 行為驗證
 
-- [x] Static 路由問題：不出現 SourceCard
-- [x] Dynamic 路由問題：出現 SourceCard，tool name / resource type 正確
-- [x] SourceCard 長文字以 `...` 截斷，不破版
-- [x] 串流動畫：文字逐字出現，完成後 loading 指示器停止
+- [ ] Static 路由問題：不出現 SourceCard — ⚠️ 待手機 E2E 驗收
+- [x] Dynamic 路由問題：出現 SourceCard，tool name / resource type 正確（2026-05-03 已驗）
+- [x] SourceCard 長文字以 `...` 截斷，不破版（2026-05-03 已驗）
+- [x] 串流動畫：文字逐字出現，完成後 loading 指示器停止（2026-05-03 已驗）
 
 #### 電腦端收尾（AI 聊天後）
 
@@ -104,6 +104,17 @@
 - [x] 下載 `google-services.json` 放至 `packages/frontend/android/app/`
 - [x] 產生 Service Account JSON 並寫入 `.env.production`
 
+### 安全修正（2026-05-16 審查，依優先級排序）
+
+#### 🔴 Critical
+- [x] `sync.service.ts` — 庫存 delta 查詢加 `SELECT ... FOR UPDATE`，防止並發 RESERVE/OUT 超賣（2026-05-16）
+- [x] `sync.service.ts` — quotation/sales_order `createdBy` 改由 JWT userId 注入，client payload 中 `createdBy` 被 zod 預設 strip（2026-05-16）
+
+#### 🟠 High
+- [x] `auth.service.ts` — 帳號不存在時跑 dummy bcrypt.compare，消除帳號列舉的 timing attack（2026-05-16）
+- [x] `sync.route.ts` — AnomalyScanner 改為 `setImmediate` fire-and-forget，不阻塞 HTTP 回應（2026-05-16）
+- [x] `auth.service.ts` — Refresh token rotation（每次刷新換發新 refresh token，舊的立即失效）（2026-05-16）
+
 ### RAG Phase 3（條件式，Phase 2 完成後評估）
 - [ ] 小規模 SFT 驗證（200–300 筆）— 前提：Phase 2 有穩定失敗案例
 - [ ] 決定是否進入 LoRA 擴充 — 前提：SFT 有明顯提升
@@ -120,4 +131,12 @@
 | 2026-05-03 | seed-production-en.ts（20 產品、12 客戶、45 訂單正式英文資料集）|
 | 2026-05-03 | verify_app_security.ps1（本機/Quick Tunnel 可跑的安全邊界驗收腳本）|
 | 2026-05-03 | AI 聊天手機端對端實測（dynamic tool call + SourceCard + blocked 路由）|
+| 2026-05-04 | RAG Phase 2 驗收 PASS（retrieval 49/49 100%、leakage 0、keyword 73.1%）、answer-quality 題庫 49 題、DB migration 0004–0007 確認完成 |
+| 2026-05-05 | Frontend UI 品牌重設計（Teal 主題、登入畫面、FilledButton 統一）|
+| 2026-05-06 | docker-compose.prod.yml ai_service 服務補完、audit log blocked 狀態機修正、per-userId rate limit |
+| 2026-05-07 | dashboard_screen.dart 全檔 UI 逐行中文註解 |
+| 2026-05-10 | QuotationFormScreen pop 鬼影修正、知識卡片新增、CI 紅燈修復、inventory icon 修正、query_router payment_terms de-escalation |
+| 2026-05-15 | 全專案架構圖輸出（architecture.html + architecture.json v1.0.0）|
+| 2026-05-16 | architecture.json v1.1.0（6 處錯誤修正）、Phase 3 完成狀況確認、全專案安全審查（12 項問題列入 TASKS）|
+| 2026-05-16 | 安全修正 5 項（庫存 FOR UPDATE 鎖、createdBy JWT 注入、login timing attack 防護、AnomalyScanner fire-and-forget、refresh token rotation）+ vitest 52 全綠 |
 | 2026-04-29 | PR-1 ~ PR-10 全部完成，Phase 3 核心功能可演示 |

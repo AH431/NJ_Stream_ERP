@@ -1,0 +1,469 @@
+{
+  "meta": {
+    "project": "NJ_Stream_ERP",
+    "generated": "2026-05-16",
+    "version": "1.1.0",
+    "description": "Architecture reference for agents working on new features. Read conventions carefully before adding routes or screens."
+  },
+
+  "services": {
+    "backend": {
+      "technology": "Fastify 5.0 + Drizzle ORM 0.45 + TypeScript 5.6 + PostgreSQL 16",
+      "port": 3000,
+      "root": "packages/backend",
+      "entry": "src/index.ts",
+      "app_factory": "src/app.ts",
+      "api_prefix": "/api/v1",
+      "auth": {
+        "algorithm": "HS256",
+        "access_token_ttl": "1h",
+        "refresh_token_ttl": "30d",
+        "plugin": "src/plugins/auth.plugin.ts"
+      },
+      "rate_limits": {
+        "global": "50 req/min",
+        "login": "10 req/min per IP",
+        "ai_chat": "10 req/min per user",
+        "health": "10 req/min"
+      },
+      "plugins": [
+        "src/plugins/db.ts",
+        "src/plugins/auth.plugin.ts"
+      ],
+      "scripts": {
+        "dev": "tsx watch src/index.ts",
+        "build": "tsc -p tsconfig.json && tsc-alias",
+        "start": "node dist/index.js",
+        "db:generate": "drizzle-kit generate",
+        "db:studio": "drizzle-kit studio",
+        "db:migrate": "drizzle-kit migrate",
+        "test": "vitest run --pool=threads",
+        "seed:phone-demo": "node ... seed-phone-demo-en.ts"
+      }
+    },
+    "frontend": {
+      "technology": "Flutter 3.29+ + Drift 2.29 (SQLite) + Provider 6.1 + Dio 5.7",
+      "root": "packages/frontend",
+      "entry": "lib/main.dart",
+      "state_management": "Provider",
+      "http_client": "Dio",
+      "local_db": "Drift (SQLite)",
+      "key_dependencies": {
+        "drift": "2.29.0",
+        "provider": "6.1.0",
+        "dio": "5.7.0",
+        "firebase_messaging": "15.0.0",
+        "fl_chart": "0.69.0",
+        "decimal": "3.0.0"
+      }
+    },
+    "ai_service": {
+      "technology": "FastAPI 0.115 + LangChain + Ollama + ChromaDB",
+      "port": 8000,
+      "root": "packages/ai_service",
+      "entry": "main.py",
+      "default_model": "llama3.2:3b",
+      "internal_auth": "X-Internal-Token header",
+      "endpoints": [
+        { "method": "GET", "path": "/health", "description": "Health check" },
+        { "method": "POST", "path": "/chat", "description": "SSE streaming chat response", "auth": "X-Internal-Token" }
+      ],
+      "key_files": {
+        "api": "src/api/chat.py",
+        "router": "src/router/query_router.py",
+        "tools": "src/tools/erp_tools.py",
+        "retriever": "src/rag/retriever.py",
+        "llm": "src/llm/ollama_client.py",
+        "vectorstore": "src/indexing/vectorstore.py",
+        "card_generator": "src/indexing/card_generator.py"
+      },
+      "env_vars": {
+        "AI_SERVICE_INTERNAL_TOKEN": "Mutual auth token with backend",
+        "FASTIFY_INTERNAL_URL": "Backend URL for ERP data queries",
+        "OLLAMA_BASE_URL": "Ollama service address",
+        "OLLAMA_MODEL": "LLM model name",
+        "CHROMA_DB_PATH": "Vector store directory",
+        "DB_READONLY_URL": "PostgreSQL read-only connection",
+        "AI_FAKE_LLM": "Test mode flag"
+      }
+    }
+  },
+
+  "database": {
+    "engine": "PostgreSQL 16",
+    "orm": "Drizzle ORM (backend) / Drift (Flutter local SQLite)",
+    "schema_location": "packages/backend/src/schemas/*.schema.ts",
+    "conventions": {
+      "soft_delete": "All master tables have deletedAt column; queries filter WHERE deletedAt IS NULL",
+      "timestamps": "timestamp(..., withTimezone: true, mode: 'date') → JavaScript Date → ISO-8601 JSON",
+      "numeric_precision": "numeric(12, 2) for all prices → serialized as string '158000.00' → Decimal type in frontend",
+      "idempotency": "UUID v4 operationId stored in processed_operations to prevent duplicate processing"
+    },
+    "tables": [
+      {
+        "name": "users",
+        "purpose": "Authentication and role-based access control",
+        "key_columns": ["id", "username (UNIQUE)", "password (bcrypt hash)", "role (sales|warehouse|admin)", "refreshToken", "isActive"],
+        "notes": "bcrypt rounds=12; role is used by auth.plugin.ts for endpoint guards"
+      },
+      {
+        "name": "customers",
+        "purpose": "Customer master data with soft-delete",
+        "key_columns": ["id", "name", "contact", "email", "taxId", "paymentTermsDays", "deletedAt"],
+        "soft_delete": true
+      },
+      {
+        "name": "products",
+        "purpose": "Product catalog with soft-delete",
+        "key_columns": ["id", "name", "sku (UNIQUE)", "unitPrice numeric(12,2)", "costPrice numeric(12,2)", "minStockLevel", "deletedAt"],
+        "soft_delete": true
+      },
+      {
+        "name": "quotations",
+        "purpose": "Sales quotations",
+        "key_columns": ["id", "customerId (FK customers)", "createdBy (FK users)", "totalAmount", "taxAmount", "status (draft|sent|converted|expired)", "convertedToOrderId", "deletedAt"],
+        "soft_delete": true
+      },
+      {
+        "name": "sales_orders",
+        "purpose": "Confirmed sales orders with payment tracking",
+        "key_columns": ["id", "quotationId (FK quotations)", "customerId (FK customers)", "createdBy (FK users)", "status (pending|confirmed|shipped|cancelled)", "paymentStatus (unpaid|paid|written_off)", "confirmedAt", "shippedAt", "paidAt", "dueDate", "deletedAt"],
+        "soft_delete": true
+      },
+      {
+        "name": "order_items",
+        "purpose": "Line items shared between quotations and orders",
+        "key_columns": ["id", "quotationId (nullable FK)", "salesOrderId (nullable FK)", "productId (FK products)", "quantity", "unitPrice numeric(12,2)", "subtotal numeric(12,2)"]
+      },
+      {
+        "name": "inventory_items",
+        "purpose": "Stock snapshot per warehouse-product combination",
+        "key_columns": ["id", "productId (UNIQUE FK products)", "warehouseId", "quantityOnHand (CHECK >= 0)", "quantityReserved (CHECK <= quantityOnHand)", "minStockLevel", "alertStockLevel", "criticalStockLevel"],
+        "constraints": ["quantityOnHand >= 0", "quantityReserved <= quantityOnHand"]
+      },
+      {
+        "name": "processed_operations",
+        "purpose": "Sync idempotency log and audit trail",
+        "key_columns": ["id", "operationId (UUID, UNIQUE)", "entityType", "operationType", "deltaType", "payload (JSONB)", "status (success|failed)", "errorMessage", "processedAt"],
+        "retention": "30-day auto-cleanup via /admin/cleanup"
+      },
+      {
+        "name": "anomalies",
+        "purpose": "System alerts and exceptions",
+        "key_columns": ["id", "alertType", "severity (critical|high|medium)", "entityType", "entityId", "message", "detail (JSONB)", "isResolved", "createdAt"]
+      },
+      {
+        "name": "customer_interactions",
+        "purpose": "CRM notes — visits, calls, emails",
+        "key_columns": ["id", "customerId (FK customers)", "note", "createdBy (FK users)", "createdAt"]
+      },
+      {
+        "name": "device_tokens",
+        "purpose": "FCM push notification tokens",
+        "key_columns": ["userId (FK users)", "token (UNIQUE)", "platform (android|ios)", "createdAt"]
+      },
+      {
+        "name": "audit_logs",
+        "purpose": "AI chat, tool call, blocked query, and admin import audit trail (separate from processed_operations)",
+        "key_columns": ["id", "requestId (UUID, one per ai.chat session)", "userId (FK users)", "userRole", "action (ai.chat|ai.tool_call|ai.blocked|admin.import)", "resourceType", "resourceId", "questionHash (SHA-256)", "toolName", "status (pending|success|denied|blocked|error)", "errorMessage", "meta (JSONB)", "createdAt", "finishedAt"],
+        "notes": "Written by audit.service.ts only. Never shared with processed_operations."
+      }
+    ]
+  },
+
+  "api_routes": {
+    "prefix": "/api/v1",
+    "auth_header": "Authorization: Bearer <access_token>",
+    "routes": {
+      "auth": [
+        { "method": "POST", "path": "/auth/login", "auth": false, "roles": "all", "rate_limit": "10/min/IP", "description": "Returns JWT access + refresh tokens" },
+        { "method": "POST", "path": "/auth/refresh", "auth": false, "roles": "all", "description": "Refresh access token" },
+        { "method": "POST", "path": "/auth/logout", "auth": true, "roles": "all", "description": "Invalidate refresh token" }
+      ],
+      "sync": [
+        {
+          "method": "POST",
+          "path": "/sync/push",
+          "auth": true,
+          "roles": ["sales", "warehouse", "admin"],
+          "description": "Offline-first batch operation push (max 50 ops per request)",
+          "supported_entity_types": ["customer", "product", "quotation", "sales_order", "inventory_delta", "customer_interaction"],
+          "supported_operation_types": ["create", "update", "delete", "delta_update"],
+          "supported_delta_types": ["reserve", "cancel", "out", "in"],
+          "response": "{ succeeded: [id, ...], failed: [{ id, code, message }, ...] }",
+          "conflict_resolution": "LWW (Last-Write-Wins) — reject if client updatedAt < server updatedAt"
+        }
+      ],
+      "customers": [
+        { "method": "GET", "path": "/customers", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "List customers (excludes soft-deleted)" },
+        { "method": "GET", "path": "/customers/search", "auth": true, "roles": ["sales", "admin"], "params": "?q=<string>", "description": "CRM search for AI tools and sales workflows. warehouse role → 403." },
+        { "method": "GET", "path": "/customers/:id", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Customer detail with RFM scoring" },
+        { "method": "POST", "path": "/customers", "auth": true, "roles": ["sales", "admin"], "description": "Create customer" },
+        { "method": "PUT", "path": "/customers/:id", "auth": true, "roles": ["sales", "admin"], "description": "Update customer (PATCH semantics)" },
+        { "method": "DELETE", "path": "/customers/:id", "auth": true, "roles": ["admin"], "description": "Soft-delete customer" },
+        { "method": "DELETE", "path": "/customers", "auth": true, "roles": ["admin"], "description": "Batch soft-delete" }
+      ],
+      "products": [
+        { "method": "GET", "path": "/products", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "List products (excludes soft-deleted)" },
+        { "method": "GET", "path": "/products/search", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?q=<string>", "description": "Full-text search on name and SKU (ILIKE). Must be registered before /:id route." },
+        { "method": "GET", "path": "/products/:id", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Product detail" },
+        { "method": "POST", "path": "/products", "auth": true, "roles": ["admin"], "description": "Create product" },
+        { "method": "PUT", "path": "/products/:id", "auth": true, "roles": ["admin"], "description": "Update product" },
+        { "method": "DELETE", "path": "/products/:id", "auth": true, "roles": ["admin"], "description": "Soft-delete product" },
+        { "method": "DELETE", "path": "/products", "auth": true, "roles": ["admin"], "description": "Batch soft-delete" }
+      ],
+      "quotations": [
+        { "method": "GET", "path": "/quotations/:id", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Quotation detail with order_items + product relations" },
+        { "method": "POST", "path": "/quotations/:id/convert-to-order", "auth": true, "roles": ["sales", "admin"], "description": "Convert quotation to sales order (first-to-sync wins)" }
+      ],
+      "sales_orders": [
+        { "method": "GET", "path": "/sales-orders", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "List sales orders" },
+        { "method": "GET", "path": "/sales-orders/:id", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Order detail with items" },
+        { "method": "POST", "path": "/sales-orders/confirm", "auth": true, "roles": ["sales", "admin"], "description": "Confirm order (locks inventory via reserve delta)" },
+        { "method": "POST", "path": "/sales-orders/:id/ship", "auth": true, "roles": ["warehouse", "admin"], "description": "Mark shipped (inventory out delta)" },
+        { "method": "POST", "path": "/sales-orders/:id/cancel", "auth": true, "roles": ["sales", "admin"], "description": "Cancel order (releases reserved inventory)" }
+      ],
+      "inventory": [
+        { "method": "GET", "path": "/inventory", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?productId=<number> OR ?sku=<string>", "description": "Query inventory for a specific product. Returns quantityOnHand, quantityReserved, availableQuantity (=onHand-reserved), stock threshold levels. Used by AI tool caller." },
+        { "method": "POST", "path": "/inventory/stock-in", "auth": true, "roles": ["warehouse", "admin"], "description": "Manual stock receive" },
+        { "method": "POST", "path": "/inventory/reserve", "auth": true, "roles": ["sales", "admin"], "description": "Reserve quantity" },
+        { "method": "POST", "path": "/inventory/cancel-reserve", "auth": true, "roles": ["sales", "admin"], "description": "Release reserved quantity" }
+      ],
+      "customer_interactions": [
+        { "method": "GET", "path": "/customer-interactions", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "CRM interaction history for a customer" },
+        { "method": "POST", "path": "/customer-interactions", "auth": true, "roles": ["sales", "admin"], "description": "Log visit/call/email interaction" }
+      ],
+      "documents": [
+        { "method": "GET", "path": "/documents/:orderId/pdf-quotation", "auth": true, "roles": ["sales", "admin"], "description": "Generate quotation PDF" },
+        { "method": "GET", "path": "/documents/:orderId/pdf-order", "auth": true, "roles": ["sales", "admin"], "description": "Generate order PDF" },
+        { "method": "POST", "path": "/documents/send-email", "auth": true, "roles": ["sales", "admin"], "description": "Email quote/order/invoice" }
+      ],
+      "analytics": [
+        { "method": "GET", "path": "/analytics/revenue", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?months=6", "description": "Monthly revenue trend" },
+        { "method": "GET", "path": "/analytics/orders/status-summary", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Order count by status" },
+        { "method": "GET", "path": "/analytics/products/top-sales", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?days=30&limit=5", "description": "Top products by qty & revenue" },
+        { "method": "GET", "path": "/analytics/profit", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?months=6", "description": "Gross profit trend" },
+        { "method": "GET", "path": "/analytics/customers/heatmap", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?months=6&limit=10", "description": "Customer activity heatmap" },
+        { "method": "GET", "path": "/analytics/funnel", "auth": true, "roles": ["sales", "warehouse", "admin"], "params": "?days=30", "description": "Quote → Order → Shipped conversion funnel" },
+        { "method": "GET", "path": "/analytics/inventory/trend", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Stock turnover metrics" }
+      ],
+      "ar": [
+        { "method": "GET", "path": "/ar/summary", "auth": true, "roles": ["admin"], "description": "AR aging buckets (0-30/31-60/61-90/90+ days overdue)" },
+        { "method": "GET", "path": "/ar/orders", "auth": true, "roles": ["admin"], "description": "Unpaid order list with aging days" },
+        { "method": "PUT", "path": "/ar/orders/:id/payment", "auth": true, "roles": ["admin"], "description": "Mark order paid or written-off" }
+      ],
+      "anomalies": [
+        { "method": "GET", "path": "/anomalies", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "List unresolved alerts" },
+        { "method": "POST", "path": "/anomalies/scan", "auth": true, "roles": ["admin"], "description": "Manually trigger anomaly scan (dev/test)" },
+        { "method": "PATCH", "path": "/anomalies/:id/resolve", "auth": true, "roles": ["sales", "warehouse", "admin"], "description": "Mark anomaly resolved" }
+      ],
+      "notifications": [
+        { "method": "POST", "path": "/notifications/token", "auth": true, "roles": "all", "description": "Register/UPSERT FCM device token" },
+        { "method": "DELETE", "path": "/notifications/token", "auth": true, "roles": "all", "description": "Unregister FCM device token" }
+      ],
+      "ai": [
+        { "method": "POST", "path": "/ai/chat", "auth": true, "roles": ["sales", "warehouse", "admin"], "rate_limit": "10/min/user", "description": "Proxy to ai_service /chat, SSE stream, creates audit log" }
+      ],
+      "admin": [
+        { "method": "GET", "path": "/admin/cleanup", "auth": true, "roles": ["admin"], "description": "Clean processed_operations (>30d) and soft-deleted records (>30d)" },
+        { "method": "POST", "path": "/admin/import", "auth": true, "roles": ["admin"], "params": "?type=product|customer|inventory", "description": "Batch CSV import" }
+      ],
+      "system": [
+        { "method": "GET", "path": "/health", "auth": false, "rate_limit": "10/min", "description": "Health check" }
+      ]
+    }
+  },
+
+  "frontend_screens": {
+    "navigation": {
+      "type": "BottomNavigationBar",
+      "tabs": [
+        { "index": 0, "label": "Dashboard", "screen": "DashboardScreen", "providers": ["AnalyticsProvider", "AnomalyProvider"] },
+        { "index": 1, "label": "Customers", "screen": "CustomerListScreen", "providers": ["SyncProvider"] },
+        { "index": 2, "label": "Products", "screen": "ProductListScreen", "providers": ["SyncProvider"] },
+        { "index": 3, "label": "Quotations", "screen": "QuotationListScreen", "providers": ["SyncProvider"] },
+        { "index": 4, "label": "Sales Orders", "screen": "SalesOrderListScreen", "providers": ["SyncProvider"] },
+        { "index": 5, "label": "Inventory", "screen": "InventoryListScreen", "providers": ["SyncProvider"] }
+      ]
+    },
+    "all_screens": [
+      { "screen": "LoginScreen", "path": "lib/features/auth/", "description": "JWT login, token storage in SecureStorage" },
+      { "screen": "DashboardScreen", "path": "lib/features/dashboard/", "description": "KPI cards, low-stock alerts, anomaly bell", "providers": ["AnalyticsProvider", "AnomalyProvider"] },
+      { "screen": "CustomerListScreen", "path": "lib/features/customers/", "description": "Searchable customer list", "dao": "CustomerDao" },
+      { "screen": "CustomerFormScreen", "path": "lib/features/customers/", "description": "Create/edit customer", "dao": "CustomerDao" },
+      { "screen": "CustomerDetailScreen", "path": "lib/features/customers/", "description": "Customer detail with RFM tier + interaction history", "providers": ["RfmProvider"] },
+      { "screen": "ProductListScreen", "path": "lib/features/products/", "description": "Searchable product list", "dao": "ProductDao" },
+      { "screen": "ProductFormScreen", "path": "lib/features/products/", "description": "Create/edit product", "dao": "ProductDao" },
+      { "screen": "QuotationListScreen", "path": "lib/features/quotations/", "description": "Quotation list with status filter", "dao": "QuotationDao" },
+      { "screen": "QuotationFormScreen", "path": "lib/features/quotations/", "description": "Create quotation with line items", "dao": "QuotationDao" },
+      { "screen": "SalesOrderListScreen", "path": "lib/features/sales_orders/", "description": "Order list with status badges", "dao": "SalesOrderDao" },
+      { "screen": "ReserveInventoryDialog", "path": "lib/features/sales_orders/", "description": "Dialog for reserving inventory on order confirm" },
+      { "screen": "ShipOrderDialog", "path": "lib/features/sales_orders/", "description": "Dialog to ship order and trigger inventory out delta" },
+      { "screen": "InventoryListScreen", "path": "lib/features/inventory/", "description": "Stock list per product", "dao": "InventoryItemsDao" },
+      { "screen": "StockInDialog", "path": "lib/features/inventory/", "description": "Manual stock receive dialog" },
+      { "screen": "ArScreen", "path": "lib/features/ar/", "description": "Accounts receivable aging view", "providers": ["ArProvider"] },
+      { "screen": "NotificationScreen", "path": "lib/features/notifications/", "description": "Anomaly alert list filterable by severity", "providers": ["AnomalyProvider"] },
+      { "screen": "ChatScreen", "path": "lib/features/ai/", "description": "AI chat with SSE streaming, SourceCard for tool call attribution", "providers": ["AiProvider"] },
+      { "screen": "SourceCard", "path": "lib/features/ai/", "description": "Expandable source attribution widget shown after dynamic AI answers" },
+      { "screen": "ImportScreen", "path": "lib/features/settings/", "description": "CSV import for bulk data entry" },
+      { "screen": "DevSettingsScreen", "path": "lib/features/settings/", "description": "Dev tools: API URL, Force Full Sync, cleanup trigger" }
+    ]
+  },
+
+  "providers": [
+    {
+      "name": "SyncProvider",
+      "file": "lib/providers/sync_provider.dart",
+      "purpose": "JWT lifecycle, offline queue (PendingOperations), pull/push sync, token proactive refresh",
+      "cache": "In-memory access token",
+      "key_methods": ["performSync()", "pushPending()", "pullLatest()"]
+    },
+    {
+      "name": "AnalyticsProvider",
+      "file": "lib/providers/analytics_provider.dart",
+      "purpose": "Revenue, funnel, top products, profit charts",
+      "cache": "15 min memory cache"
+    },
+    {
+      "name": "AnomalyProvider",
+      "file": "lib/providers/anomaly_provider.dart",
+      "purpose": "Alert fetching, resolution, anomaly bell count",
+      "cache": "5 min memory cache"
+    },
+    {
+      "name": "RfmProvider",
+      "file": "lib/providers/rfm_provider.dart",
+      "purpose": "RFM scoring and customer segmentation",
+      "cache": "15 min memory cache"
+    },
+    {
+      "name": "ArProvider",
+      "file": "lib/providers/ar_provider.dart",
+      "purpose": "AR aging buckets, unpaid order list",
+      "cache": "5 min memory cache"
+    },
+    {
+      "name": "AiProvider",
+      "file": "lib/providers/ai_provider.dart",
+      "purpose": "SSE chat streaming from ai_service",
+      "cache": "In-flight only"
+    },
+    {
+      "name": "AppStrings",
+      "file": "lib/providers/app_strings.dart",
+      "purpose": "i18n — Chinese/English switching, persisted to SecureStorage"
+    }
+  ],
+
+  "offline_sync": {
+    "protocol_version": "1.6",
+    "spec_doc": "docs/NJ_Stream_ERP MVP 同步協定規格 v1.6.md",
+    "adr_docs": [
+      "docs/adr/ADR-001-lww-conflict-resolution.md",
+      "docs/adr/ADR-002-offline-id-chain-remap.md"
+    ],
+    "flow": [
+      "1. All mutations → PendingOperations table (status: pending)",
+      "2. On connectivity, SyncProvider.performSync() batches ≤50 ops by created_at ASC",
+      "3. POST /api/v1/sync/push with JWT",
+      "4. Server: idempotency check → process in transaction → update processed_operations",
+      "5. Partial success: some ops can fail; server returns { succeeded, failed }",
+      "6. Frontend: update local state, remap negative local IDs to real server IDs"
+    ],
+    "local_id_remap": "Negative IDs until server assigns real IDs. Batch-internal FKs updated after parent create succeeds.",
+    "conflict_resolution": "LWW (Last-Write-Wins) — if client.updatedAt < server.updatedAt → reject with DATA_CONFLICT → client force-pulls",
+    "entity_types": ["customer", "product", "quotation", "sales_order", "inventory_delta", "customer_interaction"],
+    "operation_types": ["create", "update", "delete", "delta_update"],
+    "delta_types": ["reserve", "cancel", "out", "in"]
+  },
+
+  "deployment": {
+    "dev": {
+      "command": "docker compose up -d (postgres only)",
+      "file": "docker-compose.yml"
+    },
+    "prod": {
+      "command": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
+      "file": "docker-compose.prod.yml",
+      "services": ["postgres", "migrate (one-shot)", "ai_service", "backend"],
+      "network": "nj-erp-net (internal bridge)",
+      "volumes": ["postgres_data", "chroma_data"],
+      "resource_limits": {
+        "ai_service": { "cpu": "2.0", "memory": "2GB" },
+        "backend": { "cpu": "1.0", "memory": "512MB" }
+      },
+      "tunnel": "Cloudflare Tunnel → localhost:3000"
+    }
+  },
+
+  "fcm_push": {
+    "library": "firebase_messaging 15.0.0",
+    "token_registration": "POST /api/v1/notifications/token on login",
+    "token_deregistration": "DELETE /api/v1/notifications/token on logout",
+    "background_handler": "FcmService.initialize() before Firebase.initializeApp()",
+    "trigger": "AnomalyScanner sends FCM for critical severity anomalies",
+    "ui": "Anomaly bell (AppBar top-right) → NotificationScreen"
+  },
+
+  "conventions_for_new_features": {
+    "adding_a_backend_route": [
+      "1. Create route file in src/routes/<feature>.route.ts",
+      "2. Register in src/app.ts with prefix /api/v1/<feature>",
+      "3. Add role guard in auth.plugin.ts or inline with preHandler",
+      "4. If modifying data: add entity type to /sync/push handler OR create direct REST endpoint",
+      "5. Add rate limit if the endpoint is user-facing or CPU-heavy",
+      "6. Add health-check-compatible design — no side effects on GET /health"
+    ],
+    "adding_a_database_table": [
+      "1. Add table definition to packages/backend/src/db/schema.ts",
+      "2. Run: npm run db:generate && npm run db:migrate",
+      "3. Add soft-delete (deletedAt) for master data tables",
+      "4. Use numeric(12,2) for all monetary columns",
+      "5. Use timestamp with timezone for all time columns",
+      "6. Add corresponding Drift table in packages/frontend/lib/database/"
+    ],
+    "adding_a_flutter_screen": [
+      "1. Create screen in packages/frontend/lib/screens/<feature>/",
+      "2. Create Provider if needed in lib/providers/<feature>_provider.dart",
+      "3. Register Provider in MultiProvider in lib/main.dart",
+      "4. Register route in MaterialApp routes or use Navigator.push",
+      "5. If screen modifies data: add PendingOperation via SyncProvider",
+      "6. Use Decimal type for all monetary display (never double)"
+    ],
+    "adding_sync_support_for_new_entity": [
+      "1. Add entity type string to supported list in /sync/push handler",
+      "2. Add case to switch statement in sync route processing logic",
+      "3. Add idempotency check against processed_operations",
+      "4. Add local Drift table + DAO + PendingOperation logic in Flutter",
+      "5. Document in sync protocol spec doc"
+    ],
+    "roles": {
+      "sales": "Can read all, create/update customers+quotations+orders, cannot delete or manage products",
+      "warehouse": "Can read all, ship orders, receive stock; cannot create customers or quotations",
+      "admin": "Full access including delete, product management, AR, CSV import, user management"
+    },
+    "monetary_values": "Always use numeric(12,2) in DB, serialize as string in JSON, use Decimal in Dart. Never use float/double.",
+    "soft_delete_pattern": "Set deletedAt = now() instead of DELETE. All list queries must filter WHERE deletedAt IS NULL.",
+    "idempotency_pattern": "Generate UUID v4 operationId client-side. Backend checks processed_operations before processing.",
+    "error_codes": {
+      "FORBIDDEN_OPERATION": "Role does not permit this action",
+      "INSUFFICIENT_STOCK": "Inventory check failed for reserve/out delta",
+      "DATA_CONFLICT": "LWW conflict — client has stale data",
+      "ENTITY_NOT_FOUND": "Referenced entity does not exist or is soft-deleted",
+      "DUPLICATE_OPERATION": "operationId already in processed_operations (idempotency)"
+    }
+  },
+
+  "documents": [
+    { "name": "PRD MVP v0.8", "path": "docs/NJ_Stream_ERP MVP PRD v0.8.md" },
+    { "name": "Sync Protocol v1.6", "path": "docs/NJ_Stream_ERP MVP 同步協定規格 v1.6.md" },
+    { "name": "ADR-001 LWW Conflict Resolution", "path": "docs/adr/ADR-001-lww-conflict-resolution.md" },
+    { "name": "ADR-002 Offline ID Chain Remap", "path": "docs/adr/ADR-002-offline-id-chain-remap.md" },
+    { "name": "ADR-003 CSV Import", "path": "docs/adr/ADR-003-csv-import-dart-io.md" },
+    { "name": "Phase 2 PRD", "path": "docs/NJ_Stream_ERP Phase2 PRD v1.0.md" },
+    { "name": "Phase 3 PRD", "path": "docs/NJ_Stream_ERP Phase3 PRD v5.0.md" },
+    { "name": "Changelog", "path": "CHANGELOG.md" },
+    { "name": "Backlog", "path": "TASKS.md" },
+    { "name": "Work Logs Index", "path": "LOG/INDEX.md" }
+  ]
+}

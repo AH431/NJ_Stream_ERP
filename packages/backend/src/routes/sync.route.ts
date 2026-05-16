@@ -183,11 +183,14 @@ export default async function syncRoutes(app: FastifyInstance) {
     }
 
     if (shouldRunAnomalyScan) {
-      try {
-        await runAnomalyScanner(db);
-      } catch (err: unknown) {
-        app.log.error({ err }, 'anomaly scan after sales_order sync failed');
-      }
+      // Fire-and-forget：AnomalyScanner 不阻塞 HTTP 回應，
+      // 避免異常掃描耗時拖累 sync push 的 p99 延遲（過去最差案例 >2s）。
+      // 失敗只記 log，不影響本次同步結果；下次 sync 觸發時會再次執行。
+      setImmediate(() => {
+        runAnomalyScanner(db).catch((err: unknown) => {
+          app.log.error({ err }, 'anomaly scan after sales_order sync failed');
+        });
+      });
     }
 
     // ── 7. 回傳結果 ──────────────────────────────────────

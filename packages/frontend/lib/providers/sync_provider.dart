@@ -275,7 +275,7 @@ class SyncProvider extends ChangeNotifier {
         _setToken(newAccess); // 同時更新 _currentAccessToken + _jwtPayload
         await _storage.write(key: _accessTokenKey, value: newAccess);
         if (newRefresh != null) {
-          // 後端目前不做 token rotation，newRefresh 通常為 null（預留擴充）
+          // 後端 refresh token rotation：每次刷新會換發新 refresh token，舊的立即失效
           await _storage.write(key: _refreshTokenKey, value: newRefresh);
         }
         _scheduleProactiveRefresh();

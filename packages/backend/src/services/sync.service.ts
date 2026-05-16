@@ -240,7 +240,7 @@ const QuotationItemSchema = z.object({
 
 const QuotationCreateSchema = z.object({
   customerId:   z.number().int().positive(),
-  createdBy:    z.number().int().positive(),
+  // createdBy 由後端從 JWT 注入（BOLA 防護），client 提供值會被 zod 預設 strip 行為忽略
   items:        z.array(QuotationItemSchema).min(1),
   totalAmount:  z.string().regex(PRICE_REGEX),
   taxAmount:    z.string().regex(PRICE_REGEX),
@@ -262,7 +262,7 @@ const QuotationMutateSchema = z.object({
 const SalesOrderCreateSchema = z.object({
   quotationId: z.number().int().positive().nullable().optional(),
   customerId:  z.number().int().positive(),
-  createdBy:   z.number().int().positive(),
+  // createdBy 由後端從 JWT 注入（BOLA 防護），client 提供值會被 zod 預設 strip 行為忽略
   status:      z.enum(['pending', 'confirmed', 'shipped', 'cancelled']).default('pending'),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -455,7 +455,7 @@ async function processProduct(
 async function processQuotation(
   tx: SyncTx,
   op: SyncOperation,
-  _userId: number,
+  userId: number,
   role: string,
 ): Promise<ProcessResult> {
   if (!hasPermission(role, 'quotation', op.operationType)) {
@@ -469,11 +469,11 @@ async function processQuotation(
       return makeFailure(op.id, 'VALIDATION_ERROR',
         parsed.error.issues[0]?.message ?? 'payload 格式錯誤。');
     }
-    const { customerId, createdBy, items, totalAmount, taxAmount, status } = parsed.data;
+    const { customerId, items, totalAmount, taxAmount, status } = parsed.data;
 
-    // 1. 建立報價單主表
+    // 1. 建立報價單主表（createdBy 一律使用 JWT userId，不信任 client）
     const [created] = await tx.insert(quotations)
-      .values({ customerId, createdBy, totalAmount, taxAmount, status })
+      .values({ customerId, createdBy: userId, totalAmount, taxAmount, status })
       .returning({ id: quotations.id });
 
     // 2. 正規化：前端 JSON items → 後端 order_items 逐筆插入
@@ -574,7 +574,7 @@ async function processQuotation(
 async function processSalesOrder(
   tx: SyncTx,
   op: SyncOperation,
-  _userId: number,
+  userId: number,
   role: string,
 ): Promise<ProcessResult> {
   if (!hasPermission(role, 'sales_order', op.operationType)) {
@@ -588,7 +588,7 @@ async function processSalesOrder(
       return makeFailure(op.id, 'VALIDATION_ERROR',
         parsed.error.issues[0]?.message ?? 'payload 格式錯誤。');
     }
-    const { quotationId, customerId, createdBy, status } = parsed.data;
+    const { quotationId, customerId, status } = parsed.data;
     let sourceQuotationItems: typeof orderItems.$inferSelect[] = [];
 
     // First-to-Sync wins：若從報價轉單，確認報價尚未被其他裝置轉換
@@ -629,8 +629,9 @@ async function processSalesOrder(
     }
 
     // 建立訂單，若從報價轉入則同 transaction 更新報價狀態
+    // createdBy 一律使用 JWT userId，不信任 client payload（BOLA 防護）
     const [newOrder] = await tx.insert(salesOrders)
-      .values({ quotationId: quotationId ?? null, customerId, createdBy, status })
+      .values({ quotationId: quotationId ?? null, customerId, createdBy: userId, status })
       .returning({ id: salesOrders.id });
 
     if (quotationId != null) {
@@ -784,9 +785,12 @@ async function processInventoryDelta(
   }
   const { productId, amount } = parsed.data;
 
-  // 查詢目前庫存（SELECT FOR UPDATE 語意由 Drizzle transaction 保證）
+  // 查詢目前庫存並以 SELECT ... FOR UPDATE 取得 row-level lock，
+  // 防止並發 RESERVE/OUT 兩筆同時讀到舊值後一起更新造成超賣。
+  // 鎖會在 transaction commit/rollback 時自動釋放。
   const [item] = await tx.select().from(inventoryItems)
-    .where(eq(inventoryItems.productId, productId));
+    .where(eq(inventoryItems.productId, productId))
+    .for('update');
   if (!item) {
     return makeFailure(op.id, 'DATA_CONFLICT',
       `找不到 productId=${productId} 的庫存記錄。`);
