@@ -31,7 +31,7 @@ async function buildApp(isActive: boolean) {
 }
 
 function makeToken(userId: number, role = 'sales', expiresIn: jwt.SignOptions['expiresIn'] = '1h') {
-  return jwt.sign({ userId, role }, SECRET, { expiresIn });
+  return jwt.sign({ userId, role, tenantId: 1 }, SECRET, { expiresIn });
 }
 
 beforeEach(() => {
