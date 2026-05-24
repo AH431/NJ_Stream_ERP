@@ -116,7 +116,7 @@
 - [x] `auth.service.ts` — Refresh token rotation（每次刷新換發新 refresh token，舊的立即失效）（2026-05-16）
 
 ### RAG Phase 3（條件式，Phase 2 完成後評估）
-- [ ] 小規模 SFT 驗證（200–300 筆）— 前提：Phase 2 有穩定失敗案例
+- [x] 小規模 SFT 驗證（200–300 筆）— 前提：Phase 2 有穩定失敗案例
 - [ ] 決定是否進入 LoRA 擴充 — 前提：SFT 有明顯提升
 
 ---
