@@ -5,6 +5,7 @@ import { relations } from 'drizzle-orm';
 import { quotations } from './quotations.schema.ts';
 import { salesOrders } from './sales_orders.schema.ts';
 import { products } from './products.schema.ts';
+import { tenants } from './tenants.schema.ts';
 
 /**
  * 報價 / 訂單明細表（正規化設計）
@@ -19,6 +20,7 @@ import { products } from './products.schema.ts';
  */
 export const orderItems = pgTable('order_items', {
   id:           serial('id').primaryKey(),
+  tenantId:     integer('tenant_id').notNull().default(1).references(() => tenants.id),
   /** FK → quotations.id（報價明細，salesOrderId 為 null） */
   quotationId:  integer('quotation_id').references(() => quotations.id),
   /** FK → sales_orders.id（訂單明細，quotationId 為 null） */

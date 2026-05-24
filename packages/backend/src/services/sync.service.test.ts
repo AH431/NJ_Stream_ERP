@@ -9,6 +9,7 @@ class FakeTx {
   quotationRows: FakeRow[];
   quotationItemRows: FakeRow[];
   inventoryRows: FakeRow[];
+  salesOrderRows: FakeRow[];
   nextSalesOrderId: number;
   nextQuotationId: number;
   insertedOrderItems: FakeRow[] = [];
@@ -16,6 +17,7 @@ class FakeTx {
   insertedSalesOrders: FakeRow[] = [];
   updatedQuotations: FakeRow[] = [];
   updatedInventory: FakeRow[] = [];
+  updatedSalesOrders: FakeRow[] = [];
   /** 紀錄每張查詢是否套用 SELECT ... FOR UPDATE 鎖 */
   forUpdateCalls: { table: string; strength: string }[] = [];
 
@@ -23,18 +25,21 @@ class FakeTx {
     quotationRows = [],
     quotationItemRows = [],
     inventoryRows = [],
+    salesOrderRows = [],
     nextSalesOrderId = 9001,
     nextQuotationId = 5001,
   }: {
     quotationRows?: FakeRow[];
     quotationItemRows?: FakeRow[];
     inventoryRows?: FakeRow[];
+    salesOrderRows?: FakeRow[];
     nextSalesOrderId?: number;
     nextQuotationId?: number;
   }) {
     this.quotationRows = quotationRows;
     this.quotationItemRows = quotationItemRows;
     this.inventoryRows = inventoryRows;
+    this.salesOrderRows = salesOrderRows;
     this.nextSalesOrderId = nextSalesOrderId;
     this.nextQuotationId = nextQuotationId;
   }
@@ -43,6 +48,7 @@ class FakeTx {
     if (table === quotations) return this.quotationRows;
     if (table === orderItems) return this.quotationItemRows;
     if (table === inventoryItems) return this.inventoryRows;
+    if (table === salesOrders) return this.salesOrderRows;
     return [];
   }
 
@@ -123,10 +129,18 @@ class FakeTx {
           if (table === inventoryItems) {
             this.updatedInventory.push(values);
           }
+          if (table === salesOrders) {
+            this.updatedSalesOrders.push(values);
+          }
           return [];
         },
       }),
     };
+  }
+
+  /** 模擬 tx.execute(sql`...`) —— 回傳空陣列，避免重複訂單查詢 crash */
+  execute(_query: unknown): Promise<unknown[]> {
+    return Promise.resolve([]);
   }
 }
 
@@ -424,6 +438,167 @@ describe('processOperation', () => {
     expect(tx.insertedSalesOrders).toHaveLength(1);
     expect(tx.insertedSalesOrders[0]).toMatchObject({ customerId: 8, createdBy: 17 });
     expect(tx.insertedSalesOrders[0].createdBy).not.toBe(999);
+  });
+
+  // ── 安全修正 #7：bypassDuplicateCheck 只有 admin 可用 ──────
+  it('rejects bypassDuplicateCheck=true when caller role is not admin', async () => {
+    const baseOrder = {
+      id: 77,
+      quotationId: null,
+      customerId: 5,
+      createdBy: 2,
+      status: 'pending',
+      confirmedAt: null,
+      shippedAt: null,
+      dueDate: null,
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+      deletedAt: null,
+    };
+    const tx = new FakeTx({ salesOrderRows: [baseOrder] });
+
+    const op: SyncOperation = {
+      id: 'aa000000-0000-4000-8000-000000000001',
+      entityType: 'sales_order',
+      operationType: 'update',
+      createdAt: '2026-05-18T10:00:00.000Z',
+      payload: {
+        id: 77,
+        status: 'confirmed',
+        bypassDuplicateCheck: true,
+        updatedAt: '2026-05-18T10:00:00.000Z',
+      },
+    };
+
+    const result = await processOperation(tx as never, op, 2, 'sales');
+
+    expect(result).toEqual({
+      ok: false,
+      failure: expect.objectContaining({
+        operationId: op.id,
+        code: 'PERMISSION_DENIED',
+      }),
+    });
+    expect(tx.updatedSalesOrders).toHaveLength(0);
+  });
+
+  it('allows admin to bypass duplicate check', async () => {
+    const baseOrder = {
+      id: 78,
+      quotationId: null,
+      customerId: 5,
+      createdBy: 1,
+      status: 'pending',
+      confirmedAt: null,
+      shippedAt: null,
+      dueDate: null,
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+      deletedAt: null,
+    };
+    const tx = new FakeTx({ salesOrderRows: [baseOrder] });
+
+    const op: SyncOperation = {
+      id: 'aa000000-0000-4000-8000-000000000002',
+      entityType: 'sales_order',
+      operationType: 'update',
+      createdAt: '2026-05-18T10:00:00.000Z',
+      payload: {
+        id: 78,
+        status: 'confirmed',
+        bypassDuplicateCheck: true,
+        updatedAt: '2026-05-18T10:00:00.000Z',
+      },
+    };
+
+    const result = await processOperation(tx as never, op, 1, 'admin');
+
+    expect(result).toEqual({ ok: true });
+    expect(tx.updatedSalesOrders).toHaveLength(1);
+  });
+
+  // ── 安全修正 #10：confirmedAt / shippedAt 由 server-side 注入 ──
+  it('injects server-side confirmedAt when status changes to confirmed', async () => {
+    const before = new Date('2026-05-01T00:00:00.000Z');
+    const baseOrder = {
+      id: 79,
+      quotationId: null,
+      customerId: 5,
+      createdBy: 1,
+      status: 'pending',
+      confirmedAt: null,
+      shippedAt: null,
+      dueDate: null,
+      createdAt: before,
+      updatedAt: before,
+      deletedAt: null,
+    };
+    const tx = new FakeTx({ salesOrderRows: [baseOrder] });
+
+    const op: SyncOperation = {
+      id: 'aa000000-0000-4000-8000-000000000003',
+      entityType: 'sales_order',
+      operationType: 'update',
+      createdAt: '2026-05-18T10:00:00.000Z',
+      payload: {
+        id: 79,
+        status: 'confirmed',
+        // 惡意 client 嘗試偽造過去時間（Zod 已 strip，此欄位不應被採用）
+        confirmedAt: '2020-01-01T00:00:00.000Z',
+        updatedAt: '2026-05-18T10:00:00.000Z',
+      },
+    };
+
+    const testStart = Date.now();
+    const result = await processOperation(tx as never, op, 1, 'admin');
+
+    expect(result).toEqual({ ok: true });
+    expect(tx.updatedSalesOrders).toHaveLength(1);
+
+    const updated = tx.updatedSalesOrders[0] as Record<string, unknown>;
+    expect(updated.status).toBe('confirmed');
+    // confirmedAt 必須是 server-side 的時間，不可是 client 偽造的 2020 年
+    expect(updated.confirmedAt).toBeInstanceOf(Date);
+    expect((updated.confirmedAt as Date).getTime()).toBeGreaterThanOrEqual(testStart);
+  });
+
+  it('injects server-side shippedAt when status changes to shipped', async () => {
+    const before = new Date('2026-05-01T00:00:00.000Z');
+    const baseOrder = {
+      id: 80,
+      quotationId: null,
+      customerId: 5,
+      createdBy: 1,
+      status: 'confirmed',
+      confirmedAt: before,
+      shippedAt: null,
+      dueDate: new Date('2026-06-30T00:00:00.000Z'),
+      createdAt: before,
+      updatedAt: before,
+      deletedAt: null,
+    };
+    const tx = new FakeTx({ salesOrderRows: [baseOrder] });
+
+    const op: SyncOperation = {
+      id: 'aa000000-0000-4000-8000-000000000004',
+      entityType: 'sales_order',
+      operationType: 'update',
+      createdAt: '2026-05-18T10:00:00.000Z',
+      payload: {
+        id: 80,
+        status: 'shipped',
+        shippedAt: '2020-01-01T00:00:00.000Z',
+        updatedAt: '2026-05-18T10:00:00.000Z',
+      },
+    };
+
+    const testStart = Date.now();
+    const result = await processOperation(tx as never, op, 1, 'warehouse');
+
+    expect(result).toEqual({ ok: true });
+    const updated = tx.updatedSalesOrders[0] as Record<string, unknown>;
+    expect(updated.shippedAt).toBeInstanceOf(Date);
+    expect((updated.shippedAt as Date).getTime()).toBeGreaterThanOrEqual(testStart);
   });
 
   it('uses JWT userId for sales_order.createdBy when converting from quotation', async () => {

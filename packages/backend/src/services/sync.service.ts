@@ -271,8 +271,7 @@ const SalesOrderCreateSchema = z.object({
 const SalesOrderMutateSchema = z.object({
   id:                   z.number().int().positive(),
   status:               z.enum(['pending', 'confirmed', 'shipped', 'cancelled']).optional(),
-  confirmedAt:          z.string().datetime().nullable().optional(),
-  shippedAt:            z.string().datetime().nullable().optional(),
+  // confirmedAt / shippedAt 由後端 server-side new Date() 注入，client 提供值一律忽略
   updatedAt:            z.string().datetime(),
   bypassDuplicateCheck: z.boolean().optional(),
 });
@@ -685,6 +684,11 @@ async function processSalesOrder(
       return makeFailure(op.id, 'FORBIDDEN_OPERATION',
         'LWW：伺服器資料較新，執行 Force Overwrite。', state);
     }
+    // ── bypassDuplicateCheck admin-only guard ──────────────
+    if (fields.bypassDuplicateCheck && role !== 'admin') {
+      return makeFailure(op.id, 'PERMISSION_DENIED', '只有管理員可以略過重複訂單檢查。');
+    }
+
     // ── 重複訂單警告（confirmed / shipped 時觸發）──────────────
     // 掃描同客戶 48 小時內所有非取消訂單（含已出貨），
     // 若品項 ID + 數量完全相同，要求前端二次確認後以 bypassDuplicateCheck=true 重送。
@@ -726,17 +730,22 @@ async function processSalesOrder(
       }
     }
 
-    // 將 nullable datetime 欄位轉回 Date | null
-    const updateFields: Record<string, unknown> = { updatedAt: new Date() };
-    if (fields.status !== undefined)      updateFields.status = fields.status;
-    if (fields.confirmedAt !== undefined) updateFields.confirmedAt = fields.confirmedAt ? new Date(fields.confirmedAt) : null;
-    if (fields.shippedAt !== undefined)   updateFields.shippedAt   = fields.shippedAt   ? new Date(fields.shippedAt)   : null;
+    // confirmedAt / shippedAt 一律由 server-side new Date() 注入；不信任 client payload
+    const now = new Date();
+    const updateFields: Record<string, unknown> = { updatedAt: now };
+    if (fields.status !== undefined) updateFields.status = fields.status;
+
+    if (fields.status === 'confirmed' && !current.confirmedAt) {
+      updateFields.confirmedAt = now;
+    }
+    if (fields.status === 'shipped' && !current.shippedAt) {
+      updateFields.shippedAt = now;
+    }
 
     // 確認時自動填入 due_date（僅在首次轉為 confirmed 且 due_date 尚未設定時執行）
     // 結帳規則：確認日次月月底。new Date(y, m+2, 0) = day 0 of m+2 = last day of m+1
     if (fields.status === 'confirmed' && current.dueDate == null) {
-      const confirmedDate = fields.confirmedAt ? new Date(fields.confirmedAt) : new Date();
-      updateFields.dueDate = new Date(confirmedDate.getFullYear(), confirmedDate.getMonth() + 2, 0);
+      updateFields.dueDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
     }
 
     await tx.update(salesOrders).set(updateFields).where(eq(salesOrders.id, id));

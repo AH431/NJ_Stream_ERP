@@ -16,7 +16,9 @@
  * 自動解除：當觸發條件消失時，標記現有異常為 resolved。
  */
 
+import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
+import type { FastifyBaseLogger } from 'fastify';
 import type { DrizzleDb } from '@/plugins/db.js';
 import { type NewAnomalyForFcm, sendAnomalyNotifications } from '@/services/fcm.service.js';
 
@@ -25,8 +27,29 @@ const SEV = { CRITICAL: 'critical', HIGH: 'high', MEDIUM: 'medium' } as const;
 
 // ── 主入口 ────────────────────────────────────────────────
 
-export async function runAnomalyScanner(db: DrizzleDb): Promise<void> {
+// Minimal structured logger for background jobs (compatible with Pino child logger)
+type _JobLog = { info(obj: object, msg?: string): void; error(obj: object, msg?: string): void };
+
+function _makeJobLog(log: FastifyBaseLogger | undefined, jobId: string): _JobLog {
+  const prefix = { jobId, job: 'AnomalyScanner' };
+  if (log) {
+    const child = log.child(prefix);
+    return { info: (o, m) => child.info(o, m), error: (o, m) => child.error(o, m) };
+  }
+  return {
+    info:  (o) => console.log(JSON.stringify({ level: 'info',  ...prefix, ...o })),
+    error: (o) => console.error(JSON.stringify({ level: 'error', ...prefix, ...o })),
+  };
+}
+
+export async function runAnomalyScanner(db: DrizzleDb, log?: FastifyBaseLogger): Promise<void> {
+  const jobId   = randomUUID();
+  const startAt = Date.now();
   const newAnomalies: NewAnomalyForFcm[] = [];
+  const jl = _makeJobLog(log, jobId);
+
+  jl.info({}, 'job.start');
+
   try {
     await scanLongPendingOrders(db, newAnomalies);
     await scanDuplicateOrders(db, newAnomalies);
@@ -41,10 +64,14 @@ export async function runAnomalyScanner(db: DrizzleDb): Promise<void> {
     await scanFrequentCancellation(db, newAnomalies);
     await autoResolveStale(db);
     // 掃描完成後，集中送出 FCM（不影響掃描結果）
-    await sendAnomalyNotifications(db, newAnomalies);
+    await sendAnomalyNotifications(db, newAnomalies, jobId);
+
+    jl.info({ newAnomalies: newAnomalies.length, durationMs: Date.now() - startAt }, 'job.done');
   } catch (err) {
-    // Scanner 失敗不應影響主業務流程，只記 log
-    console.error('[AnomalyScanner] scan failed:', err);
+    jl.error({
+      errorSummary: err instanceof Error ? err.message : String(err),
+      durationMs:   Date.now() - startAt,
+    }, 'job.failed');
   }
 }
 
@@ -80,6 +107,7 @@ async function scanLongPendingOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
         ${message},
         ${JSON.stringify({ orderId: row.id, customerName: row.customer_name })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.MEDIUM, message, entityType: 'sales_order', alertType: 'LONG_PENDING_ORDER' });
   }
@@ -200,6 +228,7 @@ async function scanDuplicateOrders(db: DrizzleDb, out: NewAnomalyForFcm[]): Prom
           windowHours: 48,
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.HIGH, message, entityType: 'customer', alertType: 'DUPLICATE_ORDER' });
   }
@@ -246,6 +275,7 @@ async function scanNegativeAvailable(db: DrizzleDb, out: NewAnomalyForFcm[]): Pr
           available,
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.CRITICAL, message, entityType: 'inventory_item', alertType: 'NEGATIVE_AVAILABLE' });
   }
@@ -295,6 +325,7 @@ async function scanStockCritical(db: DrizzleDb, out: NewAnomalyForFcm[]): Promis
           reserved: row.quantity_reserved,
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.CRITICAL, message, entityType: 'inventory_item', alertType: 'STOCK_CRITICAL' });
   }
@@ -351,6 +382,7 @@ async function scanStockAlert(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<v
           reserved: row.quantity_reserved,
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.HIGH, message, entityType: 'inventory_item', alertType: 'STOCK_ALERT' });
   }
@@ -407,6 +439,7 @@ async function scanStockSafety(db: DrizzleDb, out: NewAnomalyForFcm[]): Promise<
           reserved: row.quantity_reserved,
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.MEDIUM, message, entityType: 'inventory_item', alertType: 'STOCK_SAFETY' });
   }
@@ -481,6 +514,7 @@ async function scanOrderQuantitySpike(db: DrizzleDb, out: NewAnomalyForFcm[]): P
           multiplier: Number(multiplier),
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.MEDIUM, message, entityType: 'order_item', alertType: 'ORDER_QUANTITY_SPIKE' });
   }
@@ -528,6 +562,7 @@ async function scanCustomerInactive(db: DrizzleDb, out: NewAnomalyForFcm[]): Pro
         ${message},
         ${JSON.stringify({ customerName: row.customer_name, lastOrderAt: lastDate })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.MEDIUM, message, entityType: 'customer', alertType: 'CUSTOMER_INACTIVE' });
   }
@@ -588,6 +623,7 @@ async function scanOverduePayment(db: DrizzleDb, out: NewAnomalyForFcm[]): Promi
           orderTotal: Number(row.order_total),
         })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.HIGH, message, entityType: 'sales_order', alertType: 'OVERDUE_PAYMENT' });
   }
@@ -657,6 +693,7 @@ async function scanHighValueChurnRisk(db: DrizzleDb, out: NewAnomalyForFcm[]): P
         ${message},
         ${JSON.stringify({ customerName: row.customer_name, ltv90d: Number(row.ltv_90d) })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.HIGH, message, entityType: 'customer', alertType: 'HIGH_VALUE_CUSTOMER_CHURN_RISK' });
   }
@@ -705,6 +742,7 @@ async function scanFrequentCancellation(db: DrizzleDb, out: NewAnomalyForFcm[]):
         ${message},
         ${JSON.stringify({ customerName: row.customer_name, cancelCount: row.cancel_count })}::jsonb
       )
+      ON CONFLICT DO NOTHING
     `);
     out.push({ severity: SEV.MEDIUM, message, entityType: 'customer', alertType: 'FREQUENT_CANCELLATION' });
   }

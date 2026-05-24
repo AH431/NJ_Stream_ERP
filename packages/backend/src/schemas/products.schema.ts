@@ -1,9 +1,11 @@
 import {
   pgTable, serial, varchar, integer, numeric, timestamp,
 } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants.schema.ts';
 
 export const products = pgTable('products', {
   id:            serial('id').primaryKey(),
+  tenantId:      integer('tenant_id').notNull().default(1).references(() => tenants.id),
   name:          varchar('name', { length: 255 }).notNull(),
   sku:           varchar('sku', { length: 100 }).notNull().unique(),
   unitPrice:     numeric('unit_price', { precision: 12, scale: 2 }).notNull(),

@@ -107,7 +107,7 @@ describe('POST /chat — auth & validation', () => {
   });
 
   it('returns 400 when question is missing', async () => {
-    const { app } = buildTestApp({ userId: 1, role: 'admin' });
+    const { app } = buildTestApp({ userId: 1, tenantId: 1, role: 'admin' });
     await app.ready();
 
     const res = await app.inject({
@@ -122,7 +122,7 @@ describe('POST /chat — auth & validation', () => {
   });
 
   it('returns 400 when question is empty string', async () => {
-    const { app } = buildTestApp({ userId: 1, role: 'warehouse' });
+    const { app } = buildTestApp({ userId: 1, tenantId: 1, role: 'warehouse' });
     await app.ready();
 
     const res = await app.inject({
@@ -137,7 +137,7 @@ describe('POST /chat — auth & validation', () => {
   });
 
   it('does not write audit log when body is invalid', async () => {
-    const { app, fake } = buildTestApp({ userId: 1, role: 'admin' });
+    const { app, fake } = buildTestApp({ userId: 1, tenantId: 1, role: 'admin' });
     await app.ready();
 
     await app.inject({
@@ -155,7 +155,7 @@ describe('POST /chat — SSE proxy', () => {
   it('proxies SSE stream and updates audit to success', async () => {
     vi.stubGlobal('fetch', async () => makeFakeUpstreamOk(VALID_SSE_CHUNKS));
 
-    const user: JwtPayload = { userId: 7, role: 'sales' };
+    const user: JwtPayload = { userId: 7, tenantId: 1, role: 'sales' };
     const { app, fake } = buildTestApp(user);
     await app.ready();
 
@@ -195,7 +195,7 @@ describe('POST /chat — SSE proxy', () => {
       return makeFakeUpstreamOk(VALID_SSE_CHUNKS);
     });
 
-    const { app } = buildTestApp({ userId: 3, role: 'admin' });
+    const { app } = buildTestApp({ userId: 3, tenantId: 1, role: 'admin' });
     await app.ready();
 
     await app.inject({
@@ -223,7 +223,7 @@ describe('POST /chat — SSE proxy', () => {
   it('logs tool_call audit events and does not forward tool_call SSE frames to client', async () => {
     vi.stubGlobal('fetch', async () => makeFakeUpstreamOk(TOOL_CALL_SSE_CHUNKS));
 
-    const { app, fake } = buildTestApp({ userId: 9, role: 'sales' });
+    const { app, fake } = buildTestApp({ userId: 9, tenantId: 1, role: 'sales' });
     await app.ready();
 
     const res = await app.inject({
@@ -254,7 +254,7 @@ describe('POST /chat — SSE proxy', () => {
   it('returns 503 and updates audit to error when ai_service is unreachable', async () => {
     vi.stubGlobal('fetch', async () => { throw new Error('ECONNREFUSED'); });
 
-    const { app, fake } = buildTestApp({ userId: 7, role: 'sales' });
+    const { app, fake } = buildTestApp({ userId: 7, tenantId: 1, role: 'sales' });
     await app.ready();
 
     const res = await app.inject({
@@ -281,7 +281,7 @@ describe('POST /chat — SSE proxy', () => {
       headers: { 'Content-Type': 'application/json' },
     }));
 
-    const { app, fake } = buildTestApp({ userId: 7, role: 'sales' });
+    const { app, fake } = buildTestApp({ userId: 7, tenantId: 1, role: 'sales' });
     await app.ready();
 
     const res = await app.inject({

@@ -25,6 +25,8 @@ import 'providers/anomaly_provider.dart';
 import 'providers/rfm_provider.dart';
 import 'providers/ar_provider.dart';
 import 'providers/ai_provider.dart';
+import 'providers/forecast_provider.dart';
+import 'providers/tenant_provider.dart';
 import 'features/notifications/notification_screen.dart';
 import 'features/ar/ar_screen.dart';
 import 'features/ai/chat_screen.dart';
@@ -120,6 +122,16 @@ Future<void> main() async {
               prev ?? ArProvider(dio: sync.authenticatedDio),
         ),
 
+        // ── ForecastProvider ─────────────────────────────────────────────────
+        // Phase 4 PR-5 M5.1/M5.2：需求預測（補貨警示 + 單品 12 週預測，15 分鐘快取）
+        ChangeNotifierProxyProvider<SyncProvider, ForecastProvider>(
+          create: (ctx) => ForecastProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? ForecastProvider(dio: sync.authenticatedDio),
+        ),
+
         // ── AiProvider ───────────────────────────────────────────────────────
         // Phase 3 M1.3：SSE 串流聊天（所有登入角色可用）
         ChangeNotifierProxyProvider<SyncProvider, AiProvider>(
@@ -128,6 +140,16 @@ Future<void> main() async {
           ),
           update: (_, sync, prev) =>
               prev ?? AiProvider(dio: sync.authenticatedDio),
+        ),
+
+        // ── TenantProvider ────────────────────────────────────────────────────
+        // Phase 4 PR-7 M7.2：取得租戶入駐狀態，Banner/OnboardingScreen 使用
+        ChangeNotifierProxyProvider<SyncProvider, TenantProvider>(
+          create: (ctx) => TenantProvider(
+            dio: ctx.read<SyncProvider>().authenticatedDio,
+          ),
+          update: (_, sync, prev) =>
+              prev ?? TenantProvider(dio: sync.authenticatedDio),
         ),
 
         // ── AppStrings ───────────────────────────────────────────────────────
@@ -200,7 +222,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // 登入後觸發異常通知首次拉取（背景，不阻塞 UI）
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<AnomalyProvider>().fetchAnomalies();
+      if (mounted) {
+        context.read<AnomalyProvider>().fetchAnomalies();
+        context.read<TenantProvider>().fetchTenant();
+      }
     });
   }
 

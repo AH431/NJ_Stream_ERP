@@ -1,10 +1,12 @@
 import {
-  pgTable, serial, varchar, boolean, timestamp,
+  pgTable, serial, varchar, integer, boolean, timestamp,
 } from 'drizzle-orm/pg-core';
 import type { USER_ROLES } from '@/constants/index.js';
+import { tenants } from './tenants.schema.ts';
 
 export const users = pgTable('users', {
   id:           serial('id').primaryKey(),
+  tenantId:     integer('tenant_id').notNull().default(1).references(() => tenants.id),
   username:     varchar('username', { length: 100 }).notNull().unique(),
   email:        varchar('email', { length: 255 }).notNull().unique(),
   password:     varchar('password', { length: 255 }).notNull(),

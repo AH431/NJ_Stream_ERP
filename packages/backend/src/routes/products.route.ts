@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { eq, isNull, and, ilike, or } from 'drizzle-orm';
 import { products } from '@/schemas/products.schema.js';
 import { USER_ROLES } from '@/constants/index.js';
+import { requireTenantId, tenantFilter } from '@/services/tenant.service.js';
 
 // ── Zod 驗證 Schema ────────────────────────────────────────
 
@@ -24,7 +25,6 @@ import { USER_ROLES } from '@/constants/index.js';
 const CreateProductBody = z.object({
   name:          z.string().min(1).max(255),
   sku:           z.string().min(1).max(100),
-  // unitPrice 以字串接收，後端存入 numeric；格式由前端 DecimalConverter 保證
   unitPrice:     z.string().regex(/^\d+(\.\d{1,2})?$/, 'unitPrice 格式應為數字或最多兩位小數，如 "158000.00"'),
   minStockLevel: z.number().int().min(0).optional().default(0),
 });
@@ -58,7 +58,6 @@ export default async function productsRoutes(app: FastifyInstance) {
   const { db } = app;
 
   // ── GET /products/search ───────────────────────────────
-  // Full-text search on name and sku (ILIKE). All roles, JWT required.
   // Must be registered before /:id so Fastify doesn't treat "search" as an ID.
   app.get('/search', {
     preHandler: [app.verifyJwt],
@@ -68,6 +67,7 @@ export default async function productsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'q 參數為必填且不可空白。' });
     }
 
+    const tenantId = requireTenantId(request);
     const { q } = parsed.data;
     const term = `%${q}%`;
     const items = await db
@@ -75,6 +75,7 @@ export default async function productsRoutes(app: FastifyInstance) {
       .from(products)
       .where(and(
         isNull(products.deletedAt),
+        tenantFilter(products.tenantId, tenantId),
         or(ilike(products.name, term), ilike(products.sku, term)),
       ))
       .orderBy(products.id)
@@ -84,14 +85,14 @@ export default async function productsRoutes(app: FastifyInstance) {
   });
 
   // ── GET /products ──────────────────────────────────────
-  // 回傳所有未軟刪除的產品，全角色可存取
   app.get('/', {
     preHandler: [app.verifyJwt],
-  }, async (_request, reply) => {
+  }, async (request, reply) => {
+    const tenantId = requireTenantId(request);
     const result = await db
       .select()
       .from(products)
-      .where(isNull(products.deletedAt))
+      .where(and(isNull(products.deletedAt), tenantFilter(products.tenantId, tenantId)))
       .orderBy(products.id);
 
     return reply.status(200).send(result);
@@ -106,10 +107,15 @@ export default async function productsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'id 必須為正整數。' });
     }
 
+    const tenantId = requireTenantId(request);
     const [product] = await db
       .select()
       .from(products)
-      .where(and(eq(products.id, parsed.data.id), isNull(products.deletedAt)));
+      .where(and(
+        eq(products.id, parsed.data.id),
+        isNull(products.deletedAt),
+        tenantFilter(products.tenantId, tenantId),
+      ));
 
     if (!product) {
       return reply.status(404).send({ code: 'NOT_FOUND', message: '找不到此產品。' });
@@ -119,7 +125,6 @@ export default async function productsRoutes(app: FastifyInstance) {
   });
 
   // ── POST /products ─────────────────────────────────────
-  // 建立新產品；僅 admin 可操作（PRD §3：產品管理 = admin 讀寫）
   app.post('/', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -131,17 +136,17 @@ export default async function productsRoutes(app: FastifyInstance) {
       });
     }
 
+    const tenantId = requireTenantId(request);
     const { name, sku, unitPrice, minStockLevel } = parsed.data;
 
     try {
       const [created] = await db
         .insert(products)
-        .values({ name, sku, unitPrice, minStockLevel })
+        .values({ tenantId, name, sku, unitPrice, minStockLevel })
         .returning();
 
       return reply.status(201).send(created);
     } catch (err: unknown) {
-      // PostgreSQL 唯一約束違反：sku 重複
       const e = err as { code?: string };
       if (e.code === '23505') {
         return reply.status(409).send({
@@ -149,12 +154,11 @@ export default async function productsRoutes(app: FastifyInstance) {
           message: `SKU "${sku}" 已存在，請使用不同的 SKU。`,
         });
       }
-      throw err; // 其他 DB 錯誤交由 Fastify 全域錯誤處理
+      throw err;
     }
   });
 
   // ── PUT /products/:id ──────────────────────────────────
-  // 更新產品資料；僅 admin 可操作
   app.put('/:id', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -171,6 +175,7 @@ export default async function productsRoutes(app: FastifyInstance) {
       });
     }
 
+    const tenantId = requireTenantId(request);
     const updates = {
       ...bodyParsed.data,
       updatedAt: new Date(),
@@ -180,7 +185,11 @@ export default async function productsRoutes(app: FastifyInstance) {
       const [updated] = await db
         .update(products)
         .set(updates)
-        .where(and(eq(products.id, paramParsed.data.id), isNull(products.deletedAt)))
+        .where(and(
+          eq(products.id, paramParsed.data.id),
+          isNull(products.deletedAt),
+          tenantFilter(products.tenantId, tenantId),
+        ))
         .returning();
 
       if (!updated) {
@@ -201,7 +210,6 @@ export default async function productsRoutes(app: FastifyInstance) {
   });
 
   // ── DELETE /products/:id ───────────────────────────────
-  // 軟刪除：設定 deleted_at，不實際移除記錄；僅 admin 可操作
   app.delete('/:id', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -210,10 +218,15 @@ export default async function productsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'id 必須為正整數。' });
     }
 
+    const tenantId = requireTenantId(request);
     const [deleted] = await db
       .update(products)
       .set({ deletedAt: new Date() })
-      .where(and(eq(products.id, parsed.data.id), isNull(products.deletedAt)))
+      .where(and(
+        eq(products.id, parsed.data.id),
+        isNull(products.deletedAt),
+        tenantFilter(products.tenantId, tenantId),
+      ))
       .returning();
 
     if (!deleted) {

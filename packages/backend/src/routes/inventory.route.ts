@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { eq, isNull, and } from 'drizzle-orm';
 import { inventoryItems } from '@/schemas/inventory_items.schema.js';
 import { products } from '@/schemas/products.schema.js';
+import { requireTenantId, tenantFilter } from '@/services/tenant.service.js';
 
 const InventoryQuery = z.union([
   z.object({ productId: z.coerce.number().int().positive(), sku: z.string().optional() }),
@@ -28,6 +29,7 @@ export default async function inventoryRoutes(app: FastifyInstance) {
       });
     }
 
+    const tenantId = requireTenantId(request);
     const { productId, sku } = parsed.data as { productId?: number; sku?: string };
 
     let resolvedProductId = productId;
@@ -36,7 +38,11 @@ export default async function inventoryRoutes(app: FastifyInstance) {
       const [product] = await db
         .select({ id: products.id })
         .from(products)
-        .where(and(eq(products.sku, sku), isNull(products.deletedAt)));
+        .where(and(
+          eq(products.sku, sku),
+          isNull(products.deletedAt),
+          tenantFilter(products.tenantId, tenantId),
+        ));
 
       if (!product) {
         return reply.status(404).send({ code: 'NOT_FOUND', message: '找不到此 SKU 的產品。' });
@@ -63,6 +69,7 @@ export default async function inventoryRoutes(app: FastifyInstance) {
       .where(and(
         eq(inventoryItems.productId, resolvedProductId!),
         isNull(products.deletedAt),
+        tenantFilter(inventoryItems.tenantId, tenantId),
       ));
 
     if (!row) {

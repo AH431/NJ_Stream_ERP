@@ -1,9 +1,11 @@
 import {
   pgTable, serial, integer, varchar, timestamp,
 } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants.schema.ts';
 
 export const customers = pgTable('customers', {
   id:               serial('id').primaryKey(),
+  tenantId:         integer('tenant_id').notNull().default(1).references(() => tenants.id),
   name:             varchar('name', { length: 255 }).notNull(),
   contact:          varchar('contact', { length: 255 }),
   email:            varchar('email', { length: 255 }),

@@ -3,9 +3,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { customers } from './customers.schema.ts';
 import { users }     from './users.schema.ts';
+import { tenants }   from './tenants.schema.ts';
 
 export const customerInteractions = pgTable('customer_interactions', {
   id:         serial('id').primaryKey(),
+  tenantId:   integer('tenant_id').notNull().default(1).references(() => tenants.id),
   customerId: integer('customer_id').notNull().references(() => customers.id),
   note:       text('note').notNull(),
   createdBy:  integer('created_by').references(() => users.id),

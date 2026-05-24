@@ -14,7 +14,14 @@ const RefreshBody = z.object({
 });
 
 function getSecret(): string {
-  return process.env.JWT_SECRET!;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw Object.assign(new Error('JWT_SECRET 環境變數未設定'), {
+      code: 'INTERNAL_ERROR',
+      status: 500,
+    });
+  }
+  return secret;
 }
 
 
@@ -82,13 +89,12 @@ export default async function authRoutes(app: FastifyInstance) {
       } satisfies AuthErrorResponse);
     }
 
-    let payload: JwtPayload;
-    try {
-      payload = jwt.verify(authHeader.slice(7), getSecret()) as JwtPayload;
-    } catch {
+    // 登出接受已過期的 token（用戶端可能在 token 到期後才送出登出請求）
+    const payload = jwt.decode(authHeader.slice(7)) as JwtPayload | null;
+    if (!payload?.userId) {
       return reply.status(401).send({
         code: 'UNAUTHORIZED',
-        message: 'Access Token 無效或已過期。',
+        message: 'Access Token 格式無效。',
       } satisfies AuthErrorResponse);
     }
 

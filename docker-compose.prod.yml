@@ -68,6 +68,15 @@ services:
       CHUNK_SIZE:                ${CHUNK_SIZE:-800}
       CHUNK_OVERLAP:             ${CHUNK_OVERLAP:-100}
       DB_READONLY_URL:           ${DB_READONLY_URL:?DB_READONLY_URL is required}
+      # ── Phase 4B 需求預測 ──────────────────────────────────
+      DATABASE_URL:              ${DATABASE_URL:?DATABASE_URL is required}
+      FORECAST_WEEKS_AHEAD:      ${FORECAST_WEEKS_AHEAD:-12}
+      FORECAST_MIN_DATA_WEEKS:   ${FORECAST_MIN_DATA_WEEKS:-8}
+      FORECAST_JOB_LEASE_SECONDS: ${FORECAST_JOB_LEASE_SECONDS:-900}
+      FORECAST_FAKE_PROPHET:     ${FORECAST_FAKE_PROPHET:-false}
+      AI_INTERNAL_SCOPES:        ${AI_INTERNAL_SCOPES:-analytics.read,forecast.generate}
+      # ── Structured log（requestId/jobId 跨服務 grep 必需）──
+      LOG_FORMAT:                json
     volumes:
       - chroma_data:/data/chroma
     networks:
@@ -82,7 +91,7 @@ services:
           cpus: "0.5"
           memory: 512M
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health 2>/dev/null | grep -q 'ok' || exit 1"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/health',timeout=5); sys.exit(0 if b'ok' in r.read() else 1)"]
       interval: 30s
       timeout: 10s
       start_period: 60s
@@ -134,7 +143,7 @@ services:
           cpus: "0.25"
           memory: 128M
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health 2>/dev/null | grep -q '\"status\":\"ok\"' || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>process.exit(d.includes('ok')?0:1))}).on('error',()=>process.exit(1))\""]
       interval: 30s
       timeout: 10s
       start_period: 40s

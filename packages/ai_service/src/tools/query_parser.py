@@ -19,7 +19,9 @@ from typing import Literal, Optional
 #   This prevents "Is that", "How much", "Total amount" from matching.
 # Group 3+4: no separator    — tubea001 (non-greedy split at letter+digit boundary)
 SKU_PATTERN = re.compile(
-    r'\b([A-Za-z]{2,8})[\s\-]([A-Za-z0-9]*\d[A-Za-z0-9]*)\b'
+    # Group 1+2: multi-segment SKU with separator, e.g. PASS-RES-0402-1K5K, IC-8800, TUBE-A001
+    # Prefix: 2–8 letters; suffix: one or more alphanum-hyphen segments, must contain a digit.
+    r'\b([A-Za-z]{2,8})[\s\-]((?:[A-Za-z0-9]+-)*[A-Za-z0-9]*\d[A-Za-z0-9]*)'
     r'|\b([A-Za-z]{2,}?)([A-Za-z]\d[A-Za-z0-9]*|\d[A-Za-z0-9]*)\b'
 )
 
@@ -64,6 +66,16 @@ _BLOCKED = [re.compile(p, re.IGNORECASE) for p in [
     r'\b(?:delete|remove|wipe|clear|drop)\s+(?:all\s+)?(?:order|quotation|customer|product|inventory|data|record)s?\b',  # direct delete command (en)
 ]]
 
+_FORECAST_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
+    r'需要補貨|要補貨|該補貨',
+    r'下週需求|下周需求|未來需求|需求預測',
+    r'預測庫存|預估庫存',
+    r'幾週後.{0,30}缺貨|幾周後.{0,30}缺貨|何時缺貨|什麼時候缺貨',
+    r'forecast|reorder|demand.{0,10}forecast',
+    r'缺貨.{0,15}(時間|日期|幾週|幾周)',
+    r'(預測|預估).{0,10}(需求|用量|銷量)',
+]]
+
 _INVENTORY_DYNAMIC = [re.compile(p, re.IGNORECASE) for p in [
     r'現在.{0,20}庫存|庫存.{0,20}(現在|目前|剩|還有)',
     r'可用庫存|即時庫存|庫存狀況|存貨',
@@ -102,7 +114,7 @@ _CUSTOMER_STOP_WORDS = {
 @dataclass
 class ParsedQuery:
     route: Literal['static', 'dynamic', 'blocked']
-    tool: Optional[Literal['inventory', 'order', 'quotation', 'customer']] = None
+    tool: Optional[Literal['inventory', 'order', 'quotation', 'customer', 'forecast']] = None
     sku: Optional[str] = None
     entity_id: Optional[int] = None
     search_term: Optional[str] = None
@@ -144,7 +156,13 @@ def parse_question(question: str) -> ParsedQuery:
         raw = id_match.group(1) or id_match.group(2)
         entity_id = int(raw) if raw else None
 
-    # 3. Dynamic: inventory query with SKU
+    # 3. Dynamic: forecast query with SKU (checked before inventory — higher specificity)
+    if sku:
+        for pattern in _FORECAST_DYNAMIC:
+            if pattern.search(question):
+                return ParsedQuery(route='dynamic', tool='forecast', sku=sku)
+
+    # 4a. Dynamic: inventory query with SKU
     if sku:
         for pattern in _INVENTORY_DYNAMIC:
             if pattern.search(question):

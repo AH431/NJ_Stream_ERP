@@ -3,6 +3,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { products } from './products.schema.ts';
+import { tenants } from './tenants.schema.ts';
 
 /**
  * 庫存表
@@ -17,6 +18,7 @@ import { products } from './products.schema.ts';
  */
 export const inventoryItems = pgTable('inventory_items', {
   id:               serial('id').primaryKey(),
+  tenantId:         integer('tenant_id').notNull().default(1).references(() => tenants.id),
   productId:        integer('product_id').notNull().references(() => products.id).unique(),
   /** MVP 固定 1，保留欄位供未來多倉庫擴充，暫無 FK constraint */
   warehouseId:      integer('warehouse_id').notNull().default(1),

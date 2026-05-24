@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
@@ -58,7 +57,7 @@ export default async function aiRoutes(app: FastifyInstance) {
 
     const { question } = parsed.data;
     const { userId, role } = request.user;
-    const requestId = randomUUID();
+    const requestId = request.id;  // UUID (genReqId in app.ts); same value appears in access log
     const authHeader = request.headers.authorization ?? '';
     const userJwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 

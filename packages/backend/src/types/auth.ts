@@ -4,6 +4,7 @@
 
 export interface JwtPayload {
   userId: number;
+  tenantId: number;
   role: string;
   iat?: number;
   exp?: number;
@@ -15,6 +16,7 @@ export interface TokenResponse {
   expiresIn: number;
   role: string;
   userId: number;
+  tenantId: number;
 }
 
 export interface AuthErrorResponse {

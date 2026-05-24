@@ -14,11 +14,17 @@
  *   9. anomalies            ← P2-DB-01：異常事件記錄（Phase 2）
  *  10. device_tokens        ← FCM push 通知裝置 token
  *  11. audit_logs           ← Phase 3 AI 助理稽核記錄（不混用 processed_operations）
+ *  12. demand_forecasts     ← Phase 4 PR-3：需求預測結果（每週彙總）
+ *  13. forecast_jobs        ← Phase 4 PR-3：預測 job ledger / lease
+ *  14. tenants              ← Phase 4C M6.1：租戶根表（FK 來源）
+ *
+ * Migration 0012 (M6.2)：上述全部業務表均已加 tenant_id + FK → tenants(id)。
  *
  * Relations 集中定義於此檔案，避免各 schema 檔案之間的循環引用。
  */
 
 // ── Table exports ─────────────────────────────────────────
+export * from './tenants.schema.ts';
 export * from './users.schema.ts';
 export * from './customers.schema.ts';
 export * from './products.schema.ts';
@@ -31,6 +37,8 @@ export * from './anomalies.schema.ts';
 export * from './customer_interactions.schema.ts';
 export * from './device_tokens.schema.ts';
 export * from './audit_logs.schema.ts';
+export * from './demand_forecasts.schema.ts';
+export * from './forecast_jobs.schema.ts';
 
 // ── Relations ─────────────────────────────────────────────
 import { relations } from 'drizzle-orm';

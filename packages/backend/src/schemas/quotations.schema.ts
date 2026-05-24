@@ -3,6 +3,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { customers } from './customers.schema.ts';
 import { users } from './users.schema.ts';
+import { tenants } from './tenants.schema.ts';
 import type { QUOTATION_STATUSES } from '@/constants/index.js';
 
 /**
@@ -12,6 +13,7 @@ import type { QUOTATION_STATUSES } from '@/constants/index.js';
  */
 export const quotations = pgTable('quotations', {
   id:                 serial('id').primaryKey(),
+  tenantId:           integer('tenant_id').notNull().default(1).references(() => tenants.id),
   customerId:         integer('customer_id').notNull().references(() => customers.id),
   createdBy:          integer('created_by').notNull().references(() => users.id),
   totalAmount:        numeric('total_amount', { precision: 12, scale: 2 }).notNull(),

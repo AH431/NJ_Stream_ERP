@@ -1,14 +1,20 @@
 import asyncio
 import json
 import os
+import time
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from src.utils.logger import get_logger
+
+_log = get_logger("chat")
+
 from src.router.query_router import route as route_question
 from src.tools.erp_tools import (
+    get_demand_forecast,
     get_inventory,
     get_quotation,
     get_sales_order,
@@ -17,6 +23,8 @@ from src.tools.erp_tools import (
 )
 from src.tools.formatters import (
     format_customer_search_answer,
+    format_forecast_answer,
+    format_forecast_not_found,
     format_inventory_answer,
     format_api_error,
     format_blocked_response,
@@ -64,7 +72,7 @@ async def _blocked_stream():
         yield chunk
 
 
-async def _resolve_inventory(jwt: str, sku: str) -> str:
+async def _resolve_inventory(jwt: str, sku: str, request_id: str = "") -> str:
     try:
         search_result = await search_products(jwt, sku, FASTIFY_BASE_URL)
         items = search_result.get("items", [])
@@ -74,39 +82,77 @@ async def _resolve_inventory(jwt: str, sku: str) -> str:
         inventory = await get_inventory(jwt, product["id"], FASTIFY_BASE_URL)
         return format_inventory_answer(product, inventory)
     except httpx.HTTPStatusError as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_inventory", "statusCode": e.response.status_code})
         return format_api_error(e.response.status_code)
-    except Exception:
+    except httpx.TimeoutException:
+        _log.error("upstream.timeout", extra={"requestId": request_id, "tool": "get_inventory", "upstreamTimeout": True})
+        return format_api_error(503)
+    except Exception as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_inventory", "errorSummary": str(e)})
         return format_api_error(503)
 
 
-async def _resolve_quotation(jwt: str, entity_id: int) -> str:
+async def _resolve_quotation(jwt: str, entity_id: int, request_id: str = "") -> str:
     try:
         quotation = await get_quotation(jwt, entity_id, FASTIFY_BASE_URL)
         return format_quotation_answer(quotation)
     except httpx.HTTPStatusError as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_quotation", "statusCode": e.response.status_code})
         return format_api_error(e.response.status_code)
-    except Exception:
+    except httpx.TimeoutException:
+        _log.error("upstream.timeout", extra={"requestId": request_id, "tool": "get_quotation", "upstreamTimeout": True})
+        return format_api_error(503)
+    except Exception as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_quotation", "errorSummary": str(e)})
         return format_api_error(503)
 
 
-async def _resolve_order(jwt: str, entity_id: int) -> str:
+async def _resolve_order(jwt: str, entity_id: int, request_id: str = "") -> str:
     try:
         order = await get_sales_order(jwt, entity_id, FASTIFY_BASE_URL)
         return format_sales_order_answer(order)
     except httpx.HTTPStatusError as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_sales_order", "statusCode": e.response.status_code})
         return format_api_error(e.response.status_code)
-    except Exception:
+    except httpx.TimeoutException:
+        _log.error("upstream.timeout", extra={"requestId": request_id, "tool": "get_sales_order", "upstreamTimeout": True})
+        return format_api_error(503)
+    except Exception as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_sales_order", "errorSummary": str(e)})
         return format_api_error(503)
 
 
-async def _resolve_customer(jwt: str, search_term: str) -> str:
+async def _resolve_forecast(sku: str, request_id: str = "") -> str:
+    try:
+        data = await get_demand_forecast(sku, tenant_id=1, weeks=12)
+        if data is None:
+            return format_forecast_not_found(sku)
+        return format_forecast_answer(data)
+    except RuntimeError as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_demand_forecast", "errorSummary": str(e)})
+        return format_api_error(503)
+    except Exception as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "get_demand_forecast", "errorSummary": str(e)})
+        return format_api_error(503)
+
+
+async def _resolve_customer(jwt: str, search_term: str, request_id: str = "") -> str:
     try:
         result = await search_customers(jwt, search_term, FASTIFY_BASE_URL)
         return format_customer_search_answer(result.get("items", []), search_term)
     except httpx.HTTPStatusError as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "search_customers", "statusCode": e.response.status_code})
         return format_api_error(e.response.status_code)
-    except Exception:
+    except httpx.TimeoutException:
+        _log.error("upstream.timeout", extra={"requestId": request_id, "tool": "search_customers", "upstreamTimeout": True})
         return format_api_error(503)
+    except Exception as e:
+        _log.error("upstream.error", extra={"requestId": request_id, "tool": "search_customers", "errorSummary": str(e)})
+        return format_api_error(503)
+
+
+def _ms(t0: float) -> int:
+    return round((time.monotonic() - t0) * 1000)
 
 
 def _sse_response(generator) -> StreamingResponse:
@@ -184,28 +230,44 @@ async def chat(
     x_internal_token: str = Header(...),
 ):
     if not INTERNAL_TOKEN or x_internal_token != INTERNAL_TOKEN:
+        _log.warning("chat.forbidden", extra={"requestId": body.requestId, "userId": body.userId})
         raise HTTPException(status_code=403, detail="forbidden")
+
+    t0 = time.monotonic()
+    model_name = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
+    _log.info("chat.start", extra={"requestId": body.requestId, "userId": body.userId, "model": model_name})
 
     parsed = route_question(body.question)
 
     if parsed.route == "blocked":
+        _log.info("chat.blocked", extra={"requestId": body.requestId, "durationMs": _ms(t0)})
         return _sse_response(_blocked_stream())
 
     if parsed.route == "dynamic" and parsed.tool == "inventory" and parsed.sku:
-        answer = await _resolve_inventory(body.userJwt, parsed.sku)
+        answer = await _resolve_inventory(body.userJwt, parsed.sku, body.requestId)
+        _log.info("chat.done", extra={"requestId": body.requestId, "tool": "get_inventory", "model": model_name, "durationMs": _ms(t0)})
         return _sse_response(_tool_answer_stream("get_inventory", "inventory", parsed.sku, answer))
 
     if parsed.route == "dynamic" and parsed.tool == "quotation" and parsed.entity_id:
-        answer = await _resolve_quotation(body.userJwt, parsed.entity_id)
+        answer = await _resolve_quotation(body.userJwt, parsed.entity_id, body.requestId)
+        _log.info("chat.done", extra={"requestId": body.requestId, "tool": "get_quotation", "model": model_name, "durationMs": _ms(t0)})
         return _sse_response(_tool_answer_stream("get_quotation", "quotation", parsed.entity_id, answer))
 
     if parsed.route == "dynamic" and parsed.tool == "order" and parsed.entity_id:
-        answer = await _resolve_order(body.userJwt, parsed.entity_id)
+        answer = await _resolve_order(body.userJwt, parsed.entity_id, body.requestId)
+        _log.info("chat.done", extra={"requestId": body.requestId, "tool": "get_sales_order", "model": model_name, "durationMs": _ms(t0)})
         return _sse_response(_tool_answer_stream("get_sales_order", "sales_order", parsed.entity_id, answer))
 
     if parsed.route == "dynamic" and parsed.tool == "customer" and parsed.search_term:
-        answer = await _resolve_customer(body.userJwt, parsed.search_term)
+        answer = await _resolve_customer(body.userJwt, parsed.search_term, body.requestId)
+        _log.info("chat.done", extra={"requestId": body.requestId, "tool": "search_customers", "model": model_name, "durationMs": _ms(t0)})
         return _sse_response(_tool_answer_stream("search_customers", "customer", None, answer))
 
+    if parsed.route == "dynamic" and parsed.tool == "forecast" and parsed.sku:
+        answer = await _resolve_forecast(parsed.sku, body.requestId)
+        _log.info("chat.done", extra={"requestId": body.requestId, "tool": "get_demand_forecast", "model": model_name, "durationMs": _ms(t0)})
+        return _sse_response(_tool_answer_stream("get_demand_forecast", "forecast", parsed.sku, answer))
+
     # static (or unhandled dynamic) → RAG pipeline (PR-6)
+    _log.info("chat.done", extra={"requestId": body.requestId, "tool": "rag", "model": model_name, "durationMs": _ms(t0)})
     return _sse_response(_rag_stream(body.question, body.role))

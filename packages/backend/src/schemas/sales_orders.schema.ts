@@ -4,10 +4,12 @@ import {
 import { customers } from './customers.schema.ts';
 import { users } from './users.schema.ts';
 import { quotations } from './quotations.schema.ts';
+import { tenants } from './tenants.schema.ts';
 import type { SALES_ORDER_STATUSES, PAYMENT_STATUSES } from '@/constants/index.js';
 
 export const salesOrders = pgTable('sales_orders', {
   id:          serial('id').primaryKey(),
+  tenantId:    integer('tenant_id').notNull().default(1).references(() => tenants.id),
   /**
    * FK → quotations.id（從報價轉入時不為 null）。
    * First-to-Sync wins：後端在建立前以 quotationId 加鎖，先到者勝。

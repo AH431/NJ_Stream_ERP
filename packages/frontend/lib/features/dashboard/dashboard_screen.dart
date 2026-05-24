@@ -22,6 +22,9 @@ import '../../database/dao/inventory_items_dao.dart';
 import '../../database/dao/quotation_dao.dart';
 import '../../providers/sync_provider.dart';
 import '../../providers/analytics_provider.dart';
+import '../../providers/forecast_provider.dart';
+import 'forecast_summary_card.dart';
+import '../onboarding/onboarding_banner.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -38,6 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<AnalyticsProvider>().fetchAll();
+        // ForecastProvider alerts 由 ForecastSummaryCard 內的 StreamSubscription 觸發
       }
     });
   }
@@ -50,13 +54,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         final analytics = context.read<AnalyticsProvider>();
+        final forecast  = context.read<ForecastProvider>();
         await sync.pullData();
-        if (mounted) await analytics.fetchAll(force: true);
+        if (mounted) {
+          await analytics.fetchAll(force: true);
+          // 強制刷新補貨警示快取（新庫存資料拉下後重算）
+          await forecast.fetchReorderAlerts([], force: true);
+        }
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16), // ← 整個 Dashboard 頁面四周內距 16 dp
         children: [
+          // ── Onboarding Banner（M7.2：入駐未完成時顯示）──────
+          const OnboardingBanner(),
+
           // ── KPI 卡片列（現有）────────────────────────────────
           Row(
             children: [
@@ -70,6 +82,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // ── 圖表區（Phase 2 新增）────────────────────────────
           const _AnalyticsSection(),
           const SizedBox(height: 20), // ← 圖表區 → 低庫存列表的垂直間隔 20 dp
+
+          // ── 補貨預測警示（Phase 4 PR-5 M5.1）────────────────
+          ForecastSummaryCard(db: db),
+          const SizedBox(height: 12),
 
           // ── 低庫存列表（現有）────────────────────────────────
           _LowStockSection(db: db),

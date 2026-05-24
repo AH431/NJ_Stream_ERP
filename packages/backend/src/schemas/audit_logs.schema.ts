@@ -1,12 +1,17 @@
 import {
   pgTable, serial, integer, text, timestamp, jsonb, index,
 } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants.schema.ts';
 
-export type AuditAction = 'ai.chat' | 'ai.tool_call' | 'ai.blocked' | 'admin.import';
+export type AuditAction =
+  | 'ai.chat' | 'ai.tool_call' | 'ai.blocked'
+  | 'admin.import'
+  | 'analytics.forecast.read' | 'analytics.forecast.generate' | 'analytics.sales_history';
 export type AuditStatus = 'pending' | 'success' | 'denied' | 'blocked' | 'error';
 
 export const auditLogs = pgTable('audit_logs', {
   id:           serial('id').primaryKey(),
+  tenantId:     integer('tenant_id').notNull().default(1).references(() => tenants.id),
   /** 一次 ai.chat 請求全程共用同一個 UUID，用於關聯 tool_call 事件 */
   requestId:    text('request_id').notNull(),
   userId:       integer('user_id').notNull(),

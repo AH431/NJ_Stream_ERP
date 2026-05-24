@@ -1,6 +1,8 @@
 import {
-  pgTable, serial, varchar, integer, boolean, text, jsonb, timestamp, index,
+  pgTable, serial, varchar, integer, boolean, text, jsonb, timestamp, index, uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { tenants } from './tenants.schema.ts';
 
 /**
  * P2-DB-01：異常事件記錄表
@@ -15,6 +17,7 @@ import {
  */
 export const anomalies = pgTable('anomalies', {
   id:         serial('id').primaryKey(),
+  tenantId:   integer('tenant_id').notNull().default(1).references(() => tenants.id),
   alertType:  varchar('alert_type',  { length: 64  }).notNull(),
   severity:   varchar('severity',    { length: 16  }).notNull(),
   entityType: varchar('entity_type', { length: 32  }).notNull(),
@@ -30,6 +33,10 @@ export const anomalies = pgTable('anomalies', {
 }, (table) => [
   index('idx_anomalies_unresolved').on(table.isResolved, table.severity),
   index('idx_anomalies_entity').on(table.entityType, table.entityId),
+  // 同一實體同類型只能有一筆 is_resolved=FALSE 的異常（DB 層防重複）
+  uniqueIndex('uq_anomalies_active_alert')
+    .on(table.entityType, table.entityId, table.alertType)
+    .where(sql`is_resolved = FALSE`),
 ]);
 
 export type Anomaly    = typeof anomalies.$inferSelect;

@@ -122,3 +122,42 @@ def format_api_error(status_code: int) -> str:
 
 def format_blocked_response() -> str:
     return "This question is outside the AI assistant's service scope and cannot be handled."
+
+
+def format_forecast_answer(data: dict) -> str:
+    sku = data.get("sku", "?")
+    current_stock = data.get("current_stock", 0)
+    forecasts = data.get("forecasts", [])
+    reorder_alert = data.get("reorder_alert", False)
+    stockout_week = data.get("stockout_week")
+
+    lines = [f"Demand Forecast: {sku}"]
+    lines.append(f"• Current Available Stock: {current_stock} units")
+
+    if not forecasts:
+        lines.append("• No forecast data available. Run a forecast job first.")
+        return "\n".join(lines)
+
+    lines.append(f"• Forecast ({len(forecasts)} weeks):")
+    for f in forecasts:
+        qty = f.get("qty", 0)
+        lower = f.get("lower")
+        upper = f.get("upper")
+        bounds = f" ({lower:.0f}–{upper:.0f})" if lower is not None and upper is not None else ""
+        lines.append(f"  - {f['week_start']}: {qty:.0f} units{bounds}")
+
+    total = sum(f.get("qty", 0) for f in forecasts)
+    lines.append(f"• Total forecast ({len(forecasts)} weeks): {total:.0f} units")
+
+    if reorder_alert:
+        lines.append(f"[REORDER ALERT] Forecasted demand ({total:.0f}) exceeds current stock ({current_stock}).")
+        if stockout_week:
+            lines.append(f"  Estimated stockout week: {stockout_week}")
+    else:
+        lines.append(f"[OK] Current stock ({current_stock}) is sufficient to cover forecasted demand ({total:.0f}).")
+
+    return "\n".join(lines)
+
+
+def format_forecast_not_found(sku: str) -> str:
+    return f"No forecast data found for SKU '{sku}'. Please verify the SKU or run a forecast job first."

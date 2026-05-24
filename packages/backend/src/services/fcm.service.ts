@@ -26,7 +26,7 @@ export function initFcm(): void {
 
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) {
-    console.warn('[FCM] FIREBASE_SERVICE_ACCOUNT not set — push notifications disabled');
+    console.warn(JSON.stringify({ level: 'warn', job: 'FCM', msg: 'init.skipped', reason: 'FIREBASE_SERVICE_ACCOUNT not set' }));
     return;
   }
 
@@ -35,9 +35,10 @@ export function initFcm(): void {
       credential: admin.credential.cert(JSON.parse(raw) as admin.ServiceAccount),
     });
     _initialized = true;
-    console.log('[FCM] Firebase Admin SDK initialized');
+    console.log(JSON.stringify({ level: 'info', job: 'FCM', msg: 'init.ok' }));
   } catch (err) {
-    console.error('[FCM] Failed to initialize Firebase Admin SDK:', err);
+    const errorSummary = err instanceof Error ? err.message : String(err);
+    console.error(JSON.stringify({ level: 'error', job: 'FCM', msg: 'init.failed', errorSummary }));
   }
 }
 
@@ -58,7 +59,8 @@ export type NewAnomalyForFcm = {
 
 export async function sendAnomalyNotifications(
   db: DrizzleDb,
-  newAnomalies: NewAnomalyForFcm[]
+  newAnomalies: NewAnomalyForFcm[],
+  jobId?: string
 ): Promise<void> {
   if (!_initialized || newAnomalies.length === 0) return;
 
@@ -80,7 +82,7 @@ export async function sendAnomalyNotifications(
 
   for (const [rolesKey, anomalies] of byRoleKey) {
     const roles = rolesKey.split(',');
-    await _sendToRoles(db, roles, anomalies);
+    await _sendToRoles(db, roles, anomalies, jobId);
   }
 }
 
@@ -97,10 +99,14 @@ function _targetRoles(severity: string, entityType: string): string[] {
 
 // ── 查 token + 發送 ───────────────────────────────────────
 
+/** FCM sendEachForMulticast 單批上限 */
+const FCM_CHUNK_SIZE = 500;
+
 async function _sendToRoles(
   db: DrizzleDb,
   roles: string[],
-  anomalies: NewAnomalyForFcm[]
+  anomalies: NewAnomalyForFcm[],
+  jobId?: string
 ): Promise<void> {
   // 查詢目標角色的 device token
   const tokenRows = await db.execute(sql`
@@ -125,47 +131,67 @@ async function _sendToRoles(
       ? anomalies[0].message
       : anomalies.map((a) => a.message).join('；').slice(0, 200);
 
-  try {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: { title, body },
-      android: {
-        priority: 'high',
-        notification: { channelId: 'anomaly_alerts', sound: 'default' },
-      },
-      data: {
-        alertType: anomalies[0].alertType,
-        screen: 'notifications',
-      },
-    });
+  const msgPayload = {
+    notification: { title, body },
+    android: {
+      priority: 'high' as const,
+      notification: { channelId: 'anomaly_alerts', sound: 'default' },
+    },
+    data: {
+      alertType: anomalies[0].alertType,
+      screen: 'notifications',
+    },
+  };
 
-    // 清理失效 token（裝置解除安裝或 token 已輪換）
-    const invalidTokens: string[] = [];
-    response.responses.forEach((resp, idx) => {
-      const code = resp.error?.code ?? '';
-      if (
-        !resp.success &&
-        (code === 'messaging/registration-token-not-registered' ||
-          code === 'messaging/invalid-registration-token')
-      ) {
-        invalidTokens.push(tokens[idx]);
-      }
-    });
+  // FCM 每批最多 500 個 token，超過需分批送出
+  const invalidTokens: string[] = [];
+  let successCount = 0;
+  let failureCount = 0;
 
-    if (invalidTokens.length > 0) {
-      await db.execute(sql`
-        DELETE FROM device_tokens WHERE token = ANY(${invalidTokens}::text[])
-      `);
-      console.log(`[FCM] Removed ${invalidTokens.length} invalid token(s)`);
+  for (let i = 0; i < tokens.length; i += FCM_CHUNK_SIZE) {
+    const chunk = tokens.slice(i, i + FCM_CHUNK_SIZE);
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: chunk,
+        ...msgPayload,
+      });
+
+      successCount += response.successCount;
+      failureCount += response.failureCount;
+
+      // 收集失效 token（裝置解除安裝或 token 已輪換）
+      response.responses.forEach((resp, idx) => {
+        const code = resp.error?.code ?? '';
+        if (
+          !resp.success &&
+          (code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token')
+        ) {
+          invalidTokens.push(chunk[idx]);
+        }
+      });
+    } catch (err) {
+      const chunkIdx = i / FCM_CHUNK_SIZE + 1;
+      const errorSummary = err instanceof Error ? err.message : String(err);
+      console.error(JSON.stringify({ level: 'error', job: 'FCM', jobId, msg: 'chunk.failed', chunkIdx, errorSummary }));
     }
-
-    console.log(
-      `[FCM] Sent ${anomalies.length} anomaly notification(s) to ${tokens.length} device(s)` +
-        ` (success: ${response.successCount}, fail: ${response.failureCount})`
-    );
-  } catch (err) {
-    console.error('[FCM] sendEachForMulticast failed:', err);
   }
+
+  if (invalidTokens.length > 0) {
+    await db.execute(sql`
+      DELETE FROM device_tokens WHERE token = ANY(${invalidTokens}::text[])
+    `);
+    console.log(JSON.stringify({ level: 'info', job: 'FCM', jobId, msg: 'tokens.removed', removedCount: invalidTokens.length }));
+  }
+
+  console.log(JSON.stringify({
+    level: 'info', job: 'FCM', jobId,
+    msg: 'job.done',
+    anomalyCount: anomalies.length,
+    deviceCount: tokens.length,
+    successCount,
+    failureCount,
+  }));
 }
 
 // ── Alert type 中文標籤（對應前端 NotificationScreen）─────

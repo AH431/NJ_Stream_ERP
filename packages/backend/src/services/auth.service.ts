@@ -55,7 +55,7 @@ export async function login(
     throw Object.assign(new Error('此帳號已停用，請聯絡管理員。'), { code: 'ACCOUNT_DISABLED', status: 403 });
   }
 
-  const jwtPayload: JwtPayload = { userId: user.id, role: user.role };
+  const jwtPayload: JwtPayload = { userId: user.id, tenantId: user.tenantId, role: user.role };
   const accessToken  = signAccessToken(jwtPayload);
   const refreshToken = signRefreshToken(jwtPayload);
 
@@ -64,7 +64,7 @@ export async function login(
     .set({ refreshToken })
     .where(eq(users.id, user.id));
 
-  return { accessToken, refreshToken, expiresIn: ACCESS_EXPIRES_IN, role: user.role, userId: user.id };
+  return { accessToken, refreshToken, expiresIn: ACCESS_EXPIRES_IN, role: user.role, userId: user.id, tenantId: user.tenantId };
 }
 
 // ── Refresh ────────────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ export async function refresh(
   // 並覆寫 DB 中存的值，使舊 refresh token 立即失效。
   // 攻擊者若竊取 refresh token，使用過一次後合法使用者下次刷新就會失敗，
   // 讓使用者可察覺帳號被盜用並重新登入。
-  const jwtPayload: JwtPayload = { userId: user.id, role: user.role };
+  const jwtPayload: JwtPayload = { userId: user.id, tenantId: user.tenantId, role: user.role };
   const accessToken = signAccessToken(jwtPayload);
   const newRefreshToken = signRefreshToken(jwtPayload);
 

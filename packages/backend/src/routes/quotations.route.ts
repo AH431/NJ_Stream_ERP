@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { and, eq, isNull } from 'drizzle-orm';
 import { USER_ROLES } from '@/constants/index.js';
 import { quotations } from '@/schemas/quotations.schema.js';
+import { requireTenantId, tenantFilter } from '@/services/tenant.service.js';
 
 const IdParam = z.object({
   id: z.coerce.number().int().positive(),
@@ -19,8 +20,13 @@ export default async function quotationsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'id 必須為正整數。' });
     }
 
+    const tenantId = requireTenantId(request);
     const row = await db.query.quotations.findFirst({
-      where: and(eq(quotations.id, parsed.data.id), isNull(quotations.deletedAt)),
+      where: and(
+        eq(quotations.id, parsed.data.id),
+        isNull(quotations.deletedAt),
+        tenantFilter(quotations.tenantId, tenantId),
+      ),
       with: {
         customer: true,
         orderItems: { with: { product: true } },

@@ -652,10 +652,55 @@ class AppStrings extends ChangeNotifier {
   String get srcTypeLabel => _s('類型', 'Type');
   String get srcIdLabel => _s('資源 ID', 'Resource ID');
   String srcToolName(String tool) => switch (tool) {
-    'get_inventory'    => _s('庫存查詢', 'Inventory Query'),
-    'get_quotation'    => _s('報價查詢', 'Quotation Query'),
-    'get_sales_order'  => _s('訂單查詢', 'Order Query'),
-    'search_customers' => _s('客戶查詢', 'Customer Search'),
-    _                  => tool,
+    'get_inventory'       => _s('庫存查詢', 'Inventory Query'),
+    'get_quotation'       => _s('報價查詢', 'Quotation Query'),
+    'get_sales_order'     => _s('訂單查詢', 'Order Query'),
+    'search_customers'    => _s('客戶查詢', 'Customer Search'),
+    'get_demand_forecast' => _s('需求預測查詢', 'Forecast Query'),
+    _                     => tool,
   };
+
+  // ── Onboarding (M7.2) ────────────────────────────────────────────────────
+  String get onboardBannerTitle =>
+      _s('完成公司設定，解鎖完整功能', 'Complete your company setup to unlock all features');
+  String get onboardBannerAction => _s('立即設定', 'Set up now');
+  String get onboardScreenTitle  => _s('公司入駐設定', 'Company Setup');
+  String get onboardStep1Title   => _s('公司基本資料', 'Company Info');
+  String get onboardStep2Title   => _s('時區設定', 'Timezone');
+  String get onboardStep3Title   => _s('完成', 'Done');
+  String get onboardFieldName    => _s('公司名稱 *', 'Company Name *');
+  String get onboardFieldEmail   => _s('聯絡信箱', 'Contact Email');
+  String get onboardFieldTz      => _s('所在時區', 'Timezone');
+  String get onboardStep3Body    =>
+      _s('設定完成！您的工作空間已就緒。', 'All set! Your workspace is ready.');
+  String get onboardBtnNext      => _s('下一步', 'Next');
+  String get onboardBtnBack      => _s('上一步', 'Back');
+  String get onboardBtnFinish    => _s('完成設定', 'Finish Setup');
+  String get onboardBtnFinishing => _s('儲存中…', 'Saving…');
+  String get onboardErrSave      => _s('儲存失敗，請重試。', 'Save failed. Please try again.');
+  String get onboardErrName      => _s('請輸入公司名稱', 'Company name is required.');
+  String get onboardErrEmail     => _s('Email 格式不正確', 'Invalid email format.');
+
+  // ── Forecast Summary Card (M5.1) ──────────────────────────────────────────
+  String get forecastAlertTitle => _s('補貨預測警示', 'Reorder Forecast Alerts');
+  String get forecastNoData     => _s('尚未產生預測，請先執行需求預測', 'No forecast data yet. Run demand forecast first.');
+  String get forecastNoAlert    => _s('目前無補貨警示', 'No reorder alerts.');
+  String get forecastRisingBadge => _s('↑ 預測上升', '↑ Rising');
+  String forecastQty4wVsStock(int forecast4w, int stock) => _isEnglish
+      ? '4W: $forecast4w  Stock: $stock'
+      : '4週需求 $forecast4w  庫存 $stock';
+
+  // ── Product Forecast Screen (M5.2) ────────────────────────────────────────
+  String get forecastScreenTitle  => _s('需求預測', 'Demand Forecast');
+  String get forecastExportCsv    => _s('匯出 CSV', 'Export CSV');
+  String get forecastExportFailed => _s('匯出失敗，請重試', 'Export failed. Please try again.');
+  String get forecastNoProducts   => _s('尚無產品資料', 'No products available.');
+  String get forecastEmptyState   => _s('尚無預測資料，請先執行需求預測', 'No forecast data. Run demand forecast first.');
+  String forecastCurrentStock(int stock) => _isEnglish
+      ? 'Current available stock: $stock'
+      : '目前可用庫存：$stock';
+  String get forecastTableTitle   => _s('每週預測明細', 'Weekly Forecast Detail');
+  String get forecastColWeek      => _s('週次', 'Week');
+  String get forecastColQty       => _s('預測需求量', 'Forecast Qty');
+  String get forecastColSuggest   => _s('建議採購量', 'Suggested Order');
 }

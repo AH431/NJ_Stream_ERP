@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { eq, isNull, and, sql, ilike, or } from 'drizzle-orm';
 import { customers } from '@/schemas/customers.schema.js';
 import { USER_ROLES } from '@/constants/index.js';
+import { requireTenantId, tenantFilter } from '@/services/tenant.service.js';
 
 // ── RFM helpers ───────────────────────────────────────────
 
@@ -93,26 +94,25 @@ export default async function customersRoutes(app: FastifyInstance) {
   const { db } = app;
 
   // ── GET /customers ─────────────────────────────────────
-  // 回傳所有未軟刪除的客戶清單，全角色可存取
   app.get('/', {
     preHandler: [app.verifyJwt],
-  }, async (_request, reply) => {
+  }, async (request, reply) => {
+    const tenantId = requireTenantId(request);
     const result = await db
       .select()
       .from(customers)
-      .where(isNull(customers.deletedAt))
+      .where(and(isNull(customers.deletedAt), tenantFilter(customers.tenantId, tenantId)))
       .orderBy(customers.id);
 
     return reply.status(200).send(result);
   });
 
   // ── GET /customers/rfm ─────────────────────────────────
-  // 回傳所有客戶的 RFM 分數與分級。
-  // 純 server-side 計算，不寫回 customers 表。
-  // 權限：sales / admin（倉管無 CRM 權限）
   app.get('/rfm', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.SALES, USER_ROLES.ADMIN)],
-  }, async (_request, reply) => {
+  }, async (request, reply) => {
+    const tenantId = requireTenantId(request);
+
     const rows = await db.execute(sql`
       WITH order_revenue AS (
         SELECT
@@ -123,6 +123,7 @@ export default async function customersRoutes(app: FastifyInstance) {
         FROM sales_orders so
         LEFT JOIN order_items oi ON oi.sales_order_id = so.id
         WHERE so.deleted_at IS NULL
+          AND so.tenant_id = ${tenantId}
         GROUP BY so.customer_id, so.id, so.status, so.created_at
       ),
       metrics AS (
@@ -152,6 +153,7 @@ export default async function customersRoutes(app: FastifyInstance) {
         FROM customers c
         LEFT JOIN order_revenue orv ON orv.customer_id = c.id
         WHERE c.deleted_at IS NULL
+          AND c.tenant_id = ${tenantId}
         GROUP BY c.id, c.name, c.contact, c.email
       )
       SELECT * FROM metrics
@@ -193,8 +195,6 @@ export default async function customersRoutes(app: FastifyInstance) {
   });
 
   // ── GET /customers/search ─────────────────────────────
-  // CRM search for AI tools and sales workflows.
-  // PRD v5.0: admin / sales only; warehouse must receive 403.
   app.get('/search', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.SALES, USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -203,12 +203,14 @@ export default async function customersRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'q 參數為必填且不可空白。' });
     }
 
+    const tenantId = requireTenantId(request);
     const term = `%${parsed.data.q}%`;
     const items = await db
       .select()
       .from(customers)
       .where(and(
         isNull(customers.deletedAt),
+        tenantFilter(customers.tenantId, tenantId),
         or(
           ilike(customers.name, term),
           ilike(customers.contact, term),
@@ -230,10 +232,15 @@ export default async function customersRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'id 必須為正整數。' });
     }
 
+    const tenantId = requireTenantId(request);
     const [customer] = await db
       .select()
       .from(customers)
-      .where(and(eq(customers.id, parsed.data.id), isNull(customers.deletedAt)));
+      .where(and(
+        eq(customers.id, parsed.data.id),
+        isNull(customers.deletedAt),
+        tenantFilter(customers.tenantId, tenantId),
+      ));
 
     if (!customer) {
       return reply.status(404).send({ code: 'NOT_FOUND', message: '找不到此客戶。' });
@@ -243,7 +250,6 @@ export default async function customersRoutes(app: FastifyInstance) {
   });
 
   // ── POST /customers ────────────────────────────────────
-  // 建立新客戶；sales 和 admin 可執行
   app.post('/', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.SALES, USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -255,21 +261,17 @@ export default async function customersRoutes(app: FastifyInstance) {
       });
     }
 
+    const tenantId = requireTenantId(request);
     const { name, contact, email, taxId } = parsed.data;
     const [created] = await db
       .insert(customers)
-      .values({ name, contact: contact ?? null, email: email ?? null, taxId: taxId ?? null })
+      .values({ tenantId, name, contact: contact ?? null, email: email ?? null, taxId: taxId ?? null })
       .returning();
 
     return reply.status(201).send(created);
   });
 
   // ── PUT /customers/:id ─────────────────────────────────
-  // 更新客戶資料（PATCH 語意，只覆寫有傳入的欄位）
-  // sales 和 admin 可執行；倉管唯讀。
-  //
-  // 注意：LWW（Last-Write-Wins）衝突解決發生在 sync/push 路由，
-  // 此端點為直接線上操作，不做 updatedAt 比對。
   app.put('/:id', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.SALES, USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -286,16 +288,20 @@ export default async function customersRoutes(app: FastifyInstance) {
       });
     }
 
-    // 只將有傳入的欄位加入 SET 子句（PATCH 語意）
+    const tenantId = requireTenantId(request);
     const updates: Partial<typeof bodyParsed.data & { updatedAt: Date }> = {
       ...bodyParsed.data,
-      updatedAt: new Date(),  // 強制更新時間戳（$onUpdate 備援）
+      updatedAt: new Date(),
     };
 
     const [updated] = await db
       .update(customers)
       .set(updates)
-      .where(and(eq(customers.id, paramParsed.data.id), isNull(customers.deletedAt)))
+      .where(and(
+        eq(customers.id, paramParsed.data.id),
+        isNull(customers.deletedAt),
+        tenantFilter(customers.tenantId, tenantId),
+      ))
       .returning();
 
     if (!updated) {
@@ -306,8 +312,6 @@ export default async function customersRoutes(app: FastifyInstance) {
   });
 
   // ── DELETE /customers/:id ──────────────────────────────
-  // 軟刪除：設定 deleted_at，不實際移除記錄
-  // 只有 admin 可執行（PRD §3 權限矩陣）
   app.delete('/:id', {
     preHandler: [app.verifyJwt, app.requireRole(USER_ROLES.ADMIN)],
   }, async (request, reply) => {
@@ -316,17 +320,21 @@ export default async function customersRoutes(app: FastifyInstance) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'id 必須為正整數。' });
     }
 
+    const tenantId = requireTenantId(request);
     const [deleted] = await db
       .update(customers)
       .set({ deletedAt: new Date() })
-      .where(and(eq(customers.id, parsed.data.id), isNull(customers.deletedAt)))
+      .where(and(
+        eq(customers.id, parsed.data.id),
+        isNull(customers.deletedAt),
+        tenantFilter(customers.tenantId, tenantId),
+      ))
       .returning();
 
     if (!deleted) {
       return reply.status(404).send({ code: 'NOT_FOUND', message: '找不到此客戶或已被刪除。' });
     }
 
-    // 204 No Content：軟刪除成功，無需回傳 body
     return reply.status(204).send();
   });
 }

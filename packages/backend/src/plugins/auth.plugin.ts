@@ -14,8 +14,31 @@
 
 import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
+import { eq } from 'drizzle-orm';
+import { users } from '@/schemas/users.schema.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { JwtPayload } from '@/types/auth.js';
+import type { DrizzleDb } from '@/plugins/db.js';
+
+// ── isActive TTL 快取（避免每次請求都查 DB）────────────────
+// TTL = 1 分鐘；停用帳號最多延遲 60 秒生效（可接受）
+const _activeCache = new Map<number, { isActive: boolean; expiresAt: number }>();
+const ACTIVE_CACHE_TTL_MS = 60_000;
+
+async function _checkIsActive(db: DrizzleDb, userId: number): Promise<boolean> {
+  const cached = _activeCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.isActive;
+
+  const [row] = await db
+    .select({ isActive: users.isActive })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const isActive = row?.isActive ?? false;
+  _activeCache.set(userId, { isActive, expiresAt: Date.now() + ACTIVE_CACHE_TTL_MS });
+  return isActive;
+}
 
 // ── Fastify 型別擴充 ───────────────────────────────────────
 // 讓 TypeScript 知道 app.verifyJwt、app.requireRole、request.user 的型別，
@@ -64,13 +87,12 @@ export default fp(async (app) => {
     }
 
     // 2. 驗證 JWT 簽章與有效期
+    let payload: JwtPayload;
     try {
-      const payload = jwt.verify(
+      payload = jwt.verify(
         authHeader.slice(7),           // 去掉 "Bearer " 前綴
         process.env.JWT_SECRET!,
       ) as JwtPayload;
-
-      request.user = payload;          // 注入給後續 handler 使用
     } catch {
       // jwt.verify 若過期或簽章不符均會 throw
       return reply.status(401).send({
@@ -78,6 +100,25 @@ export default fp(async (app) => {
         message: 'Access Token 無效或已過期，請重新登入或執行 Token 刷新。',
       });
     }
+
+    // 3. 驗證 tenantId 存在（舊 token 無此欄位，強制重新登入）
+    if (!payload.tenantId) {
+      return reply.status(401).send({
+        code: 'UNAUTHORIZED',
+        message: 'Token 不含租戶資訊，請重新登入以取得新 Token。',
+      });
+    }
+
+    // 4. 確認帳號仍為啟用狀態（Redis-free：1 分鐘 in-memory TTL 快取）
+    const isActive = await _checkIsActive(app.db, payload.userId);
+    if (!isActive) {
+      return reply.status(401).send({
+        code: 'ACCOUNT_DISABLED',
+        message: '帳號已停用，請聯絡管理員。',
+      });
+    }
+
+    request.user = payload;            // 注入給後續 handler 使用
   });
 
   // ── requireRole ────────────────────────────────────────
