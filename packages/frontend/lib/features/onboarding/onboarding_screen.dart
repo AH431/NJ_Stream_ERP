@@ -256,6 +256,9 @@ class _Step1Timezone extends StatelessWidget {
     final s = AppStrings.of(context);
 
     return DropdownButtonFormField<String>(
+      // Flutter SDK compatibility: older channels only expose `value`,
+      // while newer analyzers mark it deprecated in favor of `initialValue`.
+      // ignore: deprecated_member_use
       value: selected,
       decoration: InputDecoration(labelText: s.onboardFieldTz),
       items: timezones.map((tz) => DropdownMenuItem(

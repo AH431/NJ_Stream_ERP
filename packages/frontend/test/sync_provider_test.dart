@@ -1,33 +1,52 @@
 // ignore_for_file: avoid_print
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nj_stream_erp/database/database.dart';
 import 'package:nj_stream_erp/providers/sync_provider.dart';
 
+const _secureStorageChannel =
+    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late AppDatabase db;
   late Dio dio;
   late FlutterSecureStorage storage;
   late SyncProvider syncProvider;
 
   setUp(() {
-    // 使用記憶體資料庫，不寫入真實檔案
+    // In-memory mock for flutter_secure_storage platform channel
+    final mockStore = <String, String>{};
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_secureStorageChannel, (call) async {
+      final args = call.arguments as Map?;
+      switch (call.method) {
+        case 'read':
+          return mockStore[args?['key'] as String?];
+        case 'write':
+          if (args?['key'] != null && args?['value'] != null) {
+            mockStore[args!['key'] as String] = args['value'] as String;
+          }
+          return null;
+        case 'delete':
+          mockStore.remove(args?['key'] as String?);
+          return null;
+        case 'deleteAll':
+          mockStore.clear();
+          return null;
+        default:
+          return null;
+      }
+    });
+
     db = AppDatabase.forTesting(NativeDatabase.memory());
-
     dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000'));
-    // ⚠️  FlutterSecureStorage 在純 Dart test 環境（無 Flutter binding）下會 throw
-    // 因為底層依賴平台 Keychain / Keystore，純 Dart 跑不起來。
-    //
-    // 目前選擇：使用真實 storage → 這些 test 屬於「整合測試」（需要模擬器/實機）
-    //
-    // 未來改進方向（進入 W3+ 後）：
-    //   引入 mockito 或 mocktail，mock FlutterSecureStorage 與 Dio，
-    //   讓 login / token 相關 test 可以在純 Dart 環境中跑（真正的 unit test）
     storage = const FlutterSecureStorage();
-
     syncProvider = SyncProvider(db: db, dio: dio, storage: storage);
   });
 
@@ -42,7 +61,7 @@ void main() {
 
       expect(success, isTrue);
       expect(syncProvider.isLoggedIn, isTrue);
-    });
+    }, skip: 'Integration test: TestWidgetsFlutterBinding blocks real HTTP; run on device/emulator');
 
     test('login 失敗時 isLoggedIn 應為 false', () async {
       final success = await syncProvider.login('bad_user', 'wrong_pass');

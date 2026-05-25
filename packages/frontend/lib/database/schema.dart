@@ -258,7 +258,7 @@ class PendingOperations extends Table {
 
   // 佇列狀態管理
   TextColumn get status =>
-      text().customConstraint("NOT NULL CHECK (status IN ('pending', 'syncing', 'succeeded', 'failed'))").withDefault(const Constant('pending'))();
+      text().withDefault(const Constant('pending')).customConstraint("NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'syncing', 'succeeded', 'failed'))")();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   TextColumn get lastAttemptAt =>
       text().map(const Iso8601DateTimeConverter()).nullable()();

@@ -4061,8 +4061,8 @@ class $PendingOperationsTable extends PendingOperations
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       $customConstraints:
-          'NOT NULL CHECK (status IN (\'pending\', \'syncing\', \'succeeded\', \'failed\'))',
-      defaultValue: const Constant('pending'));
+          'NOT NULL DEFAULT \'pending\' CHECK (status IN (\'pending\', \'syncing\', \'succeeded\', \'failed\'))',
+      defaultValue: const CustomExpression('\'pending\''));
   static const VerificationMeta _retryCountMeta =
       const VerificationMeta('retryCount');
   @override
