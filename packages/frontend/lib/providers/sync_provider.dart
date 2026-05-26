@@ -223,6 +223,8 @@ class SyncProvider extends ChangeNotifier {
       _setToken(stored); // 同時設定 _currentAccessToken 與 _jwtPayload
       _scheduleProactiveRefresh();
     }
+    final initialCount = await _countPending();
+    _state = _state.copyWith(pendingCount: initialCount);
     _isInitializing = false;
     notifyListeners();
   }

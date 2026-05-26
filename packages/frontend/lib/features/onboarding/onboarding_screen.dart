@@ -213,6 +213,7 @@ class _Step0Form extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 8),
           TextFormField(
             controller: nameCtrl,
             decoration: InputDecoration(labelText: s.onboardFieldName),
@@ -255,7 +256,9 @@ class _Step1Timezone extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
 
-    return DropdownButtonFormField<String>(
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: DropdownButtonFormField<String>(
       // Flutter SDK compatibility: older channels only expose `value`,
       // while newer analyzers mark it deprecated in favor of `initialValue`.
       // ignore: deprecated_member_use
@@ -266,6 +269,7 @@ class _Step1Timezone extends StatelessWidget {
         child: Text(tz, style: const TextStyle(fontSize: 14)),
       )).toList(),
       onChanged: (v) { if (v != null) onChanged(v); },
+      ),
     );
   }
 }

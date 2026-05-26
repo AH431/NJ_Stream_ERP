@@ -287,7 +287,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 第一行：(checkbox) + 客戶名 + 離線 icon
+              // 第一行：(checkbox) + 客戶名 + 報價單編號 + 離線 icon
               Row(
                 children: [
                   if (_selectionMode && isSelectable)
@@ -302,6 +302,20 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   ),
+                  if (!isOffline)
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.indigo.shade200),
+                      ),
+                      child: Text(
+                        '#${q.id}',
+                        style: TextStyle(fontSize: 10, color: Colors.indigo.shade700),
+                      ),
+                    ),
                   Icon(
                     isOffline ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
                     size: 18,

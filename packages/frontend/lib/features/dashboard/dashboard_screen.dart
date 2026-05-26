@@ -64,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16), // ← 整個 Dashboard 頁面四周內距 16 dp
+        padding: const EdgeInsets.all(12), // ← 整個 Dashboard 頁面四周內距 16 dp
         children: [
           // ── Onboarding Banner（M7.2：入駐未完成時顯示）──────
           const OnboardingBanner(),
@@ -73,19 +73,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               Expanded(child: _ConfirmedOrderCard(db: db)),
-              const SizedBox(width: 12), // ← 兩張 KPI 卡之間的水平間隔 12 dp
+              const SizedBox(width: 8), // ← 兩張 KPI 卡之間的水平間隔 12 dp
               Expanded(child: _MonthlyQuotationCard(db: db)),
             ],
           ),
-          const SizedBox(height: 20), // ← KPI 卡 → 圖表區的垂直間隔 20 dp
+          const SizedBox(height: 8), // ← KPI 卡 → 圖表區的垂直間隔 20 dp
 
           // ── 圖表區（Phase 2 新增）────────────────────────────
           const _AnalyticsSection(),
-          const SizedBox(height: 20), // ← 圖表區 → 低庫存列表的垂直間隔 20 dp
+          const SizedBox(height: 8), // ← 圖表區 → 低庫存列表的垂直間隔 20 dp
 
           // ── 補貨預測警示（Phase 4 PR-5 M5.1）────────────────
           ForecastSummaryCard(db: db),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8), // ← 補貨預測卡 → 低庫存列表的垂直間隔 8 dp
 
           // ── 低庫存列表（現有）────────────────────────────────
           _LowStockSection(db: db),
@@ -138,7 +138,7 @@ class _AnalyticsSection extends StatelessWidget {
             shipmentData: analytics.inventoryTrendData!,
             revenueData: analytics.revenueData,
           ),
-          const SizedBox(height: 16), // ← Combo Chart → 下一區塊的垂直間隔 16 dp
+          const SizedBox(height: 8), // ← Combo Chart → 下一區塊的垂直間隔 16 dp
         ],
 
         // ── 圖表 2 + 3：訂單環形圖 & Top 5 產品 並排 Row ──────────────────
@@ -146,16 +146,16 @@ class _AnalyticsSection extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 環形圖：flex=4（佔寬度 40%）
+              // 環形圖：flex=5（佔寬度 50%）
               if (analytics.statusData != null && analytics.statusData!.isNotEmpty)
                 Expanded(
-                  flex: 5, // ← 環形圖佔 4 份寬度
+                  flex: 5, // ← 環形圖佔 5 份寬度
                   child: _OrderStatusDonut(data: analytics.statusData!),
                 ),
               // 環形圖與長條圖之間的水平間隔
               if (analytics.statusData != null && analytics.topProductData != null)
-                const SizedBox(width: 12), // ← 環形圖 → 長條圖的水平間隔 12 dp
-              // 長條圖：flex=6（佔寬度 60%）
+                const SizedBox(width: 8), // ← 環形圖 → 長條圖的水平間隔 12 dp
+              // 長條圖：flex=5（佔寬度 50%）
               if (analytics.topProductData != null && analytics.topProductData!.isNotEmpty)
                 Expanded(
                   flex: 5, // ← Top 5 長條圖佔 6 份寬度
@@ -166,19 +166,19 @@ class _AnalyticsSection extends StatelessWidget {
 
         // ── 圖表 4：損益摘要（Admin 專用）────────────────────────────────
         if (analytics.profitData != null && analytics.profitData!.isNotEmpty) ...[
-          const SizedBox(height: 16), // ← 損益摘要與上方圖表的垂直間隔 16 dp
+          const SizedBox(height: 8), // ← 損益摘要與上方圖表的垂直間隔 16 dp
           _ProfitSummaryCard(data: analytics.profitData!),
         ],
 
         // ── 圖表 5：報價漏斗（admin + sales）────────────────────────────
         if (analytics.funnelData != null && analytics.funnelData!.totalQuotations > 0) ...[
-          const SizedBox(height: 16), // ← 漏斗卡與上方圖表的垂直間隔 16 dp
+          const SizedBox(height: 8), // ← 漏斗卡與上方圖表的垂直間隔 16 dp
           _FunnelCard(data: analytics.funnelData!),
         ],
 
         // ── 圖表 6：客戶熱力圖（admin + sales）──────────────────────────
         if (analytics.heatmapData != null && analytics.heatmapData!.isNotEmpty) ...[
-          const SizedBox(height: 16), // ← 熱力圖與上方圖表的垂直間隔 16 dp
+          const SizedBox(height: 8), // ← 熱力圖與上方圖表的垂直間隔 16 dp
           _CustomerHeatmapCard(
             rows: analytics.heatmapData!,
             months: analytics.heatmapMonths ?? [],
@@ -187,7 +187,7 @@ class _AnalyticsSection extends StatelessWidget {
 
         // ── 最後更新時間標籤 ─────────────────────────────────────────────
         if (analytics.lastFetchedAt != null) ...[
-          const SizedBox(height: 6), // ← 更新時間標籤與上方圖表的垂直間隔 6 dp
+          const SizedBox(height: 4), // ← 更新時間標籤與上方圖表的垂直間隔 6 dp
           _LastUpdatedLabel(fetchedAt: analytics.lastFetchedAt!),
         ],
       ],
@@ -260,7 +260,7 @@ class _ProfitSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12), // ← 標題 → KPI 格的垂直間隔 12 dp
+            const SizedBox(height: 8), // ← 標題 → KPI 格的垂直間隔 12 dp
 
             // ── KPI 格列（營收 / COGS / 毛利 / 毛利率）────────────────
             Row(
@@ -460,7 +460,7 @@ class _OrderStatusDonut extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
             ),
-            const SizedBox(height: 9), // ← 標題 → 環形圖的垂直間隔 9 dp
+            const SizedBox(height: 8), // ← 標題 → 環形圖的垂直間隔 8 dp
 
             // ── 雙環圖區域（高度固定 144 dp）──────────────────────────────
             SizedBox(
@@ -511,7 +511,7 @@ class _OrderStatusDonut extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 9), // ← 環形圖 → 圖例的垂直間隔 9 dp
+            const SizedBox(height: 8), // ← 環形圖 → 圖例的垂直間隔 8 dp
 
             // ── 圖例（Wrap 自動換行）──────────────────────────────────────
             Wrap(
@@ -558,7 +558,7 @@ class _OrderStatusDonut extends StatelessWidget {
 // 佈局：Card > Padding(all:12) > Column
 //   標題（titleSmall w600）
 //   ...最多 5 個 Padding(bottom:8) > Column
-//     Row(排名. | 產品名 | 數量)  → fontSize 10/11/11
+//     Row(完整產品名 | 數量寫在下一行)  → fontSize 10/11
 //     LinearProgressIndicator(minHeight:6, 圓角 2)
 
 class _TopProductsBar extends StatelessWidget {
@@ -578,59 +578,61 @@ class _TopProductsBar extends StatelessWidget {
           children: [
             // ── 標題 ───────────────────────────────────────────────────────
             Text(
-              s.isEnglish ? 'Top 5 Products (30d)' : 'Top 5 產品（近 30 天）',
+              s.isEnglish ? 'Top Selling Products' : '熱銷產品（近 30 天）',
               style: Theme.of(context).textTheme.titleSmall?.copyWith( // ← titleSmall（14 sp）
                     fontWeight: FontWeight.w600,
                   ),
             ),
-            const SizedBox(height: 8), // ← 標題 → 第一條的垂直間隔 8 dp
+            const SizedBox(height: 6), // ← 標題 → 第一條的垂直間隔 8 dp
 
             // ── 逐項產品列 ─────────────────────────────────────────────────
-            ...data.asMap().entries.map((entry) {
-              final idx  = entry.key;
-              final prod = entry.value;
+            ...data.map((prod) {
               final frac = maxQty == 0 ? 0.0 : prod.totalQty / maxQty; // 0.0~1.0
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8), // ← 每條之間的垂直間隔 8 dp
+                padding: const EdgeInsets.only(bottom: 6), // ← 每條之間的垂直間隔 8 dp
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 排名 + 產品名 + 數量
+                    // 完整產品名（獨立一行）
                     Row(
                       children: [
-                        Text('${idx + 1}.',
-                            style: TextStyle(
-                              fontSize: 10, // ← 排名序號字型 10 sp
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            )),
-                        const SizedBox(width: 4), // ← 序號 → 產品名間距 4 dp
                         Expanded(
                           child: Text(prod.name,
-                              style: const TextStyle(fontSize: 11), // ← 產品名字型 11 sp
+                              style: const TextStyle(fontSize: 10), // ← 產品名字型 10 sp
                               overflow: TextOverflow.ellipsis),
                         ),
-                        Text('${prod.totalQty}',
-                            style: const TextStyle(
-                                fontSize: 11,           // ← 數量字型 11 sp
-                                fontWeight: FontWeight.w600)),
                       ],
                     ),
-                    const SizedBox(height: 3), // ← 文字 → 進度條間距 3 dp
+                    const SizedBox(height: 3), // ← 產品名 → 進度條間距 3 dp
 
-                    // 進度條（以最大值 maxQty 為 100%）
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2), // ← 進度條圓角 2 dp
-                      child: LinearProgressIndicator(
-                        value: frac,        // ← 比例值 0.0~1.0
-                        minHeight: 6,       // ← 進度條高度 6 dp；可調整 4–10
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          // primary 色 + alpha 200（約 78% 不透明）
-                          Theme.of(context).colorScheme.primary.withAlpha(200),
+                    // 進度條（靠左展開）＋ 數量（靠右）
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2), // ← 進度條圓角 2 dp
+                            child: LinearProgressIndicator(
+                              value: frac,    // ← 比例值 0.0~1.0
+                              minHeight: 8,   // ← 進度條高度 6 dp；可調整 4–10
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.surfaceContainerHighest,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).colorScheme.primary.withAlpha(200),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 3), // ← 進度條 → 數量間距 3 dp
+                        SizedBox(
+                          width: 38, // ← 固定寬度 38 dp，足以容納 5 位數
+                          child: Text('${prod.totalQty}',
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1114,7 +1116,7 @@ class _CustomerHeatmapCard extends StatelessWidget {
                         fontWeight: FontWeight.w600)),
               ),
             ]),
-            const SizedBox(height: 10), // ← 標題 → 熱力格的垂直間隔 10 dp
+            const SizedBox(height: 8), // ← 標題 → 熱力格的垂直間隔 10 dp
 
             // ── 熱力格（LayoutBuilder 讓格子填滿卡片寬度）──────────────────
             LayoutBuilder(builder: (context, constraints) {
@@ -1271,15 +1273,15 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
         // ← KPI 卡內距：水平 16 dp, 垂直 14 dp
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, size: 18, color: iconColor), // ← icon 18 dp
-                const SizedBox(width: 6),               // ← icon → 標籤間距 6 dp
+                Icon(icon, size: 17, color: iconColor), // ← icon 18 dp
+                const SizedBox(width: 5),               // ← icon → 標籤間距 6 dp
                 Expanded(
                   child: Text(
                     label,

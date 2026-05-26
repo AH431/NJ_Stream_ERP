@@ -12,6 +12,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:decimal/decimal.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -374,7 +376,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         }
 
       case ReserveDialogAction.splitOrder:
-        await _doSplitOrder(context, db, sync, order);
+        await _doSplitOrder(context, db, sync, order, quotation, items, inventoryMap);
 
       case null:
         break;
@@ -386,7 +388,44 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     AppDatabase db,
     SyncProvider sync,
     SalesOrder order,
+    Quotation quotation,
+    List<QuotationItemModel> allItems,
+    Map<int, InventoryItem> inventoryMap,
   ) async {
+    // ── 1. 計算每品項可出貨量 vs. 待補量 ────────────────────────────────────
+    final shipNowItems   = <QuotationItemModel>[];
+    final backorderItems = <QuotationItemModel>[];
+
+    for (final item in allItems) {
+      final inv       = inventoryMap[item.productId];
+      final available = inv != null
+          ? (inv.quantityOnHand - inv.quantityReserved).clamp(0, item.quantity)
+          : 0;
+      final remaining = item.quantity - available;
+      final unitPrice = Decimal.tryParse(item.unitPrice) ?? Decimal.zero;
+
+      if (available > 0) {
+        shipNowItems.add(QuotationItemModel(
+          productId: item.productId,
+          quantity:  available,
+          unitPrice: item.unitPrice,
+          subtotal:  (unitPrice * Decimal.parse(available.toString()))
+              .toStringAsFixed(2),
+        ));
+      }
+      if (remaining > 0) {
+        backorderItems.add(QuotationItemModel(
+          productId: item.productId,
+          quantity:  remaining,
+          unitPrice: item.unitPrice,
+          subtotal:  (unitPrice * Decimal.parse(remaining.toString()))
+              .toStringAsFixed(2),
+        ));
+      }
+    }
+
+    // ── 2. 確認對話框 ────────────────────────────────────────────────────────
+    if (!context.mounted) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -394,8 +433,12 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
         return AlertDialog(
           title: Text(ds.isEnglish ? 'Confirm Split Order' : '確認拆單'),
           content: Text(ds.isEnglish
-              ? 'This order will be cancelled. Please create a new quotation and split the items.\n\nConfirm?'
-              : '此訂單將被取消，請至報價管理建立新報價單並重新轉訂單。\n\n確定要拆單嗎？'),
+              ? 'Order will be split:\n'
+                '• Ship now: ${shipNowItems.length} item type(s)\n'
+                '• Backorder: ${backorderItems.length} item type(s)'
+              : '訂單將拆分為：\n'
+                '• 立即出貨：${shipNowItems.length} 種品項\n'
+                '• 待補貨：${backorderItems.length} 種品項'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -412,22 +455,160 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
     );
     if (confirm != true || !context.mounted) return;
 
-    final s   = context.read<AppStrings>();
-    final now = DateTime.now().toUtc();
+    final now     = DateTime.now().toUtc();
+    final s       = context.read<AppStrings>();
+    final withTax = quotation.taxAmount > Decimal.zero;
+
+    // ── 3. 取消原始訂單 ──────────────────────────────────────────────────────
     await db.updateSalesOrderStatus(order.id, 'cancelled');
     await sync.enqueueUpdate('sales_order', order.id, {
-      'id': order.id,
-      'status': 'cancelled',
+      'id':        order.id,
+      'status':    'cancelled',
       'updatedAt': now.toIso8601String(),
     });
 
-    sync.requestTabSwitch(3);
+    // ── 4. 建立「立即出貨」報價 + 訂單 ──────────────────────────────────────
+    if (shipNowItems.isNotEmpty) {
+      final shipSubtotal = shipNowItems.fold<Decimal>(
+          Decimal.zero, (acc, i) => acc + i.subtotalDecimal);
+      final shipTax   = withTax
+          ? shipSubtotal * Decimal.parse('0.05')
+          : Decimal.zero;
+      final shipTotal = shipSubtotal + shipTax;
+
+      final shipQuotId  = SyncProvider.nextLocalId();
+      await db.insertQuotation(QuotationsCompanion(
+        id:          Value(shipQuotId),
+        customerId:  Value(quotation.customerId),
+        createdBy:   Value(quotation.createdBy),
+        items:       Value(QuotationItemModel.toJsonString(shipNowItems)),
+        totalAmount: Value(shipTotal),
+        taxAmount:   Value(shipTax),
+        status:      const Value('converted'),
+        createdAt:   Value(now),
+        updatedAt:   Value(now),
+      ));
+      await sync.enqueueCreate('quotation', {
+        'id':          shipQuotId,
+        'customerId':  quotation.customerId,
+        'createdBy':   quotation.createdBy,
+        'items':       shipNowItems.map((i) => i.toJson()).toList(),
+        'totalAmount': shipTotal.toStringAsFixed(2),
+        'taxAmount':   shipTax.toStringAsFixed(2),
+        'subtotalSum': shipSubtotal.toStringAsFixed(2),
+        'withTax':     withTax,
+        'status':      'converted',
+        'convertedToOrderId': null,
+        'createdAt':   now.toIso8601String(),
+        'updatedAt':   now.toIso8601String(),
+        'deletedAt':   null,
+      });
+
+      final shipOrderId = SyncProvider.nextLocalId();
+      await db.insertSalesOrder(SalesOrdersCompanion(
+        id:          Value(shipOrderId),
+        quotationId: Value(shipQuotId),
+        customerId:  Value(order.customerId),
+        createdBy:   Value(order.createdBy),
+        status:      const Value('confirmed'),
+        createdAt:   Value(now),
+        updatedAt:   Value(now),
+      ));
+      await sync.enqueueCreate('sales_order', {
+        'id':          shipOrderId,
+        'quotationId': shipQuotId,
+        'customerId':  order.customerId,
+        'createdBy':   order.createdBy,
+        'status':      'confirmed',
+        'confirmedAt': now.toIso8601String(),
+        'shippedAt':   null,
+        'createdAt':   now.toIso8601String(),
+        'updatedAt':   now.toIso8601String(),
+        'deletedAt':   null,
+      });
+      // orderId 為選填；新訂單尚未同步，不傳避免後端外鍵錯誤
+      for (final item in shipNowItems) {
+        await sync.enqueueDeltaUpdate('inventory_delta', 'reserve', {
+          'productId': item.productId,
+          'amount':    item.quantity,
+        });
+      }
+      await db.markSalesOrderReserved(shipOrderId);
+    }
+
+    // ── 5. 建立「待補貨」報價 + 訂單 ────────────────────────────────────────
+    if (backorderItems.isNotEmpty) {
+      final backSubtotal = backorderItems.fold<Decimal>(
+          Decimal.zero, (acc, i) => acc + i.subtotalDecimal);
+      final backTax   = withTax
+          ? backSubtotal * Decimal.parse('0.05')
+          : Decimal.zero;
+      final backTotal = backSubtotal + backTax;
+
+      final backQuotId = SyncProvider.nextLocalId();
+      await db.insertQuotation(QuotationsCompanion(
+        id:          Value(backQuotId),
+        customerId:  Value(quotation.customerId),
+        createdBy:   Value(quotation.createdBy),
+        items:       Value(QuotationItemModel.toJsonString(backorderItems)),
+        totalAmount: Value(backTotal),
+        taxAmount:   Value(backTax),
+        status:      const Value('converted'),
+        createdAt:   Value(now),
+        updatedAt:   Value(now),
+      ));
+      await sync.enqueueCreate('quotation', {
+        'id':          backQuotId,
+        'customerId':  quotation.customerId,
+        'createdBy':   quotation.createdBy,
+        'items':       backorderItems.map((i) => i.toJson()).toList(),
+        'totalAmount': backTotal.toStringAsFixed(2),
+        'taxAmount':   backTax.toStringAsFixed(2),
+        'subtotalSum': backSubtotal.toStringAsFixed(2),
+        'withTax':     withTax,
+        'status':      'converted',
+        'convertedToOrderId': null,
+        'createdAt':   now.toIso8601String(),
+        'updatedAt':   now.toIso8601String(),
+        'deletedAt':   null,
+      });
+
+      final backOrderId = SyncProvider.nextLocalId();
+      await db.insertSalesOrder(SalesOrdersCompanion(
+        id:          Value(backOrderId),
+        quotationId: Value(backQuotId),
+        customerId:  Value(order.customerId),
+        createdBy:   Value(order.createdBy),
+        status:      const Value('pending'),
+        createdAt:   Value(now),
+        updatedAt:   Value(now),
+      ));
+      await sync.enqueueCreate('sales_order', {
+        'id':          backOrderId,
+        'quotationId': backQuotId,
+        'customerId':  order.customerId,
+        'createdBy':   order.createdBy,
+        'status':      'pending',
+        'confirmedAt': null,
+        'shippedAt':   null,
+        'createdAt':   now.toIso8601String(),
+        'updatedAt':   now.toIso8601String(),
+        'deletedAt':   null,
+      });
+      await db.markSalesOrderStockAlert(backOrderId);
+    }
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(s.isEnglish
-            ? 'Order cancelled. Create a new quotation and split items.'
-            : '訂單已取消，請建立新報價單並拆分品項後重新轉訂單')),
+            ? 'Split complete: '
+              '${shipNowItems.isNotEmpty ? "1 order reserved for shipping" : ""}'
+              '${shipNowItems.isNotEmpty && backorderItems.isNotEmpty ? ", " : ""}'
+              '${backorderItems.isNotEmpty ? "1 backorder waiting for stock" : ""}'
+            : '拆單完成：'
+              '${shipNowItems.isNotEmpty ? "1 張訂單已預留待出貨" : ""}'
+              '${shipNowItems.isNotEmpty && backorderItems.isNotEmpty ? "，" : ""}'
+              '${backorderItems.isNotEmpty ? "1 張補貨等待單已建立" : ""}')),
       );
     }
   }

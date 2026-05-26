@@ -3,8 +3,8 @@
 //
 // 回傳值 ReserveDialogAction：
 //   confirmed   — 庫存充足，使用者確認預留
-//   waitForStock — 庫存不足，使用者選擇等待到貨
-//   splitOrder  — 庫存不足，使用者選擇拆單
+//   waitForStock — 庫存不足，使用者選擇等待整批到貨
+//   splitOrder  — 庫存不足，使用者選擇拆單(一張單提供目前可預留量->出貨/扣除可出貨數量後，另一張設定為等待剩餘到貨量)
 // ==============================================================================
 
 import 'package:flutter/material.dart';

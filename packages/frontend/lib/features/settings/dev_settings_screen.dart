@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_strings.dart';
-import '../../core/constants.dart';
 import '../../providers/sync_provider.dart';
 import '../../database/database.dart';
 import '../../database/dao/customer_dao.dart';
@@ -33,15 +32,19 @@ class DevSettingsScreen extends StatefulWidget {
 class _DevSettingsScreenState extends State<DevSettingsScreen> {
   late final TextEditingController _urlController;
   final _formKey = GlobalKey<FormState>();
-  bool _isSaving = false;
   bool _isCleaning = false;
   bool _isForceFullSyncing = false;
+
+  String? _tenantName;
+  String? _tenantEmail;
+  bool _isLoadingTenant = false;
 
   @override
   void initState() {
     super.initState();
-    final currentUrl = context.read<SyncProvider>().currentApiBaseUrl;
-    _urlController = TextEditingController(text: currentUrl);
+    final sync = context.read<SyncProvider>();
+    _urlController = TextEditingController(text: sync.currentApiBaseUrl);
+    if (sync.isLoggedIn) _loadTenantInfo();
   }
 
   @override
@@ -50,67 +53,21 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
     super.dispose();
   }
 
-  // --------------------------------------------------------------------------
-
-  String? _validateUrl(String? value) {
-    final s = context.read<AppStrings>();
-    final v = value?.trim() ?? '';
-    if (v.isEmpty) return s.isEnglish ? 'Please enter API Base URL' : '請輸入 API Base URL';
-    if (!v.startsWith('http://') && !v.startsWith('https://')) {
-      return s.isEnglish ? 'Must start with http:// or https://' : '必須以 http:// 或 https:// 開頭';
-    }
-    if (v.endsWith('/')) return s.isEnglish ? 'No trailing slash /' : '結尾請勿加斜線 /';
-    return null;
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSaving = true);
+  Future<void> _loadTenantInfo() async {
+    setState(() => _isLoadingTenant = true);
     try {
-      final sync = context.read<SyncProvider>();
-      final s = context.read<AppStrings>();
-      await sync.updateApiBaseUrl(_urlController.text.trim());
+      final dio = context.read<SyncProvider>().authenticatedDio;
+      final response = await dio.get<Map<String, dynamic>>('/api/v1/tenant');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(s.isEnglish ? 'Saved: ${_urlController.text.trim()}' : '已儲存：${_urlController.text.trim()}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
+        setState(() {
+          _tenantName  = response.data?['name'] as String?;
+          _tenantEmail = response.data?['contactEmail'] as String?;
+        });
       }
+    } catch (_) {
+      // 無法取得租戶資訊時靜默失敗（可能尚未登入）
     } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _reset() async {
-    final s = context.read<AppStrings>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(s.devResetApiTitle),
-        content: Text(s.devResetApiBody(kApiBaseUrl)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(s.btnCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(s.btnResetDefault),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    await context.read<SyncProvider>().resetApiBaseUrl();
-    if (mounted) {
-      _urlController.text = kApiBaseUrl;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.devResetApiDone)),
-      );
+      if (mounted) setState(() => _isLoadingTenant = false);
     }
   }
 
@@ -186,10 +143,7 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const defaultUrl = kApiBaseUrl;
     final sync = context.watch<SyncProvider>();
-    final currentUrl = sync.currentApiBaseUrl;
-    final isCustom = currentUrl != defaultUrl;
     final isAdmin = sync.role == 'admin';
 
     final s = context.watch<AppStrings>();
@@ -225,71 +179,24 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
               const Divider(),
               const SizedBox(height: 12),
 
-              // 編譯期預設
+              // ── 公司資訊 ──────────────────────────────────────────────
               Text(
-                s.devSectionCompile,
+                s.devSectionCompany,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.grey),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                defaultUrl,
-                style: TextStyle(fontFamily: 'monospace', fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-
-              // 目前狀態
-              if (isCustom) ...[
-                Row(
-                  children: [
-                    Icon(Icons.edit_outlined, size: 14, color: Colors.indigo.shade400),
-                    const SizedBox(width: 4),
-                    Text(
-                      s.devCurrentCustomUrl,
-                      style: TextStyle(fontSize: 12, color: Colors.indigo.shade400),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+              const SizedBox(height: 12),
+              if (_isLoadingTenant)
+                const Center(
+                  child: SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else ...[
+                _InfoRow(label: s.devCompanyName, value: _tenantName ?? s.devNotSet),
+                const SizedBox(height: 8),
+                _InfoRow(label: s.devContactEmail, value: _tenantEmail ?? s.devNotSet),
               ],
-
-              // URL 輸入欄
-              TextFormField(
-                controller: _urlController,
-                validator: _validateUrl,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: 'API Base URL',
-                  hintText: 'https://xxxx.trycloudflare.com',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.link),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 按鈕列
-              Row(
-                children: [
-                  if (isCustom)
-                    OutlinedButton.icon(
-                      onPressed: _isSaving ? null : _reset,
-                      icon: const Icon(Icons.refresh, size: 16),
-                      label: Text(s.btnResetDefault),
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.grey),
-                    ),
-                  const Spacer(),
-                  _isSaving
-                      ? const SizedBox(
-                          width: 24, height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : FilledButton.icon(
-                          onPressed: _save,
-                          icon: const Icon(Icons.save_outlined, size: 16),
-                          label: Text(s.btnSaveSettings),
-                        ),
-                ],
-              ),
 
               // ── Admin 功能（Admin Only）────────────────────────────────
               if (isAdmin) ...[
@@ -452,6 +359,30 @@ class _DevSettingsScreenState extends State<DevSettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        ),
+      ],
     );
   }
 }

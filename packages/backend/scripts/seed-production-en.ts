@@ -5,7 +5,7 @@
  *   - 20 IoT / electronics products (USD pricing)
  *   - 12 B2B customers
  *   - Inventory for all 20 products (2 low-stock items for anomaly demo)
- *   - 45 sales orders across 6 months (Nov 2025 – Apr 2026)
+ *   - 53 sales orders across 7 months (Nov 2025 – May 2026)
  *   - 12 quotations (recent 30 days, ~33 % conversion rate)
  *   - Duplicate-pending anomaly pair for UI demo
  *
@@ -58,34 +58,38 @@ await db.execute(sql`
 console.log('✅ All tables cleared');
 
 // ── Step 2: Products (20 IoT / electronics items, USD) ────
+// SPQ = Standard Package Quantity (整盤/整捲/整托盤零件數)
+// MOQ = Minimum Order Quantity in sets (最少下單組數)
+// Passives (p12/p13/p14): unitPrice = per reel (整盤單價); spq = pcs per reel (資訊用)
+// All others:             unitPrice = per piece (單顆/個單價); spq = pcs per set
 const insertedProducts = await db.insert(schema.products).values([
   // ── Microcontrollers & SoCs
-  { name: 'STM32F103C8T6 Microcontroller',         sku: 'MCU-STM32F103C8',    unitPrice: '4.50',  costPrice: '2.60', minStockLevel: 200 },
-  { name: 'ESP32-WROOM-32U WiFi+BT Module',         sku: 'MCU-ESP32-WROOM32U', unitPrice: '5.80',  costPrice: '3.40', minStockLevel: 100 },
-  { name: 'nRF52840 BLE 5.0 SoC Module',            sku: 'COMM-NRF52840-MOD',  unitPrice: '9.50',  costPrice: '5.60', minStockLevel: 80  },
+  { name: 'STM32F103C8T6 Microcontroller (Tray/1K)',        sku: 'MCU-STM32F103C8',     unitPrice: '4.50',  costPrice: '2.60', minStockLevel: 200,  spq: 1000, moq: 1 },
+  { name: 'ESP32-WROOM-32U WiFi+BT Module (Tray/500)',      sku: 'MCU-ESP32-WROOM32U',  unitPrice: '5.80',  costPrice: '3.40', minStockLevel: 100,  spq: 500,  moq: 1 },
+  { name: 'nRF52840 BLE 5.0 SoC Module (Tray/500)',         sku: 'COMM-NRF52840-MOD',   unitPrice: '9.50',  costPrice: '5.60', minStockLevel: 80,   spq: 500,  moq: 1 },
   // ── Sensors
-  { name: 'BME280 Environmental Sensor (T/H/P)',    sku: 'SENS-BME280-3IN1',   unitPrice: '3.20',  costPrice: '1.90', minStockLevel: 150 },
-  { name: 'MPU-6050 6-Axis IMU Sensor',             sku: 'SENS-MPU6050-6AX',   unitPrice: '1.80',  costPrice: '1.05', minStockLevel: 200 },
+  { name: 'BME280 Environmental Sensor T/H/P (Tray/500)',   sku: 'SENS-BME280-3IN1',    unitPrice: '3.20',  costPrice: '1.90', minStockLevel: 150,  spq: 500,  moq: 1 },
+  { name: 'MPU-6050 6-Axis IMU Sensor (Tray/1K)',           sku: 'SENS-MPU6050-6AX',    unitPrice: '1.80',  costPrice: '1.05', minStockLevel: 200,  spq: 1000, moq: 1 },
   // ── Power & Battery
-  { name: 'LiPo Battery 3.7V 1800mAh',             sku: 'BATT-LIPO-3V7-1800', unitPrice: '5.20',  costPrice: '3.10', minStockLevel: 80  },
-  { name: 'AMS1117-3.3V LDO Regulator SOT-223',    sku: 'PMIC-LDO-AMS1117-33',unitPrice: '0.35',  costPrice: '0.18', minStockLevel: 1000},
-  { name: 'LM2596S Buck DC-DC Converter 3A',       sku: 'PMIC-BUCK-LM2596S',  unitPrice: '0.65',  costPrice: '0.38', minStockLevel: 500 },
+  { name: 'LiPo Battery 3.7V 1800mAh (Box/100)',            sku: 'BATT-LIPO-3V7-1800',  unitPrice: '5.20',  costPrice: '3.10', minStockLevel: 80,   spq: 100,  moq: 1 },
+  { name: 'AMS1117-3.3V LDO Regulator SOT-223 (Reel/3K)',  sku: 'PMIC-LDO-AMS1117-33', unitPrice: '0.35',  costPrice: '0.18', minStockLevel: 1000, spq: 3000, moq: 1 },
+  { name: 'LM2596S Buck DC-DC Converter 3A (Reel/1K)',      sku: 'PMIC-BUCK-LM2596S',   unitPrice: '0.65',  costPrice: '0.38', minStockLevel: 500,  spq: 1000, moq: 1 },
   // ── Connectors
-  { name: 'USB Type-C 16P SMD Receptacle',         sku: 'CONN-USBC-16P-SMD',  unitPrice: '0.48',  costPrice: '0.27', minStockLevel: 1000},
-  { name: 'JST-PH 2P 2.0mm Connector Pair',        sku: 'CONN-JST-PH2-2P',    unitPrice: '0.22',  costPrice: '0.12', minStockLevel: 2000},
+  { name: 'USB Type-C 16P SMD Receptacle (Reel/500)',       sku: 'CONN-USBC-16P-SMD',   unitPrice: '0.48',  costPrice: '0.27', minStockLevel: 1000, spq: 500,  moq: 1 },
+  { name: 'JST-PH 2P 2.0mm Connector Pair (Bag/1K)',        sku: 'CONN-JST-PH2-2P',     unitPrice: '0.22',  costPrice: '0.12', minStockLevel: 2000, spq: 1000, moq: 1 },
   // ── Displays
-  { name: 'OLED Display 0.96" 128x64 I2C',         sku: 'DISP-OLED-096-I2C',  unitPrice: '3.50',  costPrice: '2.10', minStockLevel: 120 },
-  { name: 'TFT LCD 2.4" 240x320 ILI9341 SPI',     sku: 'DISP-TFT-24-ILI9341',unitPrice: '7.80',  costPrice: '4.60', minStockLevel: 60  },
-  // ── Passives (reel units)
-  { name: 'SMD Resistor 0402 1kΩ ±1% (Reel/5K)',  sku: 'PASS-RES-0402-1K5K',  unitPrice: '3.80',  costPrice: '2.10', minStockLevel: 50  },
-  { name: 'MLCC Cap 0402 100nF 10V X7R (Reel/4K)',sku: 'PASS-CAP-0402-100N4K', unitPrice: '4.50',  costPrice: '2.60', minStockLevel: 50  },
-  { name: 'WS2812B RGB LED SMD 5050 (Reel/100)',   sku: 'LED-WS2812B-5050R100', unitPrice: '8.50',  costPrice: '5.00', minStockLevel: 30  },
+  { name: 'OLED Display 0.96" 128x64 I2C (Box/50)',         sku: 'DISP-OLED-096-I2C',   unitPrice: '3.50',  costPrice: '2.10', minStockLevel: 120,  spq: 50,   moq: 1 },
+  { name: 'TFT LCD 2.4" 240x320 ILI9341 SPI (Box/20)',      sku: 'DISP-TFT-24-ILI9341', unitPrice: '7.80',  costPrice: '4.60', minStockLevel: 60,   spq: 20,   moq: 1 },
+  // ── Passives (reel units — unitPrice = per reel, spq = pcs/reel for display)
+  { name: 'SMD Resistor 0402 1kΩ ±1% (Reel/5K)',           sku: 'PASS-RES-0402-1K5K',   unitPrice: '3.80',  costPrice: '2.10', minStockLevel: 50,   spq: 5000, moq: 1 },
+  { name: 'MLCC Cap 0402 100nF 10V X7R (Reel/4K)',          sku: 'PASS-CAP-0402-100N4K', unitPrice: '4.50',  costPrice: '2.60', minStockLevel: 50,   spq: 4000, moq: 1 },
+  { name: 'WS2812B RGB LED SMD 5050 (Reel/100)',            sku: 'LED-WS2812B-5050R100',  unitPrice: '8.50',  costPrice: '5.00', minStockLevel: 30,   spq: 100,  moq: 1 },
   // ── Other Components
-  { name: '5V SPDT Signal Relay SRD-05VDC',        sku: 'RLAY-SRD-05VDC-SPDT', unitPrice: '0.75',  costPrice: '0.42', minStockLevel: 300 },
-  { name: '40mm DC Brushless Fan 12V',             sku: 'FAN-40X10-12V-DC',    unitPrice: '3.80',  costPrice: '2.20', minStockLevel: 60  },
-  { name: 'ABS Enclosure 200x120x75mm IP54',       sku: 'ENCL-ABS-200X120-IP54',unitPrice: '6.50', costPrice: '3.80', minStockLevel: 40  },
-  { name: 'FR-4 PCB 100x100mm 2-Layer',            sku: 'PCB-FR4-2L-100X100',  unitPrice: '2.20',  costPrice: '1.30', minStockLevel: 100 },
-  { name: '2.54mm 40P Breakaway Pin Header',       sku: 'CONN-HDR-254-40P',    unitPrice: '0.45',  costPrice: '0.25', minStockLevel: 500 },
+  { name: '5V SPDT Signal Relay SRD-05VDC (Bag/500)',        sku: 'RLAY-SRD-05VDC-SPDT', unitPrice: '0.75',  costPrice: '0.42', minStockLevel: 300,  spq: 500,  moq: 1 },
+  { name: '40mm DC Brushless Fan 12V (Box/50)',              sku: 'FAN-40X10-12V-DC',     unitPrice: '3.80',  costPrice: '2.20', minStockLevel: 60,   spq: 50,   moq: 1 },
+  { name: 'ABS Enclosure 200x120x75mm IP54 (Box/20)',        sku: 'ENCL-ABS-200X120-IP54',unitPrice: '6.50',  costPrice: '3.80', minStockLevel: 40,   spq: 20,   moq: 1 },
+  { name: 'FR-4 PCB 100x100mm 2-Layer (Panel/100)',          sku: 'PCB-FR4-2L-100X100',   unitPrice: '2.20',  costPrice: '1.30', minStockLevel: 100,  spq: 100,  moq: 1 },
+  { name: '2.54mm 40P Breakaway Pin Header (Bag/1K)',        sku: 'CONN-HDR-254-40P',     unitPrice: '0.45',  costPrice: '0.25', minStockLevel: 500,  spq: 1000, moq: 1 },
 ]).returning({ id: schema.products.id });
 
 const [p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19] =
@@ -440,6 +444,57 @@ const orderSpecs: OSpec[] = [
     // $1440 + $960 = $2,400  ← soApr7 (pending)
   },
   // Apr shipped+paid: $22,400 | total: $28,575
+
+  // ════ May 2026 — target ~$25,040 shipped (through May 24) ═
+  {
+    customerId: c1, status: 'shipped', paymentStatus: 'paid',
+    createdAt: d(2026,5,3), confirmedAt: d(2026,5,5), shippedAt: d(2026,5,8), paidAt: d(2026,5,18),
+    items: [{ productId: p1, qty: 500, price: 5.80 }, { productId: p3, qty: 400, price: 3.20 }, { productId: p9, qty: 3000, price: 0.22 }],
+    // $2,900 + $1,280 + $660 = $4,840
+  },
+  {
+    customerId: c3, status: 'shipped', paymentStatus: 'paid',
+    createdAt: d(2026,5,6), confirmedAt: d(2026,5,8), shippedAt: d(2026,5,12), paidAt: d(2026,5,22),
+    items: [{ productId: p0, qty: 800, price: 4.50 }, { productId: p18, qty: 400, price: 2.20 }],
+    // $3,600 + $880 = $4,480
+  },
+  {
+    customerId: c8, status: 'shipped', paymentStatus: 'paid',
+    createdAt: d(2026,5,10), confirmedAt: d(2026,5,12), shippedAt: d(2026,5,15), paidAt: d(2026,5,25),
+    items: [{ productId: p2, qty: 200, price: 9.50 }, { productId: p5, qty: 150, price: 5.20 }, { productId: p11, qty: 100, price: 7.80 }],
+    // $1,900 + $780 + $780 = $3,460
+  },
+  {
+    customerId: c5, status: 'shipped', paymentStatus: 'paid',
+    createdAt: d(2026,5,14), confirmedAt: d(2026,5,16), shippedAt: d(2026,5,19), paidAt: d(2026,5,26),
+    items: [{ productId: p1, qty: 500, price: 5.80 }, { productId: p8, qty: 2000, price: 0.48 }],
+    // $2,900 + $960 = $3,860
+  },
+  {
+    customerId: c7, status: 'shipped', paymentStatus: 'paid',
+    createdAt: d(2026,5,17), confirmedAt: d(2026,5,19), shippedAt: d(2026,5,22), paidAt: d(2026,5,26),
+    items: [{ productId: p0, qty: 600, price: 4.50 }, { productId: p4, qty: 800, price: 1.80 }, { productId: p16, qty: 200, price: 3.80 }],
+    // $2,700 + $1,440 + $760 = $4,900
+  },
+  {
+    customerId: c10, status: 'shipped', paymentStatus: 'paid',
+    createdAt: d(2026,5,20), confirmedAt: d(2026,5,22), shippedAt: d(2026,5,24), paidAt: d(2026,5,26),
+    items: [{ productId: p7, qty: 2000, price: 0.65 }, { productId: p6, qty: 5000, price: 0.35 }, { productId: p15, qty: 600, price: 0.75 }],
+    // $1,300 + $1,750 + $450 = $3,500
+  },
+  {
+    customerId: c6, status: 'confirmed', paymentStatus: 'unpaid',
+    createdAt: d(2026,5,23), confirmedAt: d(2026,5,24),
+    items: [{ productId: p2, qty: 150, price: 9.50 }, { productId: p3, qty: 300, price: 3.20 }],
+    // $1,425 + $960 = $2,385
+  },
+  {
+    customerId: c9, status: 'pending', paymentStatus: 'unpaid',
+    createdAt: d(2026,5,26),
+    items: [{ productId: p4, qty: 500, price: 1.80 }, { productId: p17, qty: 100, price: 6.50 }],
+    // $900 + $650 = $1,550
+  },
+  // May shipped: $25,040 | total incl. in-progress: ~$28,975
 ];
 
 // Insert orders and collect IDs
@@ -469,97 +524,151 @@ for (const spec of orderSpecs) {
   soIds.push(so.id);
 }
 
-// Apr order indices: 38=soApr1, 39=soApr2, 40=soApr3, 41=soApr4, 42=soApr5, 43=soApr6, 44=soApr7
+// Apr order indices: 38=soApr1..44=soApr7; May indices: 45=soMay1..52=soMay8
 const soApr1 = soIds[38];
 const soApr2 = soIds[39];
 const soApr3 = soIds[40];
 const soApr4 = soIds[41];
 const soApr5 = soIds[42];
+// soMay1..soMay6 are shipped (indices 45-50); soMay7 confirmed; soMay8 pending
+// (unused in quotation linking but kept for consistency)
 
 console.log(`✅ Sales orders (${orderSpecs.length}) + order items inserted`);
 console.log(`   Apr IDs: Apr1=${soApr1} Apr2=${soApr2} Apr3=${soApr3} Apr4=${soApr4} Apr5=${soApr5}`);
 
 // ── Step 6: Quotations (12, recent 30 days) ───────────────
 // 5 converted + 3 expired + 2 sent + 2 draft → conversion 41.7%
-await db.insert(schema.quotations).values([
-  // Converted (5) → linked to Apr shipped orders
-  {
-    customerId: c6, createdBy: adminId,
-    totalAmount: '5544.00', taxAmount: '264.00',
-    status: 'converted', convertedToOrderId: soApr1,
-    createdAt: d(2026,3,28), updatedAt: d(2026,4,3),  // 6 days
-  },
-  {
-    customerId: c7, createdBy: adminId,
-    totalAmount: '4935.00', taxAmount: '235.00',
-    status: 'converted', convertedToOrderId: soApr2,
-    createdAt: d(2026,3,31), updatedAt: d(2026,4,7),  // 7 days
-  },
-  {
-    customerId: c5, createdBy: adminId,
-    totalAmount: '4042.50', taxAmount: '192.50',
-    status: 'converted', convertedToOrderId: soApr3,
-    createdAt: d(2026,4,4), updatedAt: d(2026,4,11),  // 7 days
-  },
-  {
-    customerId: c10, createdBy: adminId,
-    totalAmount: '3832.50', taxAmount: '182.50',
-    status: 'converted', convertedToOrderId: soApr4,
-    createdAt: d(2026,4,9), updatedAt: d(2026,4,15),  // 6 days
-  },
-  {
-    customerId: c0, createdBy: adminId,
-    totalAmount: '5166.00', taxAmount: '246.00',
-    status: 'converted', convertedToOrderId: soApr5,
-    createdAt: d(2026,4,15), updatedAt: d(2026,4,20), // 5 days
-  },
-  // Expired (3)
-  {
-    customerId: c1, createdBy: adminId,
-    totalAmount: '8200.00', taxAmount: '390.48',
-    status: 'expired',
-    createdAt: d(2026,4,1), updatedAt: d(2026,4,15),
-  },
-  {
-    customerId: c4, createdBy: adminId,
-    totalAmount: '12500.00', taxAmount: '595.24',
-    status: 'expired',
-    createdAt: d(2026,4,5), updatedAt: d(2026,4,19),
-  },
-  {
-    customerId: c11, createdBy: adminId,
-    totalAmount: '6800.00', taxAmount: '323.81',
-    status: 'expired',
-    createdAt: d(2026,4,9), updatedAt: d(2026,4,23),
-  },
-  // Sent (2) — awaiting customer response
-  {
-    customerId: c2, createdBy: adminId,
-    totalAmount: '9800.00', taxAmount: '466.67',
-    status: 'sent',
-    createdAt: d(2026,4,14), updatedAt: d(2026,4,15),
-  },
-  {
-    customerId: c8, createdBy: adminId,
-    totalAmount: '7200.00', taxAmount: '342.86',
-    status: 'sent',
-    createdAt: d(2026,4,18), updatedAt: d(2026,4,19),
-  },
-  // Draft (2)
-  {
-    customerId: c9, createdBy: adminId,
-    totalAmount: '11200.00', taxAmount: '533.33',
-    status: 'draft',
-    createdAt: d(2026,4,22), updatedAt: d(2026,4,22),
-  },
-  {
-    customerId: c3, createdBy: adminId,
-    totalAmount: '8500.00', taxAmount: '404.76',
-    status: 'draft',
-    createdAt: d(2026,4,26), updatedAt: d(2026,4,26),
-  },
-]);
+//
+// Pricing notes:
+//   - Converted (Q1-Q5): same unit price as the linked sales orders; totalAmount
+//     equals the sum of item subtotals (= the actual order value).
+//   - Expired/Sent/Draft (Q6-Q12): quantities are SPQ-aligned (整盤倍數下單).
+//   - lineNotes on each item: "每組 X pcs" — annotates pcs per ordering set.
+//
+// totalAmount verification for Q1–Q5:
+//   Q1: p1×500@5.80 + p3×400@3.20 + p9×5000@0.22 = 2900+1280+1100 = $5,280
+//   Q2: p0×800@4.50  + p18×500@2.20               = 3600+1100       = $4,700
+//   Q3: p2×200@9.50  + p5×150@5.20 + p11×150@7.80 = 1900+780+1170  = $3,850
+//   Q4: p7×2000@0.65 + p6×5000@0.35 + p15×800@0.75 = 1300+1750+600 = $3,650
+//   Q5: p1×600@5.80  + p8×3000@0.48               = 3480+1440       = $4,920
+
+const insertedQuotations = await db.insert(schema.quotations).values([
+  // ── Converted (5) → linked to Apr shipped orders
+  // totalAmount = sum of line items below (same prices as the linked orders)
+  // taxAmount ≈ totalAmount / 21  (5% VAT on net)
+  { customerId: c6,  createdBy: adminId, totalAmount:  '5280.00', taxAmount:  '251.43', status: 'converted', convertedToOrderId: soApr1, createdAt: d(2026,3,28), updatedAt: d(2026,4,3)  },
+  { customerId: c7,  createdBy: adminId, totalAmount:  '4700.00', taxAmount:  '223.81', status: 'converted', convertedToOrderId: soApr2, createdAt: d(2026,3,31), updatedAt: d(2026,4,7)  },
+  { customerId: c5,  createdBy: adminId, totalAmount:  '3850.00', taxAmount:  '183.33', status: 'converted', convertedToOrderId: soApr3, createdAt: d(2026,4,4),  updatedAt: d(2026,4,11) },
+  { customerId: c10, createdBy: adminId, totalAmount:  '3650.00', taxAmount:  '173.81', status: 'converted', convertedToOrderId: soApr4, createdAt: d(2026,4,9),  updatedAt: d(2026,4,15) },
+  { customerId: c0,  createdBy: adminId, totalAmount:  '4920.00', taxAmount:  '234.29', status: 'converted', convertedToOrderId: soApr5, createdAt: d(2026,4,15), updatedAt: d(2026,4,20) },
+  // ── Expired (3) — SPQ-aligned quantities
+  // Q6: p1×1000(2組) + p3×500(1組) + p9×3000(3組) = 5800+1600+660 = $8,060
+  { customerId: c1,  createdBy: adminId, totalAmount:  '8060.00', taxAmount:  '383.81', status: 'expired', createdAt: d(2026,4,1),  updatedAt: d(2026,4,15) },
+  // Q7: p0×1000(1組) + p2×500(1組) + p4×1000(1組) + p18×500(5組) = 4500+4750+1800+1100 = $12,150
+  { customerId: c4,  createdBy: adminId, totalAmount: '12150.00', taxAmount:  '578.57', status: 'expired', createdAt: d(2026,4,5),  updatedAt: d(2026,4,19) },
+  // Q8: p2×500(1組) + p5×200(2組) + p16×100(2組) + p17×40(2組) + p19×1000(1組) = 4750+1040+380+260+450 = $6,880
+  { customerId: c11, createdBy: adminId, totalAmount:  '6880.00', taxAmount:  '327.62', status: 'expired', createdAt: d(2026,4,9),  updatedAt: d(2026,4,23) },
+  // ── Sent (2) — awaiting customer response, SPQ-aligned
+  // Q9: p1×1500(3組) + p8×500(1組) + p19×2000(2組) = 8700+240+900 = $9,840
+  { customerId: c2,  createdBy: adminId, totalAmount:  '9840.00', taxAmount:  '468.57', status: 'sent', createdAt: d(2026,4,14), updatedAt: d(2026,4,15) },
+  // Q10: p0×1000(1組) + p10×100(2組) + p11×60(3組) + p16×150(3組) + p17×100(5組) + p18×500(5組) = 4500+350+468+570+650+1100 = $7,638
+  { customerId: c8,  createdBy: adminId, totalAmount:  '7638.00', taxAmount:  '363.71', status: 'sent', createdAt: d(2026,4,18), updatedAt: d(2026,4,19) },
+  // ── Draft (2)
+  // Q11: p2×500(1組) + p5×200(2組) + p0×1000(1組) + p3×500(1組) = 4750+1040+4500+1600 = $11,890
+  { customerId: c9,  createdBy: adminId, totalAmount: '11890.00', taxAmount:  '566.19', status: 'draft', createdAt: d(2026,4,22), updatedAt: d(2026,4,22) },
+  // Q12: p2×500(1組) + p5×300(3組) + p10×100(2組) + p19×2000(2組) + p9×3000(3組) = 4750+1560+350+900+660 = $8,220
+  { customerId: c3,  createdBy: adminId, totalAmount:  '8220.00', taxAmount:  '391.43', status: 'draft', createdAt: d(2026,4,26), updatedAt: d(2026,4,26) },
+]).returning({ id: schema.quotations.id });
+
+const [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11] =
+  insertedQuotations.map(r => r.id);
 console.log('✅ Quotations (12) inserted — 5 converted, 3 expired, 2 sent, 2 draft');
+
+// ── Step 6b: Quotation line items (order_items with quotationId) ──────────
+// Converted (Q1–Q5): same product/qty/price as the linked orders
+// Expired/Sent/Draft (Q6–Q12): SPQ-aligned quantities (整盤倍數下單)
+// lineNotes format: "每組 X pcs" — converted quotations omit lineNotes (orders already placed)
+await db.insert(schema.orderItems).values([
+  // ── Q1: Greenfield Smart Home (c6) → soApr1
+  // p1×500=1組, p3×400≈0.8組(歷史單, 未嚴格對齊), p9×5000=5組 → total=$5,280
+  { quotationId: q0, productId: p1, quantity:  500, unitPrice: '5.80',  subtotal:  '2900.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q0, productId: p3, quantity:  400, unitPrice: '3.20',  subtotal:  '1280.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q0, productId: p9, quantity: 5000, unitPrice: '0.22',  subtotal:  '1100.00', lineNotes: '每組 1,000 pcs' },
+
+  // ── Q2: Meridian Test Equipment (c7) → soApr2
+  // p0×800≈0.8組(歷史單), p18×500=5組 → total=$4,700
+  { quotationId: q1, productId: p0,  quantity:  800, unitPrice: '4.50',  subtotal:  '3600.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q1, productId: p18, quantity:  500, unitPrice: '2.20',  subtotal:  '1100.00', lineNotes: '每組 100 pcs'   },
+
+  // ── Q3: SkyEdge Robotics (c5) → soApr3
+  // p2×200≈0.4組(歷史單), p5×150=1.5組(歷史單), p11×150=7.5組(歷史單) → total=$3,850
+  { quotationId: q2, productId: p2,  quantity:  200, unitPrice: '9.50',  subtotal:  '1900.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q2, productId: p5,  quantity:  150, unitPrice: '5.20',  subtotal:   '780.00', lineNotes: '每組 100 pcs'   },
+  { quotationId: q2, productId: p11, quantity:  150, unitPrice: '7.80',  subtotal:  '1170.00', lineNotes: '每組 20 pcs'    },
+
+  // ── Q4: Apex Automation Systems (c10) → soApr4
+  // p7×2000=2組, p6×5000≈1.67組(歷史單), p15×800=1.6組(歷史單) → total=$3,650
+  { quotationId: q3, productId: p7,  quantity: 2000, unitPrice: '0.65',  subtotal:  '1300.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q3, productId: p6,  quantity: 5000, unitPrice: '0.35',  subtotal:  '1750.00', lineNotes: '每組 3,000 pcs' },
+  { quotationId: q3, productId: p15, quantity:  800, unitPrice: '0.75',  subtotal:   '600.00', lineNotes: '每組 500 pcs'   },
+
+  // ── Q5: TechNova Devices (c0) → soApr5
+  // p1×600=1.2組(歷史單), p8×3000=6組 → total=$4,920
+  { quotationId: q4, productId: p1, quantity:  600, unitPrice: '5.80',  subtotal:  '3480.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q4, productId: p8, quantity: 3000, unitPrice: '0.48',  subtotal:  '1440.00', lineNotes: '每組 500 pcs'   },
+
+  // ── Q6: Luminary IoT Systems (c1) — expired; SPQ-aligned
+  // p1×1000 = 2組×500pcs, p3×500 = 1組×500pcs, p9×3000 = 3組×1000pcs
+  { quotationId: q5, productId: p1, quantity: 1000, unitPrice: '5.80',  subtotal:  '5800.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q5, productId: p3, quantity:  500, unitPrice: '3.20',  subtotal:  '1600.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q5, productId: p9, quantity: 3000, unitPrice: '0.22',  subtotal:   '660.00', lineNotes: '每組 1,000 pcs' },
+
+  // ── Q7: Nexus PCB Assembly (c4) — expired; SPQ-aligned
+  // p0×1000=1組, p2×500=1組, p4×1000=1組, p18×500=5組×100pcs
+  { quotationId: q6, productId: p0,  quantity: 1000, unitPrice: '4.50',  subtotal:  '4500.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q6, productId: p2,  quantity:  500, unitPrice: '9.50',  subtotal:  '4750.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q6, productId: p4,  quantity: 1000, unitPrice: '1.80',  subtotal:  '1800.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q6, productId: p18, quantity:  500, unitPrice: '2.20',  subtotal:  '1100.00', lineNotes: '每組 100 pcs'   },
+
+  // ── Q8: Trident Marine Electronics (c11) — expired; SPQ-aligned
+  // p2×500=1組, p5×200=2組×100pcs, p16×100=2組×50pcs, p17×40=2組×20pcs, p19×1000=1組
+  { quotationId: q7, productId: p2,  quantity:  500, unitPrice: '9.50',  subtotal:  '4750.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q7, productId: p5,  quantity:  200, unitPrice: '5.20',  subtotal:  '1040.00', lineNotes: '每組 100 pcs'   },
+  { quotationId: q7, productId: p16, quantity:  100, unitPrice: '3.80',  subtotal:   '380.00', lineNotes: '每組 50 pcs'    },
+  { quotationId: q7, productId: p17, quantity:   40, unitPrice: '6.50',  subtotal:   '260.00', lineNotes: '每組 20 pcs'    },
+  { quotationId: q7, productId: p19, quantity: 1000, unitPrice: '0.45',  subtotal:   '450.00', lineNotes: '每組 1,000 pcs' },
+
+  // ── Q9: PinPoint Electronics (c2) — sent; SPQ-aligned
+  // p1×1500=3組×500pcs, p8×500=1組, p19×2000=2組×1000pcs
+  { quotationId: q8, productId: p1,  quantity: 1500, unitPrice: '5.80',  subtotal:  '8700.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q8, productId: p8,  quantity:  500, unitPrice: '0.48',  subtotal:   '240.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q8, productId: p19, quantity: 2000, unitPrice: '0.45',  subtotal:   '900.00', lineNotes: '每組 1,000 pcs' },
+
+  // ── Q10: BlueWave Medical Devices (c8) — sent; SPQ-aligned
+  // p0×1000=1組, p10×100=2組×50pcs, p11×60=3組×20pcs, p16×150=3組×50pcs, p17×100=5組×20pcs, p18×500=5組×100pcs
+  { quotationId: q9, productId: p0,  quantity: 1000, unitPrice: '4.50',  subtotal:  '4500.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q9, productId: p10, quantity:  100, unitPrice: '3.50',  subtotal:   '350.00', lineNotes: '每組 50 pcs'    },
+  { quotationId: q9, productId: p11, quantity:   60, unitPrice: '7.80',  subtotal:   '468.00', lineNotes: '每組 20 pcs'    },
+  { quotationId: q9, productId: p16, quantity:  150, unitPrice: '3.80',  subtotal:   '570.00', lineNotes: '每組 50 pcs'    },
+  { quotationId: q9, productId: p17, quantity:  100, unitPrice: '6.50',  subtotal:   '650.00', lineNotes: '每組 20 pcs'    },
+  { quotationId: q9, productId: p18, quantity:  500, unitPrice: '2.20',  subtotal:  '1100.00', lineNotes: '每組 100 pcs'   },
+
+  // ── Q11: CoreSync Industrial (c9) — draft; SPQ-aligned
+  // p2×500=1組, p5×200=2組, p0×1000=1組, p3×500=1組
+  { quotationId: q10, productId: p2, quantity:  500, unitPrice: '9.50',  subtotal:  '4750.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q10, productId: p5, quantity:  200, unitPrice: '5.20',  subtotal:  '1040.00', lineNotes: '每組 100 pcs'   },
+  { quotationId: q10, productId: p0, quantity: 1000, unitPrice: '4.50',  subtotal:  '4500.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q10, productId: p3, quantity:  500, unitPrice: '3.20',  subtotal:  '1600.00', lineNotes: '每組 500 pcs'   },
+
+  // ── Q12: Horizon Wearables (c3) — draft; SPQ-aligned
+  // p2×500=1組, p5×300=3組, p10×100=2組×50pcs, p19×2000=2組×1000pcs, p9×3000=3組×1000pcs
+  { quotationId: q11, productId: p2,  quantity:  500, unitPrice: '9.50',  subtotal:  '4750.00', lineNotes: '每組 500 pcs'   },
+  { quotationId: q11, productId: p5,  quantity:  300, unitPrice: '5.20',  subtotal:  '1560.00', lineNotes: '每組 100 pcs'   },
+  { quotationId: q11, productId: p10, quantity:  100, unitPrice: '3.50',  subtotal:   '350.00', lineNotes: '每組 50 pcs'    },
+  { quotationId: q11, productId: p19, quantity: 2000, unitPrice: '0.45',  subtotal:   '900.00', lineNotes: '每組 1,000 pcs' },
+  { quotationId: q11, productId: p9,  quantity: 3000, unitPrice: '0.22',  subtotal:   '660.00', lineNotes: '每組 1,000 pcs' },
+]);
+console.log('✅ Quotation line items (39 rows) inserted — SPQ-aligned quantities + lineNotes');
 
 // ── Step 7: Duplicate-pending order pair (DUPLICATE_ORDER anomaly) ──
 // Same customer (c0 TechNova), same items (p1×50 + p3×30), 2 pending orders within 48h
@@ -621,9 +730,9 @@ console.log(`
 ║  Customers : 12 (B2B companies)                              ║
 ║  Inventory : 20 items (⚠️  nRF52840 low, 🚨 LiPo critical)  ║
 ║  Sales Orders: ${orderSpecs.length} orders + 2 duplicate-pending          ║
-║    ├ shipped+paid : 43                                        ║
-║    ├ confirmed    :  1  (Apr-6)                               ║
-║    └ pending      :  3  (Apr-7 + 2 anomaly)                  ║
+║    ├ shipped+paid : 49                                        ║
+║    ├ confirmed    :  2  (Apr-6, May-7)                        ║
+║    └ pending      :  4  (Apr-7, May-8 + 2 anomaly)           ║
 ║  Monthly Revenue (shipped):                                   ║
 ║    Nov 2025 : ~$  25,285                                      ║
 ║    Dec 2025 : ~$  42,729  ← year-end peak                    ║
@@ -631,8 +740,10 @@ console.log(`
 ║    Feb 2026 : ~$  28,353                                      ║
 ║    Mar 2026 : ~$  36,789                                      ║
 ║    Apr 2026 : ~$  22,400  (+ $6,175 in progress)             ║
+║    May 2026 : ~$  25,040  (+ $3,935 in progress, MTD)        ║
 ║  Quotations: 12 (5 converted 41.7%, avg 6.2 days)            ║
-║    Active pipeline: sent×2 + draft×2 = ~$36,700              ║
+║    Items: 39 rows, SPQ-aligned qty, lineNotes=每組 X pcs     ║
+║    Active pipeline: sent×2 + draft×2 = ~$37,588              ║
 ╚══════════════════════════════════════════════════════════════╝
 `);
 

@@ -3,7 +3,7 @@
 > 來源：`docs/NJ_Stream_ERP Phase4 PRD v1.0.md`（v1.1, 2026-05-17）
 > 用途：把 PRD 拆成「逐項可勾選、可分派、可驗收」的執行清單
 > 進度標記規則：`[ ]` 未開始 / `[~]` 進行中 / `[x]` 完成且通過驗收
-> 最後對齊：2026-05-24（依 LOG/PHASE4-daily/ 日誌更新）
+> 最後對齊：2026-05-26（依 LOG/PHASE4-daily/ 日誌更新）
 
 ---
 
@@ -234,8 +234,8 @@
 #### M7.2 Flutter OnboardingBanner
 - [x] Dashboard 頂部顯示 banner（當 `onboardedAt == null`）
 - [x] **Step 1** 設定公司名稱 / contactEmail → `PATCH /api/v1/tenant`
-- [ ] **Step 2** 建立第一個倉管帳號 → `POST /api/v1/users`（未實作；改為 Step 2 設定時區）
-- [ ] **Step 3** 匯入產品 CSV → 跳轉現有 `ImportScreen`（未實作；改為 Step 3 完成確認）
+- [x] **Step 2** 設定時區 → `DropdownButtonFormField` 選 14 個 IANA tz，值暫存至 `_timezone` state
+- [x] **Step 3** 完成確認 → `_Step2Done` 顯示 name / email / timezone 摘要；`_finish()` 呼叫 `PATCH /api/v1/tenant { markAsOnboarded: true }`
 - [x] 完成後呼叫 `PATCH /api/v1/tenant { markAsOnboarded: true }`，banner 自動隱藏
 - [x] Widget test：5 個通過（banner 顯示 / 隱藏 / 3-step Stepper 流程）
 
@@ -278,7 +278,7 @@
 - [x] `FORECAST_WEEKS_AHEAD=12`
 - [x] `FORECAST_MIN_DATA_WEEKS=8`
 - [x] `FORECAST_JOB_LEASE_SECONDS=900`
-- [ ] `TENANT_PROVISION_SECRET=<secret>`（Sprint 4C PR-7，暫緩）
+- [~] `TENANT_PROVISION_SECRET=<secret>`（Sprint 4C PR-7；**決策：暫緩**，provision 目前公開，未來需保護時加 `X-Provision-Secret` header check）
 - [x] `AI_INTERNAL_SCOPES=analytics.read,forecast.generate`
 
 ---

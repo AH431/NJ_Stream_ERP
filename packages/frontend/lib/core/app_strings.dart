@@ -43,14 +43,16 @@ class AppStrings extends ChangeNotifier {
   String get navProducts => _s('產品', 'Products');
   String get navQuotations => _s('報價', 'Quotes');
   String get navOrders => _s('訂單', 'Orders');
-  String get navInventory => _s('庫存', 'Stock');
+  String get navInventory => _s('庫存＆商品', 'Products');
+  String get navAiChat    => _s('AI 助理', 'AI');
 
-  String get titleDashboard => _s('儀表板', 'Dashboard');
-  String get titleCustomers => _s('客戶管理', 'Customer Mgmt');
-  String get titleProducts => _s('產品管理', 'Product Mgmt');
-  String get titleQuotations => _s('報價管理', 'Quotations');
-  String get titleOrders => _s('訂單管理', 'Orders');
-  String get titleInventory => _s('庫存查詢', 'Inventory');
+  String get titleDashboard => _s('銷售與庫存總覽', 'Sales & inventory overview');
+  String get titleCustomers => _s('聯絡資訊與往來紀錄', 'Contacts & transaction history');
+  String get titleProducts => _s('規格、售價與庫存數量', 'Specs, prices & stock qty');
+  String get titleQuotations => _s('報價單管理', 'Manage quotations');
+  String get titleOrders => _s('銷售訂單追蹤', 'Track sales orders');
+  String get titleInventory => _s('規格 / 售價 / 庫存數量', 'Specs / Prices / Stock Qty');
+  String get titleAiChat    => _s('智能問答與分析', 'Intelligent Q&A');
 
   // ── AppBar actions ────────────────────────────────────────────────────────
   String tooltipSyncFailed(String err) =>
@@ -101,9 +103,9 @@ class AppStrings extends ChangeNotifier {
   String errLoginException(String e) => _isEnglish ? 'Error: $e' : '發生錯誤: $e';
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
-  String get dashPendingShipments => _s('待出貨訂單', 'Pending Shipments');
+  String get dashPendingShipments => _s('待出貨訂單', 'Pending Shipment');
   String get dashPendingUnit => _s('筆', 'orders');
-  String get dashMonthlyQuotations => _s('月報價', 'Monthly Quotations');
+  String get dashMonthlyQuotations => _s('月報價', 'Monthly Quotes');
   String get dashCurrencyUnit => 'USD';
   String get dashLowStockAlert => _s('低庫存警示', 'Low Stock Alert');
   String get dashNoLowStock => _s('目前無低庫存品項', 'No low stock items.');
@@ -257,6 +259,7 @@ class AppStrings extends ChangeNotifier {
   String get invColAvailable => _s('可出貨', 'Available');
   String get invLowStockBadge => _s('⚠ 低庫存', '⚠ Low Stock');
   String invMinStock(int level) => _isEnglish ? 'Min: $level' : '最低庫存閾值：$level';
+  String get invSearchHint => _s('搜尋名稱 / 代碼', 'Search name / SKU');
   String get invEmptyHint =>
       _s('尚無庫存記錄\n下拉以同步取得最新庫存資料', 'No inventory records.\nPull down to sync.');
 
@@ -341,6 +344,11 @@ class AppStrings extends ChangeNotifier {
       ? 'Will restore to compile-time default:\n$url'
       : '將恢復為編譯期預設值：\n$url';
   String get devResetApiDone => _s('已重置為預設 URL', 'Reset to default URL');
+
+  String get devSectionCompany => _s('公司資訊', 'Company Info');
+  String get devCompanyName => _s('公司名稱', 'Company Name');
+  String get devContactEmail => _s('聯絡信箱', 'Contact Email');
+  String get devNotSet => _s('（未設定）', '(Not set)');
 
   String devCleanupSuccess(int proc, int soft, int local) => _isEnglish
       ? 'Cleanup: $proc ops, $soft soft-deleted; $local local'

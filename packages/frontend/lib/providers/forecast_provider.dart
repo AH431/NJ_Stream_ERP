@@ -83,6 +83,7 @@ class ForecastProvider extends ChangeNotifier {
   // ── 補貨警示快取 ─────────────────────────────────────────
   _CacheEntry<List<ReorderAlert>>? _alertsCache;
   bool _alertsLoading = false;
+  Set<int> _lastAlertProductIds = {};
 
   bool get alertsLoading => _alertsLoading;
   List<ReorderAlert>? get reorderAlerts => _alertsCache?.data;
@@ -108,14 +109,20 @@ class ForecastProvider extends ChangeNotifier {
     bool force = false,
   }) async {
     if (_alertsLoading) return;
-    if (!force && _alertsCache != null && !_alertsCache!.isStale) return;
+
+    final newIds = lowStockItems.map((i) => i.productId).toSet();
+    final idsChanged = !setEquals(_lastAlertProductIds, newIds);
+
+    if (!force && !idsChanged && _alertsCache != null && !_alertsCache!.isStale) return;
 
     if (lowStockItems.isEmpty) {
+      _lastAlertProductIds = newIds;
       _alertsCache = _CacheEntry([], DateTime.now());
       notifyListeners();
       return;
     }
 
+    _lastAlertProductIds = newIds;
     _alertsLoading = true;
     notifyListeners();
 

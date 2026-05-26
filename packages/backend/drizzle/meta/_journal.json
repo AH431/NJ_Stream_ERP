@@ -99,6 +99,13 @@
       "when": 1779494400000,
       "tag": "0013_tenant_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1748217600000,
+      "tag": "0014_spq_moq_line_notes",
+      "breakpoints": true
     }
   ]
 }

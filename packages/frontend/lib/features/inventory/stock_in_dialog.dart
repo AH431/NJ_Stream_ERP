@@ -68,14 +68,21 @@ class _StockInDialogState extends State<StockInDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _submitting = true);
-    final sync = context.read<SyncProvider>();
-
-    await sync.enqueueDeltaUpdate('inventory_delta', 'in', {
-      'productId': _selectedProductId,
-      'amount': int.parse(_amountController.text.trim()),
-    });
-
-    if (mounted) Navigator.pop(context, true);
+    try {
+      final sync = context.read<SyncProvider>();
+      await sync.enqueueDeltaUpdate('inventory_delta', 'in', {
+        'productId': _selectedProductId,
+        'amount': int.parse(_amountController.text.trim()),
+      });
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -88,7 +95,19 @@ class _StockInDialogState extends State<StockInDialog> {
               height: 80,
               child: Center(child: CircularProgressIndicator()),
             )
-                : Form(
+                : _eligibleProducts.isEmpty
+                  ? SizedBox(
+                      height: 80,
+                      child: Center(
+                        child: Text(
+                          s.stockInNoProducts,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ),
+                    )
+                  : Form(
                     key: _formKey,
                     child: SingleChildScrollView(
                       child: Column(

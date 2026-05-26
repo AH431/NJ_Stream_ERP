@@ -10,6 +10,8 @@
 //      （已刪除產品的殘存庫存由 DAO JOIN 自動過濾，此功能用於手動清理）
 // ==============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,8 +29,9 @@ class InventoryListScreen extends StatefulWidget {
 }
 
 class _InventoryListScreenState extends State<InventoryListScreen> {
-  // productId → Product（一次性載入，避免 N+1）
+  // productId → Product（訂閱 watchActiveProducts，Sync / CSV 匯入後自動更新）
   Map<int, Product> _productMap = {};
+  StreamSubscription<List<Product>>? _productSub;
 
   // 選取模式（admin only）
   bool _selectionMode = false;
@@ -37,17 +40,24 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProductMap();
+    _subscribeProducts();
   }
 
-  Future<void> _loadProductMap() async {
+  @override
+  void dispose() {
+    _productSub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeProducts() {
     final db = context.read<AppDatabase>();
-    final products = await db.getActiveProducts();
-    if (mounted) {
-      setState(() {
-        _productMap = {for (final p in products) p.id: p};
-      });
-    }
+    _productSub = db.watchActiveProducts().listen((products) {
+      if (mounted) {
+        setState(() {
+          _productMap = {for (final p in products) p.id: p};
+        });
+      }
+    });
   }
 
   // ─── 選取模式 ────────────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/app_strings.dart';
 import '../../core/app_theme.dart';
 import '../../providers/sync_provider.dart';
-import '../settings/dev_settings_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -197,25 +196,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-          // Settings icon — top right overlay (must be last child to receive touches)
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 4, top: 4),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  color: AppTheme.primaryDark,
-                  tooltip: s.menuDevSettings,
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const DevSettingsScreen()),
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

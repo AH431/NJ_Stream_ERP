@@ -1,5 +1,5 @@
 import {
-  pgTable, serial, integer, numeric, timestamp, index,
+  pgTable, serial, integer, numeric, timestamp, varchar, index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { quotations } from './quotations.schema.ts';
@@ -31,6 +31,8 @@ export const orderItems = pgTable('order_items', {
   unitPrice:    numeric('unit_price', { precision: 12, scale: 2 }).notNull(),
   /** subtotal = quantity × unitPrice（後端計算並儲存，避免前端精度誤差）*/
   subtotal:     numeric('subtotal', { precision: 12, scale: 2 }).notNull(),
+  /** 整盤/整組備註，例如「每組 5,000 pcs」，供報價單顯示下單倍數說明 */
+  lineNotes:    varchar('line_notes', { length: 500 }),
   createdAt:    timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt:    timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
